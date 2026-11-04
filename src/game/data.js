@@ -15,9 +15,12 @@ export const WEAPONS = {
   lever:   { name: 'Lever-Action .30-30', type: 'gun', ammo: 'rifle', dmg: 120, rate: 0.6, mag: 8, reload: 2.4, spread: 0.006, range: 110, price: 1800, ch: 4, desc: 'Taken off a Tollman. Hits like a mule.' },
   auto12:  { name: 'Auto-12 Shotgun', type: 'gun', ammo: 'shell', dmg: 20, pellets: 8, rate: 0.24, mag: 12, reload: 2.8, spread: 0.07, range: 22, auto: true, price: 2600, ch: 5, desc: 'Mall security\'s worst idea. Fully automatic.' },
   handcannon:{ name: '.50 Hand Cannon', type: 'gun', ammo: 'light', dmg: 150, rate: 0.7, mag: 7, reload: 2.0, spread: 0.01, range: 70, price: 3000, ch: 6, desc: 'The Toll King\'s sidearm. Pays every toll.' },
+  harpoon: { name: 'Harpoon Gun', type: 'gun', ammo: 'rifle', dmg: 260, rate: 1.1, mag: 1, reload: 1.6, spread: 0.002, range: 80, price: 3400, ch: 7, desc: 'Cape Marina bait-shop special. Pins them to the wall.' },
+  minigun: { name: 'Deck Minigun', type: 'gun', ammo: 'rifle', dmg: 26, rate: 0.045, mag: 150, reload: 4.2, spread: 0.04, range: 80, auto: true, price: 4200, ch: 8, desc: 'Ripped off the Casco Bay ferry. Brrrrt.' },
+  katana:  { name: 'Captain\'s Katana', type: 'melee', dmg: 170, rate: 0.42, range: 2.3, price: 3800, sever: true, ch: 9, desc: 'He bought it at the mall. It is still extremely sharp.' },
   sniper:  { name: 'Hunting Sniper', type: 'gun', ammo: 'rifle', dmg: 160, rate: 1.2, mag: 5, reload: 2.6, spread: 0.001, range: 160, zoom: 3, price: 2600, desc: 'One shot, one head.' },
 };
-export const WEAPON_ORDER = ['fists', 'pan', 'bat', 'machete', 'axe', 'chainsaw', 'pistol', 'revolver', 'smg', 'shotgun', 'rifle', 'saw', 'lever', 'auto12', 'handcannon', 'sniper'];
+export const WEAPON_ORDER = ['fists', 'pan', 'bat', 'machete', 'axe', 'chainsaw', 'pistol', 'revolver', 'smg', 'shotgun', 'rifle', 'saw', 'lever', 'auto12', 'handcannon', 'harpoon', 'minigun', 'katana', 'sniper'];
 export const UPGRADES = {
   dmg: { name: 'Damage', per: 0.15, max: 4 },
   mag: { name: 'Magazine', per: 0.25, max: 3, gun: true },

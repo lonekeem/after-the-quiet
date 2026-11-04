@@ -294,6 +294,41 @@ export function buildWorld(scene, Q, texLoader, base, CM = {}) {
     zones._ship = new THREE.PointLight('#ff4040', 0, 80, 1); zones._ship.position.set(-30, 3, -840); scene.add(zones._ship);
     fire(-24, 0, -690, 1); fire(20, 0, -712, .9);
   });
+  // ===== v1.7 CHAPTERS 7–9 · far south strip (x -48..48, z -1000..-1700), reached by checkpoint =====
+  box(-300, -48, -1800, -1000); box(48, 300, -1800, -1000); box(-300, 300, -1900, -1700); [-1256, -1456].forEach(Z_barrier);
+  const gS7 = new THREE.Mesh(new THREE.PlaneGeometry(120, 720), groundMat); gS7.rotation.x = -Math.PI / 2; gS7.position.set(0, -0.006, -1350); gS7.receiveShadow = true; scene.add(gS7);
+  const Z_wood = plankMat('#6a5238'), Z_sea2 = new THREE.MeshStandardMaterial({ color: '#0e1a22', roughness: .05, metalness: .4 });
+  // CH7 — Route 77 coastal drive to Cape Marina (z -1005..-1255)
+  zone(7, () => {
+    road(0, -1130, 16, 250); box(-48, -20, -1240, -1005); box(20, 48, -1240, -1005);
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(28, 240), Z_sea2); sea.rotation.x = -Math.PI / 2; sea.position.set(-34, -.3, -1125); scene.add(sea);
+    [[-6, -1060, .4], [7, -1090, 2.5], [-8, -1130, 1.2], [6, -1170, .2], [-5, -1200, 2.8]].forEach(([x, z, r], i) => car(x, z, r, ['#4a4a4a', '#6a2a1a', '#2a3a5a', '#5a5a3a', '#3a3a3a'][i], { burnt: i % 2 }));
+    for (let z = -1020; z > -1240; z -= 24) { Z_lamp(-9, z, '#ffc98a', z % 48 === 0); }
+    sign(['ROUTE 77', 'CAPE MARINA 3 MI'], 9.5, 2.4, -1030, Math.PI, 3.4, 1, '#1d4a2a');
+    wallBox(18, 3.2, 8, Z_wood, -10, 1.6, -1246); sign(['CAPE MARINA', 'BAIT · ICE · BEER'], -10, 3.6, -1241.9, Math.PI, 4, 1, '#1a3a5a');
+    fire(8, 0, -1150, .9); fire(-4, 0, -1225, .8); Z_pl(0, 5, -1235, '#ffb070', 8, 30);
+  });
+  // CH8 — Casco Bay ferry terminal + car deck (z -1260..-1455)
+  zone(8, () => {
+    road(0, -1300, 30, 80); const deck = new THREE.Mesh(new THREE.PlaneGeometry(26, 110), Z_wood); deck.rotation.x = -Math.PI / 2; deck.position.set(0, .03, -1395); scene.add(deck);
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), Z_sea2); sea.rotation.x = -Math.PI / 2; sea.position.set(0, -.35, -1395); scene.add(sea);
+    box(-48, -13, -1452, -1340); box(13, 48, -1452, -1340); wallBox(.2, 1.2, 110, Z_white, -13, .6, -1395, false); wallBox(.2, 1.2, 110, Z_white, 13, .6, -1395, false);
+    wallBox(10, 6, 8, Z_white, 0, 3, -1440); gable(0, -1440, 10, 8, 6, false, Z_red);
+    sign(['CASCO BAY LINES', 'PEAKS ISLAND FERRY'], 0, 3.4, -1336, Math.PI, 4, 1, '#1a3a5a');
+    [[-6, -1300, 1.6], [7, -1312, .3], [-5, -1380, 0], [5, -1400, 0], [-5, -1420, 0]].forEach(([x, z, r], i) => car(x, z, r, ['#4a4a4a', '#6a2a1a', '#2a3a5a', '#5a5a3a', '#3a3a3a'][i]));
+    fire(-9, 0, -1290, .9); Z_pl(0, 5, -1400, '#a0c0ff', 7, 30); Z_lamp(-12, -1350); Z_lamp(12, -1350);
+  });
+  // CH9 — Peaks Island: the Captain's compound (z -1460..-1700)
+  zone(9, () => {
+    road(0, -1580, 12, 220); const fenceM = new THREE.MeshStandardMaterial({ color: '#555b60', metalness: .6, roughness: .5, transparent: true, opacity: .7 });
+    wallBox(30, 3, .15, fenceM, -21, 1.5, -1540); wallBox(30, 3, .15, fenceM, 21, 1.5, -1540);
+    wallBox(12, 4, 10, Z_white, -22, 2, -1580); wallBox(12, 4, 10, Z_white, 22, 2, -1600); sign(['NAVAL RESERVE · AUTHORIZED ONLY'], 0, 3, -1538, Math.PI, 4, .7, '#3a1010');
+    wallBox(24, 5, .4, Z_rustM, -14, 2.5, -1660); wallBox(24, 5, .4, Z_rustM, 14, 2.5, -1660); wallBox(4, 5, .4, Z_rustM, 0, 4.4, -1660, false);
+    wallBox(.4, 5, 30, Z_rustM, -26, 2.5, -1675); wallBox(.4, 5, 30, Z_rustM, 26, 2.5, -1675);
+    sign(['BATTERY STEELE', 'SPECIMEN STORAGE'], 0, 3.4, -1659.6, Math.PI, 4, .9, '#2a2a2a');
+    for (let i = 0; i < 6; i++) { wallBox(3, 2.6, .1, fenceM, -15 + i * 6, 1.3, -1684, false); }
+    fire(-8, 0, -1500, 1); fire(10, 0, -1620, .9); Z_pl(0, 4, -1675, '#80ff90', 8, 26); Z_lamp(-7, -1560, '#ff4040'); Z_lamp(7, -1620, '#ff4040');
+  });
   const treeSpots = []; let tries = 0;
   while (treeSpots.length < Q.trees * 2 && tries++ < 20000) { const x = rnd(-90, 90), z = rnd(-760, 90); if (Math.abs(x) < 10 && z > -150) continue; if (z < -134 && Math.abs(x) < 44) continue; if (z < -106 && z > -134) continue;
     if (colliders.some(c => x > c.x0 - 2 && x < c.x1 + 2 && z > c.z0 - 2 && z < c.z1 + 2)) continue; if (Math.abs(z - 4) < 7 && Math.abs(x) < 46) continue; if (x > 4 && x < 34 && z > -66 && z < -36) continue; treeSpots.push([x, z, rnd(9, 18)]); }

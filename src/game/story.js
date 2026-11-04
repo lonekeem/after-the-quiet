@@ -239,11 +239,77 @@ export const STORY = [
         ['marcus', "Keem… my eyes. Everything's gray."], ['keem', "Dad, look at me. LOOK at me."], ['marcus', 'Keem… run. Take your sister and run.']],
         () => { g.cut = { anim: 'Idle_Loop', cam: V(6, 1.6, -720), look: V(6, 3, -760) }; dad.root.visible = false; g.shake(1); g.audio.shot('revolver'); setTimeout(() => g.onComplete && g.onComplete(6), 2200); }); } },
 
+  // ===================== CHAPTER 7 — REARVIEW (driving) =====================
+  { id: 'c7_drive', ch: 7, cp: [2, -1010, PI], obj: '', hint: '', mood: 'tense', beat: 2,
+    enter(g) { const D = g.stepData; fam(g, D, -1010, 0, true); g.npc('reyes', null, -2, -1013, PI, 'Idle_Loop'); g.npc('tuck', null, 5.5, -1013, PI, 'Idle_Loop');
+      const T = g.truck; T.g.position.set(4, 0, -1018); T.head = PI; T.g.rotation.y = PI; g.updateTruckCol();
+      g.cut = { anim: 'Idle_Loop', cam: V(-2, 1.8, -1004), look: V(3, 1, -1016), flash: true };
+      g.say([['nia', "Where did Daddy go? Keem, where did he GO?"], ['reyes', 'He ran into the fog. Then there was a boat light. Then nothing.'], ['tuck', "The Captain's men grabbed him off the rocks. Red boat. Heading for Cape Marina."],
+        ['keem', "Then we hit the marina. Everybody in the truck. Now."], ['nia', "You're driving? Again? You crash in every single game. That's so cringe."], ['keem', "I'm a certified menace behind the wheel, Nia. Buckle up, fr."]], () => {
+        g.cut = null; D.canDrive = true; g.objective('Get in the truck', 'E / ✋ near the truck. GAS/BRAKE + ◀ ▶ (W/S A/D, pad RT/LT).'); g.wpTarget = [4, 1.4, -1018];
+        D.onDrive = (g) => { for (const k in g.npcs) g.npcs[k].root.visible = false; D.k0 = g.save.kills; g.wpTarget = [0, 1, -1232]; D.hordeAll = true; D.runners = .45;
+          g.horde(26, [[0, -1050], [-6, -1075], [6, -1100], [-4, -1125], [5, -1150], [0, -1175], [-6, -1195], [6, -1215]], { aggro: 30 }); g.audio.beat(3);
+          g.say([['nia', "Hit that one! HIT HIM! Yesss, ten points!"], ['keem', "Roadkill combo! Somebody count for me!"], ['tuck', 'Watch the burning cars. Watch the— okay, you hit it. Fine.']]); }; }); },
+    update(g) { const T = g.truck, D = g.stepData; if (!T.driving) return; const k = g.save.kills - (D.k0 || 0); if (k !== D.lk) { D.lk = k; g.objective('Drive to Cape Marina · Roadkill: ' + k, 'Plow through them. Bonus cash for every splat.'); }
+      if (T.g.position.z < -1226) { T.v = 0; g.shake(1); g.audio.crash(); g.exitTruck(); g.player.root.position.set(4, 0, -1232); g.save.cash += k * 10; goto(g, 34, 150); } } },
+  { id: 'c7_boss', ch: 7, cp: [4, -1232, PI], obj: 'Kill the Bait Man', hint: 'He swings an anchor. Roll the slam, then unload.', mood: 'tense', beat: 2,
+    enter(g) { const D = g.stepData; fam(g, D, -1228, 2, true); const b = boss(g, 8, -1212, 2200, '#2a5a6a', 'THE BAIT MAN — Cape Marina, est. 1974'); b.speed = 2.2; g.horde(6, [[-8, -1214], [12, -1218]], { runner: true, aggro: 99 }); D.hordeAll = true;
+      g.say([['nia', "Ew, he smells like fish sticks and feet!"], ['keem', "Sir, the bait shop is CLOSED. Permanently. On God."]]); },
+    update(g) { const D = g.stepData; if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['keem', "Catch and release, {bitch|buddy}. Mostly the release part."], ['tuck', "There's a harpoon gun on his shop counter. Just saying."]]); goto(g, 35, 600); }, 1500); } } },
+  { id: 'c7_end', ch: 7, cp: [4, -1236, PI], obj: 'Answer the marina radio', hint: 'The CB is crackling by the dock.', mood: 'sad', beat: 0,
+    enter(g) { const D = g.stepData; fam(g, D, -1234, 2, true); g.wpTarget = [8, 1.2, -1250];
+      D.uses = [{ x: 8, z: -1250, label: 'Answer the radio', fn: () => { D.uses = []; g.cut = { anim: 'Idle_Loop', cam: V(4, 1.7, -1240), look: V(8, 1.2, -1252) };
+        g.say([['captain', 'Little Pell. Your father bit two of my men. I like him.'], ['captain', "Come to Peaks Island. Bring the girl. We'll make a trade."], ['nia', "We're NOT a trade! I'm a whole person! That's so rude!"], ['keem', "Bet. I'm coming. And I'm bringing every bullet I own."]], () => g.onComplete && g.onComplete(7)); } }]; } },
+
+  // ===================== CHAPTER 8 — OPEN WATER =====================
+  { id: 'c8_term', ch: 8, cp: [0, -1264, PI], obj: 'Reach the Peaks Island ferry', hint: 'Casco Bay Lines terminal. Down the ramp.', mood: 'night', beat: 1,
+    enter(g) { const D = g.stepData; fam(g, D, -1264, 0, true); g.wpTarget = [0, 1.2, -1342]; g.horde(14, [[-10, -1290], [10, -1300], [-6, -1320], [8, -1330]], { aggro: 16 }); raiders(g, 3, [[-8, -1325], [8, -1330]]); D.runners = .3;
+      g.say([['tuck', 'Casco Bay Lines. I took this ferry to prom. Threw up on it, too.'], ['keem', "Bro really said prom like we got time."], ['nia', "Was your date pretty? Was she a zombie? Tell me everything!"]]); },
+    update(g) { if (dist2(g, 0, -1342) < 6 && !g.stepData.go) { g.stepData.go = true; goto(g, 37, 200); } } },
+  { id: 'c8_hold', ch: 8, cp: [0, -1350, PI], obj: 'Hold the car deck while Tuck starts the ferry', hint: 'They pour down the ramp. Protect Nia.', mood: 'tense', beat: 3,
+    enter(g) { const D = g.stepData; D.t = 0; D.wave = 0; D.len = 45; D.hordeAll = true; D.runners = .4; g.npc('tuck', null, 0, -1433, PI, 'Idle_Loop'); g.npc('reyes', null, 2, -1356, PI, 'Idle_Loop'); g.npc('nia', 'nia', -1.5, -1357, PI, 'Idle_Loop', .95);
+      g.say([['tuck', 'Engine is cold. Give me forty-five seconds.'], ['reyes', "Keem, they're coming down the ramp!"]]); },
+    update(g, dt) { const D = g.stepData; if (D.done) return; D.t += dt; const left = Math.max(0, Math.ceil(D.len - D.t)); if (left !== D.lastL) { D.lastL = left; g.objective('Hold the car deck: ' + left + 's', 'Protect Nia.'); }
+      if (D.t > D.wave * 8 && D.wave < 6) { D.wave++; g.horde(g.alive().length < 22 ? 5 + D.wave : 2, [[-8, -1310], [8, -1310], [0, -1300], [-10, -1325], [10, -1325]], { runner: D.wave > 2, aggro: 99 }); }
+      if (D.t >= D.len) { D.done = true; g.say([['tuck', "She's alive! Casting off!"], ['nia', "We're on a BOAT! This is bussin'! …Wait, something's moving downstairs."]], () => goto(g, 38, 400)); } } },
+  { id: 'c8_boss', ch: 8, cp: [0, -1400, PI], obj: 'Kill the Deckhand', hint: 'He hits like a wave. Keep moving on the deck.', mood: 'tense', beat: 2,
+    enter(g) { const D = g.stepData; fam(g, D, -1400, 0, true); const b = boss(g, 0, -1372, 2500, '#1a2a4a', 'THE DECKHAND — 30 years on the Peaks run'); b.speed = 2.3; g.horde(6, [[-8, -1380], [8, -1380]], { runner: true, aggro: 99 }); D.hordeAll = true;
+      g.say([['nia', "He still has his little captain hat! That's lowkey cute. Kill him anyway."], ['keem', "Last stop, my guy. Everybody off."]]); },
+    update(g) { const D = g.stepData; if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['keem', "Ticket punched. Overboard, {dumbass|dummy}."], ['tuck', 'There is a minigun bolted to the wheelhouse. Who puts a minigun on a ferry?'], ['keem', "The Captain, apparently. It's mine now. No cap."]]); goto(g, 39, 600); }, 1500); } } },
+  { id: 'c8_end', ch: 8, cp: [0, -1428, PI], obj: '', hint: '', mood: 'sad', beat: 0,
+    enter(g) { const D = g.stepData; g.npc('nia', 'nia', -1.5, -1430, PI, 'Idle_Loop', .95); g.npc('reyes', null, 1.8, -1430, PI, 'Idle_Loop'); g.cut = { anim: 'Idle_Loop', cam: V(0, 2.2, -1424), look: V(0, 3, -1600) }; g.audio.setMood('sad');
+      g.say([['reyes', "Peaks Island. The old battery is lit up like a hospital."], ['captain', 'I see your ferry, little Pell. Your father is awake. He keeps saying your name.'], ['nia', "Daddy's awake? Keem, he's AWAKE!"], ['keem', "Hold on, Dad. We almost there, fr."]], () => g.onComplete && g.onComplete(8)); } },
+
+  // ===================== CHAPTER 9 — PEAKS ISLAND =====================
+  { id: 'c9_beach', ch: 9, cp: [0, -1464, PI], obj: 'Storm the Captain\'s gate', hint: 'Real guns at the fence. Use the wrecks.', mood: 'tense', beat: 2,
+    enter(g) { const D = g.stepData; fam(g, D, -1464, 0, true); g.wpTarget = [0, 1.2, -1540]; raiders(g, 6, [[-8, -1520], [8, -1525], [-14, -1530], [14, -1532]]); g.horde(10, [[-10, -1490], [10, -1500], [0, -1510]], { aggro: 18 });
+      g.say([['tuck', "Captain's guys at the gate. Real guns."], ['reyes', 'Stay low. Keep the girl behind you.'], ['keem', "Nia, stay on me. Like glue."], ['nia', "I'm being SO glue right now."]]); },
+    update(g) { if (dist2(g, 0, -1540) < 6 && !g.stepData.go) { g.stepData.go = true; goto(g, 41, 200); } } },
+  { id: 'c9_cards', ch: 9, cp: [0, -1544, PI], obj: 'Find 3 keycards (0/3)', hint: 'West barracks, east barracks, the guard post.', mood: 'tense', beat: 2,
+    enter(g) { const D = g.stepData; fam(g, D, -1544, 0, true); D.n = 0;
+      g.say([['reyes', "The battery door takes three keycards. Navy paranoia."], ['keem', "Three cards. Easy. I been finding stuff all apocalypse."]]);
+      const got = () => { D.n++; g.audio.pickup(); g.objective('Find 3 keycards (' + D.n + '/3)', 'Barracks and the guard post.'); raiders(g, 2, [[g.player.root.position.x + 8, g.player.root.position.z - 8]]); if (D.n === 3) { g.wpTarget = [0, 1.2, -1652]; g.say([['nia', "That's all three! I ate that! …Well, you did."]], () => goto(g, 42, 300)); } };
+      D.uses = [[-14.5, -1580, 'Search the west barracks'], [14.5, -1600, 'Search the east barracks'], [0, -1640, 'Search the guard post']].map(([x, z, label]) => ({ x, z, label, fn: () => { D.uses = D.uses.filter(u => u.x !== x); got(); } }));
+      g.horde(10, [[-8, -1575], [8, -1600], [0, -1630]], { aggro: 16 }); } },
+  { id: 'c9_cells', ch: 9, cp: [0, -1652, PI], obj: 'Find Dad in Battery Steele', hint: 'Through the door. The cells in the back.', mood: 'night', beat: 1,
+    enter(g) { const D = g.stepData; fam(g, D, -1652, 0, true); g.wpTarget = [0, 1.2, -1680]; g.horde(6, [[-16, -1672], [16, -1676]], { aggro: 12 });
+      D.uses = [{ x: 0, z: -1680, label: 'Open the specimen cell', fn: () => { D.uses = []; g.npc('marcus', 'marcus', 0, -1687, 0, 'Idle_Loop'); g.cut = { anim: 'Idle_Loop', cam: V(1.5, 1.7, -1678), look: V(0, 1.4, -1687) };
+        g.say([['marcus', "Keem…? That you?"], ['keem', "Dad! You talking? You TALKING!"], ['marcus', 'Hungry, son. So hungry. Stand back from the bars.'], ['captain', 'Touching. He is my best specimen. Half dead, half Marcus.']], () => { g.cut = null; goto(g, 43, 200); }); } }]; } },
+  { id: 'c9_boss', ch: 9, cp: [0, -1672, PI], obj: 'Kill the Captain', hint: 'He is armored and he brought friends. Grenades, then headshots.', mood: 'tense', beat: 3,
+    enter(g) { const D = g.stepData; g.npc('marcus', 'marcus', 0, -1687, 0, 'Idle_Loop'); g.npc('nia', 'nia', -3, -1682, PI, 'Idle_Loop', .95); const b = g.spawnZ(8, -1666, { raider: true, hp: 2600, gun: 'smg', shirt: '#1a1a3a' }); b.root.scale.setScalar(1.35); g.boss = b; $q('#bossn').textContent = 'THE CAPTAIN — not actually Navy';
+      raiders(g, 4, [[-12, -1668], [14, -1670]]); D.hordeAll = true; g.say([['captain', 'You want him back? Pay the toll, boy.'], ['keem', "The toll got paid at the lighthouse. Now it's your turn, {bitch|clown}."]]); },
+    update(g) { const D = g.stepData; if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['captain', 'There are… others like him… Boston knows…'], ['keem', "Captain's down. Anchors away, fr."]]); goto(g, 44, 700); }, 1500); } } },
+  { id: 'c9_end', ch: 9, cp: [0, -1678, PI], obj: '', hint: '', mood: 'sad', beat: 0,
+    enter(g) { g.npc('marcus', 'marcus', 0, -1687, 0, 'Idle_Loop'); g.npc('nia', 'nia', -1.5, -1681, PI, 'Idle_Loop', .95); g.npc('reyes', null, 2, -1681, PI, 'Idle_Loop'); g.npc('tuck', null, 3.5, -1679, PI, 'Idle_Loop');
+      g.cut = { anim: 'Idle_Loop', cam: V(2, 1.7, -1676), look: V(0, 1.4, -1687) }; g.audio.setMood('sad');
+      g.say([['reyes', 'Subject eleven. Marcus Pell. Antiviral plus the Captain\'s serum. Status: responding.'], ['nia', "Responding means he's getting better, right? Right, Keem?"], ['marcus', "Nia… baby. Daddy's still here. Mostly."],
+        ['radio', 'Peaks Island, this is Boston. Captain, report. Is the Pell specimen ready for transport?'], ['keem', "…Boston?"]], () => { g.shake(.6); setTimeout(() => g.onComplete && g.onComplete(9), 1500); }); } },
+
 ];
 const $q = (s) => document.querySelector(s);
 
 // v1.6 chapter helpers
-const CH_START = { 1: 0, 2: 7, 3: 13, 4: 18, 5: 23, 6: 28 };
+const CH_START = { 1: 0, 2: 7, 3: 13, 4: 18, 5: 23, 6: 28, 7: 33, 8: 36, 9: 40 };
 export function chOf(i) { const s = STORY[i]; return s && s.ch ? s.ch : 1; }
 export { CH_START };
 function fam(g, D, z, x = 0, noDad) { g.openGate(true); if (!noDad) { const d = g.npc('marcus', 'marcus', x + 1.6, z + 1.5, PI, 'Walk_Loop'); follow(g, d, [1.6, 1.2]); D.dad = d; } const n = g.npc('nia', 'nia', x - 1.4, z + 1.5, PI, 'Walk_Loop', .95); follow(g, n, [-1.2, .9]); D.nia = n; }
@@ -273,5 +339,8 @@ export const LOOT = [
   { id: 'c4a', kind: 'ammo', item: 'rifle', n: 60, pos: [-8, .25, -440], minStep: 18 }, { id: 'c4b', kind: 'weapon', item: 'lever', pos: [-20, .25, -494], label: 'Lever-action rifle', minStep: 19 }, { id: 'c4c', kind: 'med', pos: [10, .25, -480], minStep: 19 }, { id: 'c4d', kind: 'grenade', n: 3, pos: [-6, .25, -506], minStep: 20 }, { id: 'c4e', kind: 'cash', n: 400, pos: [20, .25, -508], minStep: 21 },
   { id: 'c5a', kind: 'ammo', item: 'shell', n: 24, pos: [-10, .25, -560], minStep: 23 }, { id: 'c5b', kind: 'weapon', item: 'auto12', pos: [14, .25, -580], label: 'Auto-12 shotgun', minStep: 23 }, { id: 'c5c', kind: 'med', pos: [-16, .25, -596], minStep: 24 }, { id: 'c5d', kind: 'grenade', n: 3, pos: [6, .25, -598], minStep: 25 }, { id: 'c5e', kind: 'cash', n: 500, pos: [-28, .25, -580], minStep: 24 },
   { id: 'c6a', kind: 'ammo', item: 'light', n: 40, pos: [6, .25, -660], minStep: 28 }, { id: 'c6b', kind: 'weapon', item: 'handcannon', pos: [-30, .25, -670], label: 'Hand cannon', minStep: 28 }, { id: 'c6c', kind: 'med', pos: [-20, .25, -684], minStep: 29 }, { id: 'c6d', kind: 'grenade', n: 3, pos: [10, .25, -690], minStep: 29 }, { id: 'c6e', kind: 'ammo', item: 'rifle', n: 90, pos: [-4, .25, -704], minStep: 30 },
+  { id: 'c7a', kind: 'ammo', item: 'rifle', n: 60, pos: [0, .25, -1238], minStep: 34 }, { id: 'c7b', kind: 'weapon', item: 'harpoon', pos: [-4, .25, -1240], label: 'Harpoon gun', minStep: 34 }, { id: 'c7c', kind: 'med', pos: [10, .25, -1236], minStep: 34 },
+  { id: 'c8a', kind: 'ammo', item: 'shell', n: 24, pos: [-6, .25, -1288], minStep: 36 }, { id: 'c8b', kind: 'med', pos: [6, .25, -1346], minStep: 37 }, { id: 'c8c', kind: 'weapon', item: 'minigun', pos: [6, .25, -1424], label: 'Deck minigun', minStep: 38 }, { id: 'c8d', kind: 'ammo', item: 'rifle', n: 150, pos: [-6, .25, -1424], minStep: 38 }, { id: 'c8e', kind: 'grenade', n: 3, pos: [-6, .25, -1356], minStep: 37 },
+  { id: 'c9a', kind: 'ammo', item: 'rifle', n: 120, pos: [-6, .25, -1480], minStep: 40 }, { id: 'c9b', kind: 'weapon', item: 'katana', pos: [-12, .25, -1592], label: 'Captain\'s katana', minStep: 41 }, { id: 'c9c', kind: 'med', pos: [8, .25, -1560], minStep: 41 }, { id: 'c9d', kind: 'grenade', n: 4, pos: [6, .25, -1654], minStep: 42 }, { id: 'c9e', kind: 'cash', n: 800, pos: [-8, .25, -1650], minStep: 42 },
   pg(-24, -330, 'Captain Riverside #15: "Breaker Breaker"', 13), pg(28, -404, 'Captain Riverside #16: "Room 4"', 15), pg(-28, -478, 'Captain Riverside #17: "Everybody Pays"', 18), pg(26, -560, 'Captain Riverside #18: "Food Court of the Dead"', 23), pg(-12, -604, 'Captain Riverside #19: "Ho Ho Horror"', 24), pg(-34, -672, 'Captain Riverside #20: "The Light Keeps"', 28),
 ];

@@ -187,7 +187,7 @@ P.land = function (vol = .6) { this.play('land', { vol, flat: true }); this.play
 P.rollS = function () { if (!this.play('roll', { vol: .6, flat: true })) this.swing(); this.play('cloth', { vol: .35, rate: .8, flat: true }); };
 P.squelch = function (vol = .7) { if (!this.play('squelch', { vol, jit: .12 })) this.splat(); };
 P.tires = function (on, amt = 0) { if (!this.ctx) return; if (on && !this.tireSrc) this.tireSrc = this.play('tire_loop', { loop: true, vol: 0, jit: 0, flat: true }); if (this.tireSrc) this.tireSrc.g.gain.setTargetAtTime(on ? Math.min(.5, amt) : 0, this.ctx.currentTime, .08); };
-P.shot = function (kind = 'pistol') { kind = { saw: 'rifle', lever: 'sniper', auto12: 'shotgun', handcannon: 'revolver' }[kind] || kind; const k = FAM['gun_' + kind] ? kind : 'pistol';
+P.shot = function (kind = 'pistol') { kind = { saw: 'rifle', lever: 'sniper', auto12: 'shotgun', handcannon: 'revolver', harpoon: 'sniper', minigun: 'rifle' }[kind] || kind; const k = FAM['gun_' + kind] ? kind : 'pistol';
   if (!this.play('gun_' + k, { vol: kind === 'smg' || kind === 'rifle' ? .75 : 1, verb: true, jit: .04 })) return O.shot.call(this, kind);
   if (kind !== 'shotgun') this.play('shell', { vol: .35, delay: .35 + Math.random() * .2 }); };
 P.hit = function () { if (!this.play(Math.random() < .5 ? 'punch' : 'bat', { vol: .9 })) O.hit.call(this); this.play('flesh', { vol: .5 }); };
