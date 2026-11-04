@@ -17,10 +17,15 @@ export const WEAPONS = {
   handcannon:{ name: '.50 Hand Cannon', type: 'gun', ammo: 'light', dmg: 150, rate: 0.7, mag: 7, reload: 2.0, spread: 0.01, range: 70, price: 3000, ch: 6, desc: 'The Toll King\'s sidearm. Pays every toll.' },
   harpoon: { name: 'Harpoon Gun', type: 'gun', ammo: 'rifle', dmg: 260, rate: 1.1, mag: 1, reload: 1.6, spread: 0.002, range: 80, price: 3400, ch: 7, desc: 'Cape Marina bait-shop special. Pins them to the wall.' },
   minigun: { name: 'Deck Minigun', type: 'gun', ammo: 'rifle', dmg: 26, rate: 0.045, mag: 150, reload: 4.2, spread: 0.04, range: 80, auto: true, price: 4200, ch: 8, desc: 'Ripped off the Casco Bay ferry. Brrrrt.' },
-  katana:  { name: 'Captain\'s Katana', type: 'melee', dmg: 170, rate: 0.42, range: 2.3, price: 3800, sever: true, ch: 9, desc: 'He bought it at the mall. It is still extremely sharp.' },
+  katana:  { name: 'Captain\'s Katana', type: 'melee', dmg: 170, rate: 0.42, range: 2.3, price: 3800, sever: true, blade: true, ch: 9, desc: 'He bought it at the mall. Still sharp enough to take heads clean off.' },
+  tomahawk:{ name: 'Combat Tomahawk', type: 'melee', dmg: 105, rate: 0.5, range: 2.0, price: 1600, sever: true, ch: 3, desc: 'Fast, forged steel. Hooks limbs off.' },
+  longsword:{ name: 'Swan Boat Longsword', type: 'melee', dmg: 230, rate: 0.72, range: 2.7, price: 5200, sever: true, blade: true, ch: 10, desc: 'Two-handed museum steel from the Boston armory. Cuts them in half.' },
+  crossbow:{ name: 'Hunting Crossbow', type: 'gun', ammo: 'bolt', dmg: 210, rate: 0.9, mag: 1, reload: 1.4, spread: 0.002, range: 90, price: 2200, ch: 4, quiet: true, desc: 'Silent. One bolt, one head.' },
+  flamer:  { name: 'Flamethrower', type: 'gun', ammo: 'fuel', dmg: 8, pellets: 4, rate: 0.07, mag: 100, reload: 3.0, spread: 0.09, range: 9, auto: true, flame: true, price: 4800, ch: 10, desc: 'Scrounged from the Boston fire depot. They burn and they keep burning.' },
+  launcher:{ name: 'M32 Grenade Launcher', type: 'gun', ammo: 'gl', dmg: 40, rate: 0.6, mag: 6, reload: 3.4, spread: 0.004, range: 60, gl: true, price: 6000, ch: 11, desc: 'Six-round drum. Pulled off the Harbor Gate turret. Boom.' },
   sniper:  { name: 'Hunting Sniper', type: 'gun', ammo: 'rifle', dmg: 160, rate: 1.2, mag: 5, reload: 2.6, spread: 0.001, range: 160, zoom: 3, price: 2600, desc: 'One shot, one head.' },
 };
-export const WEAPON_ORDER = ['fists', 'pan', 'bat', 'machete', 'axe', 'chainsaw', 'pistol', 'revolver', 'smg', 'shotgun', 'rifle', 'saw', 'lever', 'auto12', 'handcannon', 'harpoon', 'minigun', 'katana', 'sniper'];
+export const WEAPON_ORDER = ['fists', 'pan', 'bat', 'machete', 'axe', 'chainsaw', 'pistol', 'revolver', 'smg', 'shotgun', 'rifle', 'saw', 'lever', 'auto12', 'handcannon', 'harpoon', 'minigun', 'katana', 'tomahawk', 'longsword', 'crossbow', 'flamer', 'launcher', 'sniper'];
 export const UPGRADES = {
   dmg: { name: 'Damage', per: 0.15, max: 4 },
   mag: { name: 'Magazine', per: 0.25, max: 3, gun: true },
@@ -28,7 +33,7 @@ export const UPGRADES = {
   acc: { name: 'Scope / accuracy', per: 0.22, max: 3, gun: true },
 };
 export const upCost = (w, k, lvl) => Math.round((80 + (WEAPONS[w].price || 200) * 0.35) * (lvl + 1) * (k === 'dmg' ? 1.2 : 1));
-export const AMMO_SHOP = { light: { name: '9mm/.44 ammo ×36', n: 36, price: 60 }, shell: { name: 'Shells ×12', n: 12, price: 80 }, rifle: { name: 'Rifle rounds ×40', n: 40, price: 110 }, grenade: { name: 'Pipe grenade', n: 1, price: 150 }, med: { name: 'Med kit', n: 1, price: 120 } };
+export const AMMO_SHOP = { bolt: { name: 'Crossbow bolts ×10', n: 10, price: 90 }, fuel: { name: 'Fuel canister ×100', n: 100, price: 140 }, gl: { name: '40mm grenades ×6', n: 6, price: 260 }, light: { name: '9mm/.44 ammo ×36', n: 36, price: 60 }, shell: { name: 'Shells ×12', n: 12, price: 80 }, rifle: { name: 'Rifle rounds ×40', n: 40, price: 110 }, grenade: { name: 'Pipe grenade', n: 1, price: 150 }, med: { name: 'Med kit', n: 1, price: 120 } };
 export const PERKS = [null, null,
   { name: 'Tough Kid', desc: '+20 max health' }, { name: 'Steady Hands', desc: '+15% accuracy' }, { name: 'Scavenger', desc: '+30% cash from loot' },
   { name: 'Brawler', desc: '+25% melee damage' }, { name: 'Quick Hands', desc: '20% faster reloads' }, { name: 'Marathon', desc: '+15% sprint speed' },

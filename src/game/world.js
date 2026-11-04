@@ -365,6 +365,54 @@ export function buildWorld(scene, Q, texLoader, base, CM = {}) {
   // bounds
   box(-300, -48, -300, 300); box(48, 300, -300, 300); box(-300, 300, 66, 300); // v1.6.3: old south bound (-400..-299) removed — it walled off Chapter 3+
 
+  let _spots10 = [];
+  // ===== v1.8 CHAPTERS 10–11 · Boston strip (x -48..48, z -1990..-2700), reached by checkpoint =====
+  box(-300, -48, -2720, -1990); box(48, 300, -2720, -1990); box(-300, 300, -2800, -2700); box(-300, 300, -1990, -1960); Z_barrier(-2320);
+  const gS10 = new THREE.Mesh(new THREE.PlaneGeometry(120, 740), groundMat); gS10.rotation.x = -Math.PI / 2; gS10.position.set(0, -0.006, -2345); gS10.receiveShadow = true; scene.add(gS10);
+  const Z_conc = new THREE.MeshStandardMaterial({ color: '#7d7b76', roughness: .95 }), Z_swan = new THREE.MeshStandardMaterial({ color: '#f2efe6', roughness: .6 }), Z_beak = new THREE.MeshStandardMaterial({ color: '#e08a20', roughness: .6 });
+  // CH10 — Long Wharf, Quarantine Row searchlights, Public Garden swan boats
+  zone(10, () => {
+    road(0, -2150, 14, 300); const wharf = new THREE.Mesh(new THREE.PlaneGeometry(30, 22), Z_wood); wharf.rotation.x = -Math.PI / 2; wharf.position.set(0, .03, -2002); scene.add(wharf);
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(60, 320), Z_sea2); sea.rotation.x = -Math.PI / 2; sea.position.set(-40, -.3, -2150); scene.add(sea); box(-48, -26, -2320, -1990);
+    sign(['LONG WHARF', 'BOSTON HARBOR'], 6, 2.6, -2016, Math.PI, 3.4, .9, '#1a2a4a'); sign(['BOSTON QUARANTINE ZONE', 'CHECKPOINT 3 · INFECTED WILL BE FIRED UPON'], 0, 3.2, -2030, Math.PI, 5, 1, '#5a1010');
+    const fenceM = new THREE.MeshStandardMaterial({ color: '#555b60', metalness: .6, roughness: .5, transparent: true, opacity: .6 }); wallBox(.15, 3, 100, fenceM, -22, 1.5, -2075); wallBox(.15, 3, 100, fenceM, 22, 1.5, -2075);
+    [[-18, -2090], [17, -2060]].forEach(([x, z]) => { wallBox(4, 2.2, 5, new THREE.MeshStandardMaterial({ color: '#4a5a3a', roughness: 1 }), x, 1.1, z); }); sign(['FUEL · DO NOT SMOKE'], -18, 2.6, -2087.4, Math.PI, 2, .5, '#6a3a10');
+    const discM = () => new THREE.MeshBasicMaterial({ color: '#fff6c0', transparent: true, opacity: .32, depthWrite: false }); const spots = [];
+    [[-20, -2045], [20, -2075], [-20, -2105]].forEach(([x, z]) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(.15, .2, 8, 6), swMat); p.position.set(x, 4, z); scene.add(p);
+      const head = new THREE.Group(); head.position.set(x, 8, z); const lamp = new THREE.Mesh(new THREE.CylinderGeometry(.35, .5, .8, 10), new THREE.MeshStandardMaterial({ color: '#222', emissive: '#fff4c8', emissiveIntensity: 3 })); lamp.rotation.x = Math.PI / 2; head.add(lamp); scene.add(head);
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(3.6, 24), discM()); disc.rotation.x = -Math.PI / 2; disc.position.set(0, .05, z); scene.add(disc); spots.push({ head, disc }); });
+    // Public Garden: pond, swan boats, the ducklings statue
+    const pond = new THREE.Mesh(new THREE.PlaneGeometry(36, 40), Z_sea2); pond.rotation.x = -Math.PI / 2; pond.position.set(0, .04, -2232); scene.add(pond);
+    const dock = new THREE.Mesh(new THREE.BoxGeometry(10, .3, 6), Z_wood); dock.position.set(0, .15, -2206); scene.add(dock); box(-18, -3, -2252, -2212); box(3, 18, -2252, -2212);
+    const swan = (x, z, ry) => { const g = new THREE.Group(); const hull = new THREE.Mesh(new THREE.BoxGeometry(2.2, .6, 4), Z_swan); hull.position.y = .3; g.add(hull);
+      const neck = new THREE.Mesh(new THREE.CylinderGeometry(.18, .3, 2, 8), Z_swan); neck.position.set(0, 1.4, -1.6); neck.rotation.x = -.35; g.add(neck); const hd = new THREE.Mesh(new THREE.SphereGeometry(.32, 10, 8), Z_swan); hd.position.set(0, 2.4, -1.95); g.add(hd);
+      const bk = new THREE.Mesh(new THREE.ConeGeometry(.1, .4, 6), Z_beak); bk.rotation.x = -Math.PI / 2; bk.position.set(0, 2.38, -2.3); g.add(bk); g.position.set(x, 0, z); g.rotation.y = ry; scene.add(g); };
+    swan(-5, -2212, 0); const br = new THREE.Mesh(new THREE.BoxGeometry(6, .3, 40), Z_wood); br.position.set(0, .12, -2232); scene.add(br); swan(-8, -2226, .6); swan(9, -2240, -.4); sign(['SWAN BOATS', 'SINCE 1877'], -6, 2.2, -2204, Math.PI, 2.6, .8, '#1a4a2a');
+    const duckM = new THREE.MeshStandardMaterial({ color: '#7a5a2a', metalness: .7, roughness: .4 }); for (let i = 0; i < 6; i++) { const d = new THREE.Mesh(new THREE.SphereGeometry(.28 - i * .02, 8, 6), duckM); d.position.set(12 + i * .7, .25, -2195 - i * .4); d.scale.set(1, .8, 1.4); scene.add(d); }
+    sign(['MAKE WAY FOR DUCKLINGS'], 13.5, 1, -2192, Math.PI, 2.4, .5, '#3a2a1a'); const tree = new THREE.MeshStandardMaterial({ color: '#2a3a22', roughness: 1 });
+    [[-14, -2180], [16, -2264], [-15, -2275], [14, -2170]].forEach(([x, z]) => { const t = new THREE.Mesh(new THREE.ConeGeometry(2.4, 6, 7), tree); t.position.set(x, 3, z); scene.add(t); });
+    // Faire tent where the knight came from
+    const tent = new THREE.Mesh(new THREE.ConeGeometry(4, 4, 8), new THREE.MeshStandardMaterial({ color: '#7a1a2a', roughness: .9 })); tent.position.set(-12, 2, -2296); scene.add(tent); sign(['RENAISSANCE FAIRE', 'HUZZAH'], -12, 1.2, -2291.6, Math.PI, 2.4, .7, '#4a3a10');
+    fire(10, 0, -2120, .9); Z_pl(0, 5, -2200, '#9fb8ff', 12, 40); for (let z = -2140; z > -2310; z -= 34) Z_lamp(-7, z, '#ffd9a0');
+    _spots10 = spots; });
+  zones[10].userData.spots = _spots10;
+  // CH11 — harbor tunnel, Cambridge St, Mass General helipad
+  zone(11, () => {
+    road(0, -2500, 12, 340); const tw = new THREE.MeshStandardMaterial({ color: '#b8b2a0', roughness: .8 }); wallBox(.6, 6, 110, tw, -7, 3, -2390); wallBox(.6, 6, 110, tw, 7, 3, -2390);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(14.4, .5, 110), Z_conc); roof.position.set(0, 6.2, -2390); scene.add(roof); sign(['TED WILLIAMS TUNNEL', 'LOGAN · I-90'], 0, 5.2, -2336, Math.PI, 4, .8, '#1a4a2a');
+    for (let z = -2345; z > -2440; z -= 12) { const l = new THREE.Mesh(new THREE.BoxGeometry(.6, .12, .3), new THREE.MeshStandardMaterial({ color: '#222', emissive: '#ffa040', emissiveIntensity: z % 24 ? 3 : .2 })); l.position.set(0, 5.9, z); scene.add(l); }
+    Z_pl(0, 5, -2360, '#ffa040', 12, 24); Z_pl(0, 5, -2420, '#ffa040', 12, 24); car(3.5, -2386, Math.PI * .1, '#8a8a80', { burnt: true }); car(-3.4, -2368, .2, '#3a3a5a'); car(2.8, -2412, -.2, '#5a2a1a', { burnt: true });
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 6, 12), new THREE.MeshStandardMaterial({ color: '#c8c8c0', metalness: .6, roughness: .4 })); tank.rotation.x = Math.PI / 2; tank.position.set(-3.2, 1.6, -2392); scene.add(tank); sign(['FLAMMABLE', '1203'], -1.9, 1.6, -2392, Math.PI / 2, 1.2, .6, '#a01010');
+    [[-6, -2480, .5], [6, -2510, 2.6], [-5, -2545, 1.2], [5, -2570, .1]].forEach(([x, z, r], i) => car(x, z, r, ['#4a4a4a', '#2a3a5a', '#5a5a3a', '#6a2a1a'][i], { burnt: i % 2 }));
+    sign(['CAMBRIDGE ST'], 7.5, 3, -2470, -Math.PI / 2, 2.4, .5, '#1a4a2a'); for (let z = -2460; z > -2590; z -= 30) Z_lamp(8, z, '#ffc98a', z % 60 !== 0);
+    // Mass General: facade, ER doors, rooftop helipad (the boss arena is the "roof" plaza behind the ER)
+    wallBox(30, 14, 2, Z_white, -21, 7, -2690); wallBox(30, 14, 2, Z_white, 21, 7, -2690); wallBox(.6, 4, 40, Z_white, -26, 2, -2620); wallBox(.6, 4, 40, Z_white, 26, 2, -2620);
+    sign(['MASS GENERAL HOSPITAL'], 0, 9, -2688.9, Math.PI, 8, 1.2, '#0a2a5a'); sign(['EMERGENCY'], -14, 4.5, -2604, Math.PI, 3, .7, '#a01010'); wallBox(10, 3.4, 4, Z_white, -14, 1.7, -2610);
+    const pad = new THREE.Mesh(new THREE.CircleGeometry(9, 32), new THREE.MeshStandardMaterial({ color: '#3a3a3a', roughness: .8 })); pad.rotation.x = -Math.PI / 2; pad.position.set(0, .04, -2666); scene.add(pad);
+    const hM = new THREE.MeshStandardMaterial({ color: '#e8e4d8', emissive: '#e8e4d8', emissiveIntensity: .3 }); [[-1.6, 0], [1.6, 0]].forEach(([x]) => { const b = new THREE.Mesh(new THREE.PlaneGeometry(.6, 5), hM); b.rotation.x = -Math.PI / 2; b.position.set(x, .05, -2666); scene.add(b); });
+    const hb = new THREE.Mesh(new THREE.PlaneGeometry(3.2, .6), hM); hb.rotation.x = -Math.PI / 2; hb.position.set(0, .05, -2666); scene.add(hb);
+    wallBox(6, 1, 3, new THREE.MeshStandardMaterial({ color: '#c8c8c0' }), 12, .5, -2600); sign(['AMBULANCE ONLY'], 12, 1.4, -2598.4, Math.PI, 2, .4, '#a01010');
+    Z_pl(0, 8, -2664, '#ff4040', 14, 30); fire(-8, 0, -2560, .8); });
   return { ch2, zones, signTex, colliders, walls, updaters, lights, fire, car, sign, frontDoor, doorCol, doorBoards, tanker, tankCol, KH, mud, update(dt, t, cam) { updaters.forEach(u => u(dt, t, cam)); } };
 }
 function mergeTwo(a, b) { const g = new THREE.BufferGeometry(); ['position', 'normal', 'uv'].forEach(k => { const A = a.attributes[k].array, B = b.attributes[k].array, o = new Float32Array(A.length + B.length); o.set(A); o.set(B, A.length); g.setAttribute(k, new THREE.BufferAttribute(o, a.attributes[k].itemSize)); });

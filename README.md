@@ -1,4 +1,4 @@
-# After the Quiet — v1.7.1 Story Mode
+# After the Quiet — v1.8.0 Story Mode
 A free-roam third-person horror action shooter by **Lone Keem Studios** (Three.js + Vite + Capacitor).
 You play **Keem**, a kid with a backpack, fighting out of **Riverside, Maine** on the night it falls.
 
@@ -21,6 +21,13 @@ Keyboard/mouse: WASD, mouse look (click to lock), LMB attack, RMB aim, Shift run
 Quality presets Low/Med/High with auto-detect (High adds GTAO + bloom). See STORY.md and CREDITS.md.
 The old cinematic movie version is preserved at tag `cinematic-final`.
 
+
+## v1.8.0
+- Chapter 10 "Harbor Lights": searchlight stealth on Quarantine Row, swan-boat dock defense, boss THE SWAN KNIGHT (armored: aim for the head, use blades/fire/explosives).
+- Chapter 11 "Swan Song": Ted Williams tunnel tanker blast, ambulance drive, Mass General ER waves, boss SUBJECT ONE. Ends "To be continued — Chapter 12 coming soon".
+- New weapons: longsword (dismemberment + decapitation), katana upgraded to the same slice system, crossbow, flamethrower (burn DoT), grenade launcher, axe/tomahawk via shop.
+- Pooled/capped gibs, pooled explosion light (no runtime shader recompiles), gib shadows off.
+- Dialogue realism pass (Keem first, then the cast); regenerated Kokoro clips.
 
 ## v1.7.1
 - Character customizer (title screen + Armory): 20+ outfits incl. original "The Boss", hair, faces, skin, backpacks; saved to `atq3.look`.

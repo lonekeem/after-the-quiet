@@ -197,7 +197,7 @@ export class Game {
   say(lines, cb) { this.dlgQ = (this.dlgQ || []).concat(lines.map(l => ({ who: l[0], text: l[1] }))); if (cb) this.dlgQ.push({ cb }); if (!this.dlgCur) this.nextLine(); }
   nextLine() { const d = $('#dlg'); const it = this.dlgQ.shift(); if (!it) { this.dlgCur = null; d.classList.remove('on'); this.audio.stopVoice && this.audio.stopVoice(); return; } if (it.cb) { it.cb(this); this.nextLine(); return; }
     if (it.raw == null) { it.raw = it.text; const L = langLine(it.raw, this.settings.lang || 'on'); it.text = L.sub; it.vtext = L.voice; it.bleeps = L.bleeps; }
-    this.dlgCur = it; const names = { keem: 'Keem', marcus: 'Dad', nia: 'Nia', walt: 'Mr. Walt', ruth: 'Ruth', dube: 'Mr. Dube', radio: 'Radio', note: 'Dad\'s note', gus: 'Big Gus', sgt: 'Sgt. Okafor (radio)', brick: 'Coach Brickman', ronnie: 'Big Rig Ronnie', deacon: 'Deacon', captain: 'The Captain (radio)', reyes: 'Dr. Reyes', tuck: 'Tuck', santa: 'Mall Santa', king: 'The Toll King' };
+    this.dlgCur = it; const names = { vance: 'Dr. Vance', keem: 'Keem', marcus: 'Dad', nia: 'Nia', walt: 'Mr. Walt', ruth: 'Ruth', dube: 'Mr. Dube', radio: 'Radio', note: 'Dad\'s note', gus: 'Big Gus', sgt: 'Sgt. Okafor (radio)', brick: 'Coach Brickman', ronnie: 'Big Rig Ronnie', deacon: 'Deacon', captain: 'The Captain (radio)', reyes: 'Dr. Reyes', tuck: 'Tuck', santa: 'Mall Santa', king: 'The Toll King' };
     $('#who').textContent = names[it.who] || it.who; const cur = it; const muteKeem = it.who === 'keem' && this.step === 0 && ['wake', 'walk', 'peek', undefined].includes(this.stepData && this.stepData.phase); !muteKeem && this.audio.voice && this.audio.voice(it.who, it.vtext, it.bleeps).then(dd => { if (dd && this.dlgCur === cur) cur.dur = Math.max(cur.dur || 0, dd + .5); });
     
     $('#line').textContent = it.text; d.classList.add('on'); it.t = 0; it.dur = (1.6 + it.text.length * 0.045) / (this.settings.text || 1); }
@@ -211,7 +211,7 @@ export class Game {
     const bt = bloodTex(); this.decals = []; this.decalN = 0; const dm = new THREE.MeshStandardMaterial({ map: bt, transparent: true, depthWrite: false, roughness: .15, polygonOffset: true, polygonOffsetFactor: -2 });
     for (let i = 0; i < 70; i++) { const d = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), dm); d.rotation.x = -Math.PI / 2; d.visible = false; d.renderOrder = 1; s.add(d); this.decals.push(d); }
     const fm = new THREE.SpriteMaterial({ color: '#ffd27a', blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, map: (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, '#fff'); gr.addColorStop(.3, 'rgba(255,200,90,.9)'); gr.addColorStop(1, 'rgba(255,120,20,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })() });
-    this.muzzle = new THREE.Sprite(fm); this.muzzle.scale.setScalar(.5); this.muzzle.visible = false; s.add(this.muzzle); this.mLight = new THREE.PointLight('#ffc070', 0, 12, 2); s.add(this.mLight);
+    this.muzzle = new THREE.Sprite(fm); this.muzzle.scale.setScalar(.5); this.muzzle.visible = false; s.add(this.muzzle); this.mLight = new THREE.PointLight('#ffc070', 0, 12, 2); s.add(this.mLight); this._boomL = new THREE.PointLight('#ff9040', 0, 60, 2); s.add(this._boomL); this._ballGeo = new THREE.SphereGeometry(1, 12, 8);
     this.tracer = new THREE.Line(new THREE.BufferGeometry().setFromPoints([V3(), V3()]), new THREE.LineBasicMaterial({ color: '#ffe0a0', transparent: true, opacity: .8 })); this.tracer.frustumCulled = false; this.tracer.visible = false; s.add(this.tracer);
     this.booms = []; this.gibs = []; this.grenadesLive = [];
     this.fireSprite = fm; }
@@ -222,15 +222,28 @@ export class Game {
   screenSplat() { if (!this.settings.gore) return; let e = $('#splat'); if (!e) { e = document.createElement('div'); e.id = 'splat'; e.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:3;transition:opacity 1.6s;opacity:0'; $('#stage').appendChild(e); }
     const b = []; for (let i = 0; i < 7; i++) { const x = rnd(0, 100), y = rnd(0, 100), r = rnd(4, 14); b.push(`radial-gradient(circle at ${x}% ${y}%, rgba(110,0,0,.85) 0, rgba(80,0,0,.7) ${r * .6}%, transparent ${r}%)`); }
     e.style.transition = 'none'; e.style.background = b.join(','); e.style.opacity = '1'; requestAnimationFrame(() => { e.style.transition = 'opacity 2.2s'; e.style.opacity = '0'; }); }
-  gib(pos, n = 5, col = '#5a1010', limb) { for (let i = 0; i < n; i++) { const m = limb && i === 0 ? limb : new THREE.Mesh(new THREE.BoxGeometry(rnd(.05, .12), rnd(.05, .1), rnd(.05, .12)), new THREE.MeshStandardMaterial({ color: col, roughness: .4 }));
-    m.position.copy(pos); m.castShadow = true; this.scene.add(m); this.gibs.push({ m, v: V3(rnd(-3, 3), rnd(2, 6), rnd(-3, 3)), r: V3(rnd(-9, 9), rnd(-9, 9), rnd(-9, 9)), life: 10 }); } }
+  gib(pos, n = 5, col = '#5a1010', limb, vel) { const G = this._gibG || (this._gibG = { geo: new THREE.BoxGeometry(.09, .075, .09), mats: {} }); const cap = this.Q && this.Q.shadows === false ? 28 : (this.settings.qual === 'low' ? 28 : 64);
+    const mat = G.mats[col] || (G.mats[col] = new THREE.MeshStandardMaterial({ color: col, roughness: .4 }));
+    for (let i = 0; i < n; i++) { let m; if (limb && i === 0) m = limb; else { m = new THREE.Mesh(G.geo, mat); m.scale.set(rnd(.55, 1.35), rnd(.6, 1.3), rnd(.55, 1.35)); m.pooled = 1; }
+      while (this.gibs.length >= cap) { const o = this.gibs.shift(); this.scene.remove(o.m); }
+      m.position.copy(pos); m.castShadow = false; this.scene.add(m); this.gibs.push({ m, v: vel && i === 0 ? vel.clone() : V3(rnd(-3, 3), rnd(2, 6), rnd(-3, 3)), r: V3(rnd(-9, 9), rnd(-9, 9), rnd(-9, 9)), life: limb && i === 0 ? 14 : 8, big: limb && i === 0 }); } }
+  // realistic blade gore (katana / longsword): decapitation with a real flying head, or a waist cleave that drops the upper body
+  bladeGore(z, dir, kind) { const gore = this.settings.gore; if (!gore) return; const ap = V3(); const s = z.scale || 1;
+    if (kind === 'decap') { z.noHead = true; z.worldOf('DEF-head', ap); const head = new THREE.Mesh(this._headGeo || (this._headGeo = new THREE.SphereGeometry(.13, 10, 8)), z.mat); head.scale.set(s * .95, s * 1.1, s); this.gib(ap, 1, '#5a1010', head, V3(dir.x * 3 + rnd(-1, 1), rnd(4, 6), dir.z * 3 + rnd(-1, 1)));
+      this.gib(ap, 5); this.spurt(z, 'DEF-neck', 1.6); this.blood(ap, V3(0, 1, 0), 60, 5.5, 1.4); }
+    else { z.noLimbs = z.noLimbs || []; ['DEF-spine.002'].forEach(n => z.noLimbs.push(n)); z.noHead = true; z.worldOf('DEF-spine.002', ap); const torso = new THREE.Mesh(this._torsoGeo || (this._torsoGeo = new THREE.CapsuleGeometry(.17, .42, 3, 8)), z.mat); torso.scale.setScalar(s);
+      this.gib(ap, 1, '#5a1010', torso, V3(dir.x * 2.5, rnd(2.5, 4), dir.z * 2.5)); const hp = ap.clone(); hp.y += .5 * s; const head = new THREE.Mesh(this._headGeo || (this._headGeo = new THREE.SphereGeometry(.13, 10, 8)), z.mat); head.scale.setScalar(s); this.gib(hp, 1, '#5a1010', head, V3(dir.x * 3.5, 5, dir.z * 3.5));
+      this.gib(ap, 8); this.gib(ap, 3, '#a8506a'); this.spurt(z, 'DEF-spine.001', 1.2); this.blood(ap, dir.clone().setY(.5), 70, 5, 1.5); }
+    this.decal(ap.x + dir.x, ap.z + dir.z, 2.6); this.decal(ap.x, ap.z, 1.8); this.audio.splat(); setTimeout(() => this.audio.splat(), 90); this.screenSplat(); }
   shake(a) { if (!this.settings.still) this.trauma = Math.min(1, this.trauma + a); else this.trauma = Math.min(.3, this.trauma + a * .3); }
   flashScreen(cls) { const f = $('#flash'); f.className = ''; void f.offsetWidth; f.className = cls; }
   slowmo(t = 0.7) { this.slowT = t; this.timeScale = 0.22; }
   explode(pos, R = 9, dmg = 400) { this.audio.explode(); this.shake(1); this.flashScreen('white');
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: '#ffb050', transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false })); ball.position.copy(pos); this.scene.add(ball);
-    const L = new THREE.PointLight('#ff9040', 120, 60, 2); L.position.copy(pos).y += 2; this.scene.add(L); this.booms.push({ ball, L, t: 0, R });
-    this.world.fire(pos.x, 0.5, pos.z, 1.6);
+    // v1.8 perf: pooled fireball meshes + one persistent boom light (adding lights at runtime forced a full shader recompile = 200ms+ hitch on phones)
+    if (!this._boomL) { this._boomL = new THREE.PointLight('#ff9040', 0, 60, 2); this.scene.add(this._boomL); this._ballGeo = new THREE.SphereGeometry(1, 12, 8); }
+    let b = this.booms.find(b => !b.on); if (!b) { if (this.booms.length >= 4) b = this.booms[0]; else { b = { ball: new THREE.Mesh(this._ballGeo, new THREE.MeshBasicMaterial({ color: '#ffb050', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })) }; this.scene.add(b.ball); this.booms.push(b); } }
+    b.on = true; b.t = 0; b.R = R; b.ball.visible = true; b.ball.position.copy(pos); this._boomL.position.copy(pos).y += 2; this._boomL.intensity = 120; this._boomT = 1;
+    this.flameAt(pos, 10);
     this.alive().forEach(z => { const d = z.root.position.distanceTo(pos); if (d < R) { const dir = z.root.position.clone().sub(pos).setY(0).normalize(); this.damageZ(z, dmg * (1 - d / R / 1.5), dir, { boom: true }); } });
     const pd = this.player.root.position.distanceTo(pos); if (pd < R * 0.6 && !this.truck.driving) this.hurt(40 * (1 - pd / R), pos); }
 
@@ -242,11 +255,16 @@ export class Game {
     let k = null, kd = 99; this.alive().forEach(z => { const d = z.root.position.distanceTo(P.root.position); if (d < kd) { kd = d; k = z; } }); this.dying.z = k;
     if (k && kd < 6) { const dir = P.root.position.clone().sub(k.root.position).normalize(); k.root.position.copy(P.root.position).addScaledVector(dir, -0.8); k.st = 'feast'; k.play('Fixing_Kneeling', { speed: 2 }); k.root.rotation.y = Math.atan2(dir.x, dir.z); }
     $('#lowhp').style.opacity = 1; }
-  damageZ(z, dmg, dir, o = {}) { if (z.dead) return; z.hp -= dmg; z.st = 'chase'; z.aggro = 99; const hp = z.root.position.clone(); hp.y = o.head ? 1.6 * z.scale : 1.1 * z.scale;
+  damageZ(z, dmg, dir, o = {}) { if (z.dead) return; if (z.armor) { const m = z.armor(o); if (m < 1 && Math.random() < .3) this.floatText && this.floatText('ARMOR', '#c8ccd8'); dmg *= m; } z.hp -= dmg; z.st = 'chase'; z.aggro = 99; const hp = z.root.position.clone(); hp.y = o.head ? 1.6 * z.scale : 1.1 * z.scale;
     this.blood(hp, dir, o.head ? 18 : 10, o.boom ? 6 : 2.5); if (!o.boom && Math.random() < .4) this.decal(z.root.position.x + dir.x * .8, z.root.position.z + dir.z * .8, .7);
     z.mat.userData.u.uBlood.value = Math.min(1.3, z.mat.userData.u.uBlood.value + (this.settings.gore ? .15 : 0)); this.audio.at(hp).splat(); if (this.settings.gore && Math.random() < .5) this.audio.at(hp).squelch(.6);
     if (z.hp <= 0) { this.killZ(z, dir, o); return; }
     if (!z.boss || dmg > 60) { z.stun = z.boss ? 0.25 : 0.45; z.play(o.head ? 'Hit_Head' : 'Hit_Chest', { once: true, force: true, cb: () => { z.curName = ''; } }); z.vel.addScaledVector(dir, z.boss ? 1 : 3); } }
+  // pooled additive flame sprites (flamethrower, burning zombies, launcher blasts): 24 sprites total, no allocations per frame
+  flameAt(p, n = 1, v) { if (!this.flames) { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); const gr = x.createRadialGradient(32, 32, 2, 32, 32, 30); gr.addColorStop(0, 'rgba(255,240,180,1)'); gr.addColorStop(.4, 'rgba(255,140,30,.8)'); gr.addColorStop(1, 'rgba(120,20,0,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+      const m = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }); this.flames = []; this.flameI = 0; for (let i = 0; i < 24; i++) { const s = new THREE.Sprite(m); s.visible = false; this.scene.add(s); this.flames.push({ s, v: V3(), life: 0 }); } }
+    for (let i = 0; i < n; i++) { const f = this.flames[this.flameI = (this.flameI + 1) % 24]; f.s.position.copy(p); f.s.visible = true; f.life = rnd(.25, .5); f.v.copy(v || V3()).add(V3(rnd(-.8, .8), rnd(.6, 1.8), rnd(-.8, .8))); f.s.scale.setScalar(rnd(.3, .6)); } }
+  spurt(z, bone, dur) { (this.spurts = this.spurts || []).push({ z, bone, t: dur }); if (this.spurts.length > 4) this.spurts.shift(); }
   killZ(z, dir, o = {}) { if (!dir || !dir.clone) dir = V3(0, 0, 1); if (Math.random() < (z.boss ? 1 : .15)) this.audio.shout && this.audio.shout('keem_kill'); z.dead = true; z.deadT = 0; z.st = 'dead'; this.save.kills++; const gore = this.settings.gore;
     const xp = z.boss ? 400 : (o.head ? 18 : 12); this.addXP(xp); if (z.boss) this.addCash(500);
     else if (Math.random() < .35) this.addCash(rnd(5, 18)); if (!z.boss && Math.random() < .18) { const w = WEAPONS[this.save.cur]; const a = w.ammo || 'light'; this.save.ammo[a] = (this.save.ammo[a] || 0) + (a === 'shell' ? 3 : 8); this.floatText('+ammo', '#d8e8a0'); }
@@ -254,7 +272,8 @@ export class Game {
     const pos = z.root.position.clone(); pos.y = 1.55 * z.scale; this.decal(z.root.position.x + dir.x, z.root.position.z + dir.z, 1.4);
     const fin = o.finisher || (this.state.combo >= 3 && Math.random() < .6) || z.boss;
     if (gore) { this.decal(z.root.position.x + dir.x * .5, z.root.position.z + dir.z * .5, 2.2); this.blood(pos.clone().setY(1.1 * z.scale), dir.clone().setY(.6), 22, 4.5, 1.2); }
-    if (gore && (o.head || fin || (o.boom && Math.random() < .6) || (o.pellets && Math.random() < .5))) { z.noHead = true; this.blood(pos, V3(0, 1, 0), 70, 5, 1.5); this.blood(pos, dir.clone().setY(.4), 30, 6, 1.1); this.gib(pos, 12); this.gib(pos, 4, '#d8cfc0'); this.audio.splat(); setTimeout(() => this.audio.splat(), 120); }
+    if (gore && o.blade && !z.boss) { this.bladeGore(z, dir, Math.random() < .5 ? 'decap' : 'cleave'); o = Object.assign({}, o, { head: false, sever: Math.random() < .4 }); fin && this.slowmo(.5); }
+    else if (gore && (o.head || fin || (o.boom && Math.random() < .6) || (o.pellets && Math.random() < .5))) { z.noHead = true; this.blood(pos, V3(0, 1, 0), 70, 5, 1.5); this.blood(pos, dir.clone().setY(.4), 30, 6, 1.1); this.gib(pos, 12); this.gib(pos, 4, '#d8cfc0'); this.audio.splat(); setTimeout(() => this.audio.splat(), 120); }
     z.noLimbs = z.noLimbs || [];
     if (gore && (o.sever || o.boom || fin || (o.pellets && Math.random() < .5)) && Math.random() < .9) { const pool = ['DEF-forearm.L', 'DEF-forearm.R', 'DEF-upper_arm.L', 'DEF-upper_arm.R'];
       if (o.boom || fin) pool.push('DEF-shin.L', 'DEF-shin.R', 'DEF-thigh.L', 'DEF-thigh.R'); const nCut = o.boom ? 3 : fin ? 2 : 1 + (Math.random() < .35 ? 1 : 0);
@@ -265,7 +284,7 @@ export class Game {
   meleeHit() { const P = this.player, ws = this.ws, fwd = V3(Math.sin(P.root.rotation.y), 0, Math.cos(P.root.rotation.y)); let hit = 0;
     this.alive().forEach(z => { const d = z.root.position.clone().sub(P.root.position); const dist = d.length(); d.y = 0; if (dist > ws.range + (z.boss ? .8 : 0)) return; d.normalize(); if (d.dot(fwd) < .35) return;
       const heavy = WEAPONS[this.save.cur].type === 'melee' && this.save.cur !== 'fists'; const fin = this.state.combo >= 2 && heavy && z.hp <= ws.dmg * 1.6;
-      this.damageZ(z, ws.dmg * (fin ? 1.6 : 1) * (1 + this.state.combo * .1), d, { sever: WEAPONS[this.save.cur].sever, finisher: fin, head: fin && WEAPONS[this.save.cur].sever }); hit++; });
+      this.damageZ(z, ws.dmg * (fin ? 1.6 : 1) * (1 + this.state.combo * .1), d, { sever: WEAPONS[this.save.cur].sever, blade: WEAPONS[this.save.cur].blade, finisher: fin, head: fin && WEAPONS[this.save.cur].sever }); hit++; });
     if (hit) { this.audio.hit(); if (Math.random() < .3) this.audio.shout('keem_melee'); if (WEAPONS[this.save.cur].bonk) { this.audio.bonk(); this.floatText('BONK!', '#ffd35a'); } this.hitstop = 0.07; this.shake(.18); this.state.combo++; this.state.comboT = 2; } else this.audio.swing();
     // tanker can be smashed too? no — only shot
   }
@@ -276,8 +295,12 @@ export class Game {
     if ((this.save.mags[id] || 0) <= 0) { this.audio.click(); if ((this.save.ammo[w.ammo] || 0) <= 0) this.audio.shout && this.audio.shout('keem_empty'); s.fireCd = .25; if ((this.save.ammo[w.ammo] || 0) > 0) this.reload(); else this.toast('Out of ammo — loot or buy more'); return; }
     this.save.mags[id]--; s.fireCd = w.rate; this.audio.shot(id); this.shake(id === 'shotgun' || id === 'sniper' ? .28 : .1); this.cam.pitch += (id === 'sniper' ? .05 : .015) * (s.aim ? .5 : 1); this.cam.yaw += rnd(-.006, .006);
     const mz = V3(); const muzzle = (this.cam.fp ? this.vmMesh : this.weaponMeshes[id]).getObjectByName('muzzle'); if (muzzle) muzzle.getWorldPosition(mz); else this.player.worldOf('DEF-hand.R', mz);
-    this.muzzle.position.copy(mz); this.muzzle.visible = true; this.muzzle.material.rotation = rnd(0, 6); this.mLight.position.copy(mz); this.mLight.intensity = 30; this.mT = 0.05;
+    this.muzzle.position.copy(mz); this.muzzle.visible = true; this.muzzle.material.rotation = rnd(0, 6); this.mLight.position.copy(mz); this.mLight.color.set('#ffc070'); this.mLight.intensity = 30; this.mT = 0.05;
     if (!this.cam.fp && this.player.curName.startsWith('Pistol') || this.player.curName === 'Idle_Loop') this.player.play('Pistol_Shoot', { once: true, force: true, speed: 2, cb: () => { this.player.curName = ''; } });
+    if (w.gl) { const ray = this.aimRay(); const rc = new THREE.Raycaster(ray.origin, ray.direction, 0, ws.range); const wh = rc.intersectObjects(this.world.walls, false)[0]; let bd = wh ? wh.distance : ws.range;
+      this.alive().forEach(z => { const t = z.root.position.clone().setY(1).sub(ray.origin).dot(ray.direction); if (t > 0 && t < bd && ray.distanceToPoint(z.root.position.clone().setY(1)) < .6) bd = t; }); this.explode(ray.at(Math.max(2.5, bd), V3()), 5.5, 220 * (ws.dmg / w.dmg)); return; }
+    if (w.flame) { const ray = this.aimRay(); for (let i = 0; i < 2; i++) this.flameAt(mz, 1, ray.direction.clone().multiplyScalar(rnd(9, 13))); this.mLight.color && this.mLight.color.set('#ff8030');
+      this.alive().forEach(z => { const zp = z.root.position.clone().setY(1); const t = zp.clone().sub(ray.origin).dot(ray.direction); if (t > 0 && t < ws.range && ray.distanceToPoint(zp) < .4 + t * .12) { z.burn = 3.5; this.damageZ(z, ws.dmg * 1.6, ray.direction.clone().setY(0).normalize(), { flame: true }); } }); return; }
     const pellets = w.pellets || 1; let end = null;
     for (let k = 0; k < pellets; k++) { const ray = this.aimRay(); let best = null, bd = ws.range;
       // world walls
@@ -387,6 +410,8 @@ export class Game {
     this.alive().forEach(z => { const d = z.root.position.distanceTo(p); if (d < 2.1) { if (sp > 3.5) { const dir = z.root.position.clone().sub(p).setY(0).normalize(); this.damageZ(z, 200, dir, { boom: true }); this.shake(.2); this.hitstop = .03; this.audio.thud(); T.v *= .95; } else { z.st = 'chase'; } } });
     this.player.root.position.copy(p); this.updateTruckCol(); }
   updateZ(dt) { const P = this.player, pp = this.truck.driving ? this.truck.g.position : P.root.position; const Z = this.zombies;
+    if (this.flames) for (const f of this.flames) if (f.life > 0) { f.life -= dt; f.s.position.addScaledVector(f.v, dt); f.s.scale.multiplyScalar(1 + dt * 2.5); if (f.life <= 0) f.s.visible = false; }
+    for (const z of Z) if (z.burn > 0 && !z.dead) { z.burn -= dt; if (Math.random() < dt * 10) { const p = z.root.position.clone(); p.y = rnd(.4, 1.6) * z.scale; this.flameAt(p, 1); } if ((z.burnTick = (z.burnTick || 0) - dt) <= 0) { z.burnTick = .3; this.damageZ(z, z.boss ? 6 : 14, V3(0, 0, 1), { flame: true }); } if (z.mat.userData.u.uShirt && !z.boss) z.mat.userData.u.uShirt.value.lerp(new THREE.Color('#151010'), dt); }
     for (let i = 0; i < Z.length; i++) { const z = Z[i]; const zp = z.root.position;
       if (z.dead) { z.deadT += dt; if (z.vel.lengthSq() > .01) { zp.addScaledVector(z.vel, dt); z.vel.y -= 14 * dt; if (zp.y < 0) { zp.y = 0; z.vel.y = 0; } z.vel.x *= .9; z.vel.z *= .9; }
         z.mixer.update(dt); this.zBones(z); if (z.deadT > 25 && Z.length > 26) { this.scene.remove(z.root); Z.splice(i--, 1); } continue; }
@@ -468,8 +493,10 @@ export class Game {
     for (let i = 0; i < this.pd.length; i++) { const d = this.pd[i]; if (d.life > 0) { d.life -= dt; d.v.y -= 12 * dt; d.p.addScaledVector(d.v, dt); if (d.p.y < .03) { d.p.y = .03; d.v.set(0, 0, 0); if (d.dec) { d.dec = false; this.decal(d.p.x, d.p.z, .35); } } if (d.life <= 0) d.p.y = -99; }
       M.compose(d.p, q, s.setScalar(d.life > 0 ? d.s : 0)); this.parts.setMatrixAt(i, M); }
     this.parts.instanceMatrix.needsUpdate = true;
-    for (let i = this.gibs.length - 1; i >= 0; i--) { const g = this.gibs[i]; g.life -= dt; if (g.m.position.y > .04) { g.v.y -= 14 * dt; g.m.position.addScaledVector(g.v, dt); g.m.rotation.x += g.r.x * dt; g.m.rotation.y += g.r.y * dt; } else { g.m.position.y = .04; } if (g.life <= 0) { this.scene.remove(g.m); this.gibs.splice(i, 1); } }
-    for (let i = this.booms.length - 1; i >= 0; i--) { const b = this.booms[i]; b.t += dt; b.ball.scale.setScalar(1 + b.t * b.R * 1.6); b.ball.material.opacity = Math.max(0, 1 - b.t * 1.4); b.L.intensity = Math.max(0, 120 * (1 - b.t)); if (b.t > 1.2) { this.scene.remove(b.ball, b.L); this.booms.splice(i, 1); } }
+    if (this.spurts) for (let i = this.spurts.length - 1; i >= 0; i--) { const q = this.spurts[i]; q.t -= dt; if (q.t <= 0) { this.spurts.splice(i, 1); continue; } if (Math.random() < dt * 22) { const p = V3(); q.z.worldOf(q.bone, p); this.blood(p, V3(rnd(-.3, .3), 1.4, rnd(-.3, .3)), 3, 3 * q.t, 1); } }
+    for (let i = this.gibs.length - 1; i >= 0; i--) { const g = this.gibs[i]; g.life -= dt; if (g.m.position.y > .04 || g.v.y > 0) { g.v.y -= 14 * dt; if (g.big && g.m.position.y + g.v.y * dt < .08 && g.v.y < -2) { g.v.y *= -.3; g.v.x *= .5; g.v.z *= .5; g.r.multiplyScalar(.4); if (this.settings.gore) this.decal(g.m.position.x, g.m.position.z, .7); } g.m.position.addScaledVector(g.v, dt); g.m.rotation.x += g.r.x * dt; g.m.rotation.y += g.r.y * dt; } else { g.m.position.y = .04; } if (g.life <= 0) { this.scene.remove(g.m); this.gibs.splice(i, 1); } }
+    for (const b of this.booms) if (b.on) { b.t += dt; b.ball.scale.setScalar(1 + b.t * b.R * 1.6); b.ball.material.opacity = Math.max(0, 1 - b.t * 1.4); if (b.t > 1.2) { b.on = false; b.ball.visible = false; } }
+    if (this._boomL && this._boomL.intensity > 0) this._boomL.intensity = Math.max(0, this._boomL.intensity - dt * 120);
     for (let i = this.grenadesLive.length - 1; i >= 0; i--) { const g = this.grenadesLive[i]; g.t -= dt; g.v.y -= 14 * dt; g.m.position.addScaledVector(g.v, dt); if (g.m.position.y < .06) { g.m.position.y = .06; g.v.multiplyScalar(.4); g.v.y = Math.abs(g.v.y) * .3; }
       if (g.t <= 0) { this.scene.remove(g.m); this.grenadesLive.splice(i, 1); this.explode(g.m.position.clone(), 6, 260); const tp = this.world.tanker.position; if (this.stepData.tankerHP > 0 && g.m.position.distanceTo(tp) < 8) this.stepData.tankerBoom = true; } }
     if (this.mT > 0) { this.mT -= dt; if (this.mT <= 0) { this.muzzle.visible = false; this.mLight.intensity = 0; } } if (this.trT > 0) { this.trT -= dt; if (this.trT <= 0) this.tracer.visible = false; } }

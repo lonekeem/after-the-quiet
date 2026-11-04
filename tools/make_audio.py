@@ -96,7 +96,7 @@ V = {  # who: voice, base speed, pitch ratio, extra filter
  'keem': ('am_liam', 1.1, 1.06, ''), 'marcus': ('am_michael', .94, 1.0, ''), 'nia': ('af_heart', 1.0, 1.12, ''),
  'dube': ('bm_george', .9, 1.0, ''), 'walt': ('am_fenrir', .9, .98, ''), 'ruth': ('af_bella', .97, 1.0, ''), 'gus': ('am_onyx', .9, .92, ''),
  'sgt': ('am_eric', .98, 1.0, 'highpass=f=300,lowpass=f=3600,acrusher=bits=11:mix=0.15'), 'brick': ('am_onyx', .92, .9, ''),
- 'ronnie': ('am_adam', .9, .9, ''), 'deacon': ('bm_daniel', .95, .97, ''), 'reyes': ('af_sarah', 1.0, 1.0, ''), 'tuck': ('am_echo', 1.05, 1.0, ''), 'santa': ('am_onyx', .85, .85, ''), 'king': ('bm_lewis', .92, .95, ''), 'captain': ('bm_fable', .9, .92, 'highpass=f=250,lowpass=f=3800'),
+ 'ronnie': ('am_adam', .9, .9, ''), 'deacon': ('bm_daniel', .95, .97, ''), 'reyes': ('af_sarah', 1.0, 1.0, ''), 'tuck': ('am_echo', 1.05, 1.0, ''), 'santa': ('am_onyx', .85, .85, ''), 'king': ('bm_lewis', .92, .95, ''), 'vance': ('af_nicole', 1.0, 1.0, ''), 'captain': ('bm_fable', .9, .92, 'highpass=f=250,lowpass=f=3800'),
  'radio': ('am_michael', 1.0, 1.0, 'highpass=f=350,lowpass=f=3400,acrusher=bits=10:mix=0.2'),
  'npcf': ('af_heart', 1.06, 1.02, ''), 'npcm': ('am_fenrir', 1.06, 1.0, '')}
 def f0_std(a, sr):  # crude autocorrelation pitch tracker -> semitone std of voiced frames
@@ -148,16 +148,16 @@ def say(who, text, path, shout=None):
 for who, text, h in json.load(open('/tmp/lines.json')): say(who, text, f'{OUT}/v/{h}.mp3')
 BARKS = {
  'raider_bark': ('deacon', ['Flank him!', 'Everybody pays!', 'Cover me!', 'He is over there!']),
- 'keem_reload': ('keem', ['Reloading! Cover me, fr!', 'Cover me? Nobody? Bet. Cool.', 'Reloading, reloading!', 'Hold up, hold up, new mag.']),
- 'keem_hurt': ('keem', ['Ow!', 'Agh!', 'Bro, get OFF me!', 'Ugh!', 'Nngh, okay, that lowkey hurt.']),
- 'keem_kill': ('keem', ['Stay down!', 'Nah!', 'Yeah, BOY!', 'Not today!', 'My bad, mister!', 'Okay, okay, that worked. No cap.']),
- 'keem_pickup': ('keem', ['Ooh, bet.', 'Mine now.', 'Got it.', "Yeah, I'm takin' that.", "Okay, that's useful, fr."]),
- 'keem_empty': ('keem', ['Out of ammo!', 'Empty! Bruh, come on!', "Uh oh. Click. That's bad."]),
+ 'keem_reload': ('keem', ['Reloading! Cover me!', 'Cover me? Nobody? Cool.', 'Reloading, reloading!', 'Hold up, new mag.']),
+ 'keem_hurt': ('keem', ['Ow!', 'Agh!', 'Bro, get OFF me!', 'Ugh!', 'Okay, that hurt.']),
+ 'keem_kill': ('keem', ['Stay down!', 'Nah!', 'Yeah, BOY!', 'Not today!', 'Sorry, mister.', 'Okay. That worked.']),
+ 'keem_pickup': ('keem', ['Ooh, okay.', 'Mine now.', 'Got it.', "I'm takin' that.", "That's useful."]),
+ 'keem_empty': ('keem', ['Out of ammo!', 'Empty! Come on!', "Uh oh. Click. That's bad."]),
  'keem_boss': ('keem', ['Bro, that is a BIG dude!', "Ain't no way!", "Gus? Gus, it's me, bro!"]),
  'keem_drive': ('keem', ['Hold on! Hold on!', 'Move, move, move!', "My bad, Mister Pell's mailbox!", 'Brakes. Where the brakes at?', "I don't even got my permit!", 'Get outta the road!']),
- 'keem_combat': ('keem', ['Come on, then!', 'Nah, nah. Back up!', "Bruh, there's more of 'em!", 'Okay, okay. I got this. Bet.', 'Eyes up, Keem. Lock in.']),
+ 'keem_combat': ('keem', ['Come on, then!', 'Nah, nah. Back up!', "Bruh, there's more of 'em!", 'Okay. I got this.', 'Eyes up, Keem. Lock in.']),
  'keem_melee': ('keem', ['Hah!', 'Hyah!', 'Get back!', 'Rrgh!']),
- 'keem_scared': ('keem', ['Oh man... oh man.', 'Is he... deadass eating him?', "Don't look. Don't look.", "That's Mister Walt... nah."]),
+ 'keem_scared': ('keem', ['Oh man... oh man.', 'Is he... is he eating him?', "Don't look. Don't look.", "That's Mister Walt... nah."]),
  'marcus_shout': ('marcus', ['Keem! Over here!', 'Behind you, son!', 'Keep moving!', 'Good shot!']),
  'marcus_chat': ('marcus', ['Stay close, son.', 'Eyes up. Watch the treeline.', 'Easy... easy.', "You're doin' good, Keem.", "Breathe. We're gettin' out of here."]),
  'nia_shout': ('nia', ['Keem, move!', 'Keem, BEHIND you!', 'Hurry up!']),
@@ -168,7 +168,7 @@ BARKS = {
  'npcm_scream': ('npcm', ['Aaagh! Get it off!', 'No! No no no!', 'Somebody! Aaah!']),
  'keem_kill_x': ('keem', ['Stay the hell down!', 'Eat shit!', 'Hell yeah, BOY!', 'Get lost!', 'Not today, sucka!']), 'keem_hurt_x': ('keem', ['Shit!', 'Ah, dang!', 'Get the hell off me, bro!']),
  'keem_empty_x': ('keem', ['Empty! Shit!', 'Out of ammo, dammit!']), 'keem_boss_x': ('keem', ["Ain't no way, that's one big dude!", 'Oh, hell nah!']), 'keem_reload_x': ('keem', ['Reloading, shit, shit!', 'Come on, damn it!']),
- 'keem_drive_x': ('keem', ['Get the hell outta the road!', 'Holy shit, holy shit!']), 'keem_combat_x': ('keem', ['Come get some, ugly!', "Oh shit, bruh, there's more!"]), 'keem_scared_x': ('keem', ['Bro, what the hell...', 'Deadass... holy shit.']),
+ 'keem_drive_x': ('keem', ['Get the hell outta the road!', 'Holy shit, holy shit!']), 'keem_combat_x': ('keem', ['Come get some, ugly!', "Oh shit, bruh, there's more!"]), 'keem_scared_x': ('keem', ['Bro, what the hell...', 'Holy shit. Holy shit.']),
  'marcus_shout_x': ('marcus', ['Behind you, damn it!', 'Move your ass, son!', 'Hell of a shot!']), 'npcm_help_x': ('npcm', ['Holy shit, run!', 'Get the fuck away from me!']),
  'npcf_help': ('npcf', ['Help! Somebody help me!', 'No! Get off me!', 'Please! Help!']), 'npcm_help': ('npcm', ['Run! Just run!', 'Help! Help!', 'Get away from me!']),
 }

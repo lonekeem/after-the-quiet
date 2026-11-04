@@ -96,12 +96,17 @@ export function weaponMesh(id) {
   else if (id === 'axe') { add(new THREE.CylinderGeometry(0.022, 0.022, 0.8, 8), wood, 0, 0, 0.33, Math.PI / 2); add(new THREE.BoxGeometry(0.2, 0.02, 0.14), new THREE.MeshStandardMaterial({ color: '#8a1414', metalness: .5, roughness: .5 }), 0.08, 0, 0.66); }
   else if (id === 'chainsaw') { add(new THREE.BoxGeometry(0.12, 0.16, 0.3), new THREE.MeshStandardMaterial({ color: '#d86a10', roughness: .6 }), 0, 0, 0.1); add(new THREE.BoxGeometry(0.03, 0.08, 0.55), steel, 0, 0, 0.5); }
   else if (id === 'katana') { add(new THREE.BoxGeometry(0.04, 0.04, 0.22), dark, 0, 0, 0.06); add(new THREE.BoxGeometry(0.02, 0.006, 0.75), steel, 0, 0, 0.55); }
+  else if (id === 'tomahawk') { add(new THREE.CylinderGeometry(0.018, 0.02, 0.45, 6), dark, 0, 0, 0.2, Math.PI / 2); add(new THREE.BoxGeometry(0.13, 0.012, 0.09), steel, 0.06, 0, 0.4); }
+  else if (id === 'longsword') { add(new THREE.CylinderGeometry(0.02, 0.02, 0.26, 6), wood, 0, 0, 0.06, Math.PI / 2); add(new THREE.BoxGeometry(0.22, 0.03, 0.03), steel, 0, 0, 0.2); add(new THREE.BoxGeometry(0.05, 0.008, 1.05), steel, 0, 0, 0.74); }
   else if (id === 'fists') { }
-  else { const L = { pistol: .2, revolver: .26, smg: .36, shotgun: .75, rifle: .7, sniper: .95, saw: .85, lever: .8, auto12: .6, handcannon: .3, harpoon: .9, minigun: .8 }[id] || .3;
+  else { const L = { pistol: .2, revolver: .26, smg: .36, shotgun: .75, rifle: .7, sniper: .95, saw: .85, lever: .8, auto12: .6, handcannon: .3, harpoon: .9, minigun: .8, crossbow: .6, flamer: .75, launcher: .55 }[id] || .3;
     add(new THREE.BoxGeometry(0.035, 0.11, 0.05), dark, 0, -0.05, 0); add(new THREE.BoxGeometry(0.045, 0.05, L), id === 'shotgun' ? wood : dark, 0, 0.02, L / 2 - 0.05);
     if (L > 0.3) { add(new THREE.BoxGeometry(0.04, 0.06, 0.22), id === 'sniper' || id === 'shotgun' ? wood : dark, 0, 0.0, -0.15); add(new THREE.BoxGeometry(0.03, 0.1, 0.04), dark, 0, -0.06, L * 0.4); }
     if (id === 'sniper' || id === 'rifle' || id === 'saw') add(new THREE.CylinderGeometry(0.022, 0.022, 0.18, 10), dark, 0, 0.075, L * 0.3, Math.PI / 2);
     if (id === 'saw') { add(new THREE.BoxGeometry(0.09, 0.09, 0.12), new THREE.MeshStandardMaterial({ color: '#3d4630', roughness: .8 }), 0.05, -0.05, 0.12); add(new THREE.CylinderGeometry(0.008, 0.008, 0.12, 6), dark, 0.03, -0.12, L * 0.8); add(new THREE.CylinderGeometry(0.008, 0.008, 0.12, 6), dark, -0.03, -0.12, L * 0.8); }
+    if (id === 'crossbow') add(new THREE.BoxGeometry(0.6, 0.02, 0.03), wood, 0, 0.03, L - 0.08);
+    if (id === 'flamer') { add(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8), new THREE.MeshStandardMaterial({ color: '#a01a10', roughness: .5 }), 0, -0.08, 0.15, Math.PI / 2); }
+    if (id === 'launcher') add(new THREE.CylinderGeometry(0.08, 0.08, 0.14, 8), dark, 0, -0.02, 0.15, Math.PI / 2);
     const mz = new THREE.Object3D(); mz.position.set(0, 0.02, L - 0.03); mz.name = 'muzzle'; g.add(mz); }
   return g;
 }
