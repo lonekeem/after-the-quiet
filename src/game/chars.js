@@ -115,3 +115,11 @@ export function makeDog() { const g = new THREE.Group(); const fur = new THREE.M
   g.legs = []; [[-.08, .2], [.08, .2], [-.08, -.18], [.08, -.18]].forEach(([x, z]) => { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.025, 0.26, 6), fur); l.geometry.translate(0, -0.13, 0); l.position.set(x, 0.3, z); g.add(l); g.legs.push(l); });
   const t = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.025, 0.2, 6), fur); t.position.set(0, 0.45, -0.3); t.rotation.x = -0.8; g.add(t); g.tail = t;
   g.traverse(o => { if (o.isMesh) o.castShadow = true; }); return g; }
+// Biscuit: Nia's rabbit, peeking from her hoodie pocket (~7 meshes, shared mats)
+export function makeRabbit() { const g = new THREE.Group(); const fur = new THREE.MeshStandardMaterial({ color: '#c8a27a', roughness: 1 }), pink = new THREE.MeshStandardMaterial({ color: '#e7a0a8', roughness: 1 }), eye = new THREE.MeshBasicMaterial({ color: '#0a0604' });
+  const head = new THREE.Group(); g.add(head); const h = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), fur); h.scale.set(1, .9, 1.1); head.add(h);
+  const sn = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 5), pink); sn.position.set(0, -0.005, 0.06); head.add(sn);
+  [-1, 1].forEach(s => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.009, 6, 5), eye); e.position.set(s * 0.028, 0.014, 0.045); head.add(e);
+    const ear = new THREE.Mesh(new THREE.CapsuleGeometry(0.014, 0.06, 3, 6), fur); ear.geometry.translate(0, 0.045, 0); ear.position.set(s * 0.022, 0.04, -0.01); ear.rotation.z = -s * .25; head.add(ear); (g.ears = g.ears || []).push(ear); });
+  const paws = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.02, 0.03), fur); paws.position.set(0, -0.05, 0.04); g.add(paws);
+  g.head = head; g.traverse(o => { if (o.isMesh) o.frustumCulled = false; }); return g; }

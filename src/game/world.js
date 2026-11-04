@@ -236,6 +236,7 @@ export function buildWorld(scene, Q, texLoader, base, CM = {}) {
   const Z_rustM = new THREE.MeshStandardMaterial({ color: '#6a4a3a', roughness: .9, metalness: .3 }), Z_white = new THREE.MeshStandardMaterial({ color: '#d8d4c8', roughness: .7 }), Z_red = new THREE.MeshStandardMaterial({ color: '#8a1a14', roughness: .7 });
   const Z_lamp = (x, z, c = '#ffc98a', on = true) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(.08, .1, 6, 6), swMat); p.position.set(x, 3, z); scene.add(p); const h = new THREE.Mesh(new THREE.BoxGeometry(.6, .15, .3), new THREE.MeshStandardMaterial({ color: '#222', emissive: c, emissiveIntensity: on ? 3 : 0 })); h.position.set(x, 6, z); scene.add(h); };
   const Z_pl = (x, y, z, c, i, r) => { if (Q.lamps <= 3 && i < 12) return; const L = new THREE.PointLight(c, i, r, 2); L.position.set(x, y, z); scene.add(L); lights.push(L); return L; };
+  { const pm = new THREE.MeshStandardMaterial({ color: '#333', roughness: .7 }); wallBox(.15, 2.4, .15, pm, -9.5, 1.2, -97); sign(["GUS'S BARBERSHOP", 'FADES · LINEUPS · NO REFUNDS'], -9.5, 2.9, -96.9, 0, 3, .8, '#7a1a1a'); } // the barbershop Keem names
   // CH3 — Route 1, Big Moose Truck Stop + Pine Tree Motel (z -305..-415)
   zone(3, () => {
     road(0, -360, 12, 110); road(-22, -350, 30, 26);
@@ -270,6 +271,10 @@ export function buildWorld(scene, Q, texLoader, base, CM = {}) {
     road(0, -575, 70, 70);
     wallBox(70, 9, 18, new THREE.MeshStandardMaterial({ color: '#b8b0a0', roughness: .8 }), 0, 4.5, -622);
     sign(['THE MAINE MALL'], 0, 7.4, -612.9, 0, 12, 2, '#1a2a4a');
+    // v1.7.1 visible-dialogue props: Tuck's phone-case kiosk, the van + ambulance Reyes names, Nia's Cinnabon
+    wallBox(2.4, 1.1, 1.2, new THREE.MeshStandardMaterial({ color: '#d8d0c8', roughness: .6 }), -25.6, .55, -600); sign(['CASE CRAZE', 'PHONE CASES · 2 FOR $20'], -25.6, 1.9, -599.3, 0, 2.4, .6, '#6a1a7a');
+    car(23.8, -566, Math.PI / 2, '#d8d8d0', { kind: 'van', dirt: 1 }); car(-28, -552, Math.PI / 2, '#ffffff', { kind: 'ambulance', dirt: 1 });
+    sign(['CINNABON'], -12, 3, -612.9, 0, 3.2, .8, '#1a3a8a');
     sign(['FOOD COURT ↓', 'SANTA IS HERE! (DO NOT APPROACH SANTA)'], 12, 3, -612.9, 0, 5, 1.4, '#8a1010');
     const door = new THREE.Mesh(new THREE.BoxGeometry(8, 3.4, .2), new THREE.MeshStandardMaterial({ color: '#203040', metalness: .6, roughness: .2, emissive: '#102030' })); door.position.set(0, 1.7, -612.8); scene.add(door);
     for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) if ((r + c) % 3) car(-28 + c * 11, -548 - r * 14, (r % 2) * Math.PI + .1, ['#4a5a7a', '#7a2a2a', '#d8d8d0', '#2a2a2a', '#5a6a3a'][(r * 6 + c) % 5], { wreck: (r + c) % 4 === 0, dirt: 1 });
@@ -293,6 +298,7 @@ export function buildWorld(scene, Q, texLoader, base, CM = {}) {
     const beam = new THREE.SpotLight('#fff2c0', 40, 120, .12, .4, 1); beam.position.set(12, 19, -738); scene.add(beam, beam.target); updaters.push((dt, t) => { beam.target.position.set(12 + Math.sin(t * .6) * 60, 0, -738 + Math.cos(t * .6) * 60); });
     zones._ship = new THREE.PointLight('#ff4040', 0, 80, 1); zones._ship.position.set(-30, 3, -840); scene.add(zones._ship);
     fire(-24, 0, -690, 1); fire(20, 0, -712, .9);
+    { const rb = new THREE.Group(), rh = new THREE.Mesh(new THREE.BoxGeometry(3, 1.4, 8), Z_red); rh.position.y = .5; const cab = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.4, 2.4), Z_white); cab.position.set(0, 1.9, -1); rb.add(rh, cab); rb.position.set(-30, 0, -838); rb.rotation.y = .4; scene.add(rb); updaters.push((dt, t) => { rb.position.y = Math.sin(t * .8) * .15; }); } // the Captain's red boat
   });
   // ===== v1.7 CHAPTERS 7–9 · far south strip (x -48..48, z -1000..-1700), reached by checkpoint =====
   box(-300, -48, -1800, -1000); box(48, 300, -1800, -1000); box(-300, 300, -1900, -1700); [-1256, -1456].forEach(Z_barrier);
