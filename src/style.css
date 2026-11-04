@@ -68,7 +68,7 @@ body.still .layer{animation:none!important}
 table{border-collapse:collapse;font:14px system-ui}td,th{padding:6px 10px;border-bottom:1px solid #1d3a28;text-align:left}
 .primary{border-color:var(--g)!important}
 #title{background:#000;flex-direction:column;justify-content:flex-start;padding-top:10vh}
-#title .tbg{position:absolute;inset:0;background:center/cover;animation:kb-in 40s ease-out forwards;opacity:.75}
+#title .tbg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 35%,#2b3d34 0%,#0c1612 60%,#050b08 100%);animation:kb-in 40s ease-out forwards;opacity:.75}
 #title .logo,#title .menu,#title .foot{position:relative}
 .logo{text-align:center}.studio{font:13px system-ui;letter-spacing:.5em;color:var(--g)}
 h1{font-size:clamp(40px,8vw,92px);margin:.15em 0;letter-spacing:.12em;text-shadow:0 0 30px rgba(127,212,154,.35)}
@@ -133,7 +133,7 @@ body.snap .layer{transition:none!important}
 #stickZone{position:absolute;left:0;bottom:0;width:42%;height:62%;pointer-events:auto}
 #stickBase{position:absolute;left:max(40px,env(safe-area-inset-left));bottom:28px;width:120px;height:120px;border-radius:50%;border:2px solid rgba(220,235,225,.5);background:rgba(10,20,14,.25)}
 #stickKnob{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;background:rgba(220,235,225,.55)}
-#lbtns{position:absolute;left:max(12px,env(safe-area-inset-left));top:120px;display:flex;flex-direction:column;gap:10px;pointer-events:auto}
+#lbtns{position:absolute;left:max(12px,env(safe-area-inset-left));top:120px;display:flex;flex-direction:column;gap:10px;pointer-events:auto;z-index:4}
 #tbtns{position:absolute;right:max(14px,env(safe-area-inset-right));bottom:26px;width:240px;height:220px;pointer-events:none}
 #tbtns .rb{position:absolute;pointer-events:auto}
 #tAtk{right:40px;bottom:40px}#tAim{right:0;bottom:-8px;width:44px!important;height:44px!important}
@@ -148,7 +148,7 @@ body.snap .layer{transition:none!important}
 #dead .dbig{font:900 clamp(48px,10vw,110px) Georgia;letter-spacing:.15em;color:#c01010;text-shadow:0 0 30px #f00,0 4px 0 #300}
 #dead button{font:inherit;font-size:17px;color:#fee;background:rgba(40,0,0,.8);border:1px solid #a22;padding:10px 18px;border-radius:8px;min-width:240px}
 @media (pointer:fine){#touch{display:none!important}}
-@media (max-height:420px){.rb{width:44px;height:44px}.rb.big{width:72px;height:72px}#mini{width:72px;height:72px}#pfp,#pfp img{width:58px;height:58px}}
+@media (max-height:420px){.rb{width:44px;height:44px}.rb.big{width:72px;height:72px}#mini{width:72px;height:72px}#pfp{width:58px}}
 /* v1.3 shop + inventory */
 .panel.wide{max-width:760px;width:94vw;max-height:88vh;overflow:auto}
 .cashline{color:#9be37a;font-weight:800;margin:6px 0 10px}

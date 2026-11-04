@@ -14,7 +14,7 @@ export class Input {
     addEventListener('mousemove', e => { if (g.paused) return; if (document.pointerLockElement === cv) { this.look.x += e.movementX * .0024 * sens(); this.look.y += e.movementY * .0024 * sens(); } else if (drag) { this.look.x += (e.clientX - drag.x) * .005 * sens(); this.look.y += (e.clientY - drag.y) * .005 * sens(); drag = { x: e.clientX, y: e.clientY }; } });
     // touch: stick
     const zone = $('#stickZone'), base = $('#stickBase'), knob = $('#stickKnob'); this.stickId = null; this.stick = new THREE.Vector2();
-    zone.addEventListener('touchstart', e => { const t = e.changedTouches[0]; this.stickId = t.identifier; const r = base.getBoundingClientRect(); this.sc = { x: r.left + r.width / 2, y: r.top + r.height / 2 }; this.stickMove(t); e.preventDefault(); }, { passive: false });
+    zone.addEventListener('touchstart', e => { const t = e.changedTouches[0]; this.stickId = t.identifier; const r = base.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2; this.sc = Math.hypot(t.clientX - cx, t.clientY - cy) < r.width / 2 ? { x: cx, y: cy } : { x: t.clientX, y: t.clientY }; this.stickMove(t); e.preventDefault(); }, { passive: false });
     zone.addEventListener('touchmove', e => { for (const t of e.changedTouches) if (t.identifier === this.stickId) this.stickMove(t); e.preventDefault(); }, { passive: false });
     const end = e => { for (const t of e.changedTouches) { if (t.identifier === this.stickId) { this.stickId = null; this.stick.set(0, 0); knob.style.transform = ''; } if (t.identifier === this.lookId) this.lookId = null; } };
     zone.addEventListener('touchend', end); zone.addEventListener('touchcancel', end);

@@ -156,8 +156,8 @@ export class Game {
   say(lines, cb) { this.dlgQ = (this.dlgQ || []).concat(lines.map(l => ({ who: l[0], text: l[1] }))); if (cb) this.dlgQ.push({ cb }); if (!this.dlgCur) this.nextLine(); }
   nextLine() { const d = $('#dlg'); const it = this.dlgQ.shift(); if (!it) { this.dlgCur = null; d.classList.remove('on'); return; } if (it.cb) { it.cb(this); this.nextLine(); return; }
     this.dlgCur = it; const names = { keem: 'Keem', marcus: 'Dad', nia: 'Nia', walt: 'Mr. Walt', ruth: 'Ruth', dube: 'Mr. Dube', radio: 'Radio', note: 'Dad\'s note', gus: 'Big Gus' };
-    $('#who').textContent = names[it.who] || it.who; const port = { keem: 'keem', marcus: 'marcus', nia: 'nia', walt: 'walt', ruth: 'ruth' }[it.who]; const pe = $('#portrait');
-    if (port) { pe.style.backgroundImage = `url(./img/char_${port}.webp)`; pe.style.display = ''; } else { pe.style.display = 'none'; }
+    $('#who').textContent = names[it.who] || it.who;
+    
     $('#line').textContent = it.text; d.classList.add('on'); it.t = 0; it.dur = (1.6 + it.text.length * 0.045) / (this.settings.text || 1); }
   skipLine() { if (this.dlgCur) this.nextLine(); }
 
@@ -222,7 +222,8 @@ export class Game {
     // tanker can be smashed too? no — only shot
   }
   aimRay() { const r = new THREE.Raycaster(); const ws = this.ws; const sp = this.state.aim ? ws.spread * .45 : ws.spread * (this.cam.fp ? .8 : 1.4);
-    r.setFromCamera(new THREE.Vector2(rnd(-sp, sp) * 4, 0.08 + rnd(-sp, sp) * 4), this.camera); return r.ray; }
+    const xr = $('#xhair').getBoundingClientRect(), cr = this.renderer.domElement.getBoundingClientRect(); const cy = (xr.width && cr.height) ? 1 - 2 * ((xr.top + xr.height / 2 - cr.top) / cr.height) : 0.08, cx = (xr.width && cr.width) ? 2 * ((xr.left + xr.width / 2 - cr.left) / cr.width) - 1 : 0;
+    r.setFromCamera(new THREE.Vector2(cx + rnd(-sp, sp) * 4, cy + rnd(-sp, sp) * 4), this.camera); return r.ray; }
   fire() { const s = this.state, id = this.save.cur, w = WEAPONS[id], ws = this.ws; if (s.reload > 0 || s.fireCd > 0) return;
     if ((this.save.mags[id] || 0) <= 0) { this.audio.click(); s.fireCd = .25; if ((this.save.ammo[w.ammo] || 0) > 0) this.reload(); else this.toast('Out of ammo — loot or buy more'); return; }
     this.save.mags[id]--; s.fireCd = w.rate; this.audio.shot(id); this.shake(id === 'shotgun' || id === 'sniper' ? .28 : .1); this.cam.pitch += (id === 'sniper' ? .05 : .015) * (s.aim ? .5 : 1); this.cam.yaw += rnd(-.006, .006);
@@ -254,7 +255,7 @@ export class Game {
     const rate = this.ws.rate; s.atk = rate; s.atkHit = rate * .45; const anim = this.save.cur === 'fists' ? (s.combo % 2 ? 'Punch_Cross' : 'Punch_Jab') : 'Sword_Attack';
     P.play(anim, { once: true, force: true, speed: (this.lib.clips[anim].duration / rate) * .8, cb: () => { P.curName = ''; } }); this.audio.swing(); }
   roll() { const s = this.state; if (s.roll > 0 || this.truck.driving || this.cut) return; s.roll = 0.62; this.player.play('Roll', { once: true, force: true, speed: 1.35, cb: () => { this.player.curName = ''; } });
-    const mv = this.input.move; if (mv.lengthSq() > .04) this.player.root.rotation.y = Math.atan2(mv.x, mv.y) + this.cam.yaw + Math.PI; }
+    const mv = this.input.move; if (mv.lengthSq() > .04) this.player.root.rotation.y = Math.atan2(mv.x, mv.y) + this.cam.yaw; }
   jump() { const s = this.state; if (s.y > 0.01 || this.truck.driving || this.cut) return; s.vy = 4.8; this.player.play('Jump_Start', { once: true, force: true, speed: 1.5, cb: () => this.player.play('Jump_Loop') }); }
   grenade() { if (this.save.grenades <= 0) { this.toast('No grenades'); return; } if (this.truck.driving || this.cut) return; this.save.grenades--; const P = this.player;
     const m = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, .2, 8), new THREE.MeshStandardMaterial({ color: '#444' })); const p = P.root.position.clone(); p.y = 1.6; m.position.copy(p); this.scene.add(m);
@@ -304,7 +305,7 @@ export class Game {
     const mv = I.move; const mag = Math.min(1, mv.length()); const run = (I.run || mag > .95 && I.touchRun) && !s.crouch && !s.aim;
     let spd = s.crouch ? 1.6 : run ? 6.2 * (perk(this.save, 7) ? 1.15 : 1) : 3.1; if (s.aim) spd = 2.2; if (s.atk > 0) spd *= .3; if (s.stun > 0) { spd = 0; s.stun -= dt; }
     const yaw = this.cam.yaw; let dx = 0, dz = 0;
-    if (mag > .08) { const a = Math.atan2(mv.x, mv.y) + yaw + Math.PI; dx = Math.sin(a) * spd * mag; dz = Math.cos(a) * spd * mag;
+    if (mag > .08) { const a = Math.atan2(mv.x, mv.y) + yaw; dx = Math.sin(a) * spd * mag; dz = Math.cos(a) * spd * mag;
       if (!(gun || this.cam.fp) && s.atk <= 0 && s.roll <= 0) P.root.rotation.y = angLerp(P.root.rotation.y, a, Math.min(1, dt * 12)); }
     if (gun || this.cam.fp) P.root.rotation.y = angLerp(P.root.rotation.y, yaw + Math.PI, Math.min(1, dt * 18));
     if (s.roll > 0) { s.roll -= dt; const f = 6.5; dx = Math.sin(P.root.rotation.y) * f; dz = Math.cos(P.root.rotation.y) * f; }

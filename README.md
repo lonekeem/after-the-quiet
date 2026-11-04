@@ -1,4 +1,4 @@
-# After the Quiet — v1.3.0 Story Mode
+# After the Quiet — v1.3.1 Story Mode
 A free-roam third-person horror action shooter by **Lone Keem Studios** (Three.js + Vite + Capacitor).
 You play **Keem**, a kid with a backpack, fighting out of **Riverside, Maine** on the night it falls.
 
