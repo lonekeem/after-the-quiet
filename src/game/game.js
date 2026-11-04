@@ -12,7 +12,7 @@ import { CharLib, Char, backpack, weaponMesh, makeDog } from './chars.js';
 import { WEAPONS, WEAPON_ORDER, stat, perk, xpFor, PERKS, writeSave } from './data.js';
 import { V3, clamp, lerp, rnd, angLerp, bloodTex } from './util.js';
 import { Input } from './input.js';
-import { STORY, LOOT } from './story.js';
+import { STORY, LOOT, chOf } from './story.js';
 
 const $ = (s) => document.querySelector(s);
 export const PRESETS = {
@@ -97,7 +97,8 @@ export class Game {
     P.root.visible = true; P.model.visible = true; for (const k in P.bones) P.bones[k].scale.set(1, 1, 1);
     const cp = st.cp; P.root.position.set(cp[0], 0, cp[1]); P.root.rotation.y = cp[2] || 0; this.cam.yaw = (cp[2] || 0) + Math.PI; this.cam.pitch = -0.1;
     this.pack.visible = this.save.items.includes('backpack') || !!this.player.wantsPack; this.equip(this.save.cur || 'fists', true);
-    LOOT.forEach(l => { if (!this.save.loot.includes(l.id) && (l.minStep || 0) <= i + 1) this.addPickup(l); });
+    const ch = chOf(i); const zs = this.world.zones || {}; for (const k in zs) if (zs[k] && zs[k].isObject3D) zs[k].visible = +k === ch; if (ch > (this.save.ch || 1)) this.save.ch = ch;
+    LOOT.forEach(l => { const lc = chOf(l.minStep || 0); if (!this.save.loot.includes(l.id) && (l.minStep || 0) <= i + 1 && (lc === ch || (ch <= 2 && lc <= 2))) this.addPickup(l); });
     this.world.frontDoor.rotation.y = i >= 3 ? -1.6 : 0; this.setDoor(i >= 3);
     this.setTruck(i);
     st.enter(this); this.objective(st.obj, st.hint); this.audio.setMood(st.mood || 'night'); this.audio.rain && this.audio.rain(st.rain !== false && st.mood !== 'day'); this.audio.beat(st.beat || 0);
@@ -136,7 +137,7 @@ export class Game {
   takePickup(p) { const l = p.l, s = this.save; this.scene.remove(p.mesh); this.pickups.splice(this.pickups.indexOf(p), 1); if (l.id && !l.story) s.loot.push(l.id); this.audio.pickup();
     if (l.kind === 'cash') this.addCash(l.n); else if (l.kind === 'ammo') { s.ammo[l.item] = (s.ammo[l.item] || 0) + l.n; this.floatText(`+${l.n} ${l.item} ammo`, '#d8e8a0'); }
     else if (l.kind === 'med') { s.meds++; this.floatText('+1 Med kit', '#fff'); } else if (l.kind === 'grenade') { s.grenades += l.n || 1; this.floatText('+Pipe grenade', '#fff'); }
-    else if (l.kind === 'page') { s.pages.push(l.id); this.toast(`Comic page found (${s.pages.length}/14): "${l.text}"`, 3); this.addXP(25); }
+    else if (l.kind === 'page') { s.pages.push(l.id); this.toast(`Comic page found (${s.pages.length}/20): "${l.text}"`, 3); this.addXP(25); }
     else if (l.kind === 'weapon') { this.give(l.item); if (l.ammo) s.ammo[WEAPONS[l.item].ammo] = (s.ammo[WEAPONS[l.item].ammo] || 0) + l.ammo; }
     else if (l.kind === 'backpack') { s.items.push('backpack'); this.pack.visible = true; this.toast('Backpack on. More room for loot.'); }
     else if (l.kind === 'item') { s.items.push(l.item); this.toast(l.label || l.item); }
@@ -148,18 +149,26 @@ export class Game {
     v.pool = this.decal(x, z, 0.9); this.decal(x + .6, z - .4, 0.8); v.struggle = 1; v.jolt = 0; v.screamT = rnd(.5, 2); v.isVictim = true;
     for (let i = 0; i < eaters; i++) { const a = i / eaters * 6.28 + rnd(-.3, .3); const zz = this.spawnZ(x + Math.cos(a) * 0.95, z + Math.sin(a) * 0.95, { eat: v }); zz.eatOff = i; zz.root.rotation.y = Math.atan2(x - zz.root.position.x, z - zz.root.position.z); }
     return v; }
-  spawnZ(x, z, o = {}) { const zl = Object.assign(randomLook((ZSEED++ * 7919 + (Math.random() * 1e5 | 0)) | 0, true), { grime: 1, blood: this.settings.gore ? rnd(.5, 1) : 0.15 }); if (Math.random() < .3) zl.hair = 'balding'; if (o.boss) { zl.hair = 'bald'; zl.beard = 'full'; zl.build = 1.3; }
+  spawnZ(x, z, o = {}) { const zl = Object.assign(randomLook((ZSEED++ * 7919 + (Math.random() * 1e5 | 0)) | 0, !o.raider), o.raider ? { grime: .6, blood: .1 } : { grime: 1, blood: this.settings.gore ? rnd(.5, 1) : 0.15 }); if (Math.random() < .3) zl.hair = 'balding'; if (o.boss) { zl.hair = 'bald'; zl.beard = 'full'; zl.build = 1.3; }
     const sc = (o.scale || rnd(.94, 1.06)); const c = new Char(this.lib, zl, sc); c.id = Math.random() * 10; c.root.position.set(x, 0, z); c.root.rotation.y = rnd(0, 6); this.scene.add(c.root);
     const runner = o.runner ?? Math.random() < (this.stepData.runners || 0.15);
     Object.assign(c, { z: true, hp: o.hp || (runner ? 50 : 70), maxHp: o.hp || (runner ? 50 : 70), runner, speed: runner ? rnd(3.6, 4.4) : rnd(1.1, 1.6), st: o.eat ? 'eat' : (o.idle ? 'idle' : 'chase'), eat: o.eat, cd: rnd(0, 1), stun: 0, dead: false, boss: !!o.boss, aggro: o.aggro ?? 30, vel: V3() });
     if (o.eat) c.play('Fixing_Kneeling', { speed: 1.4 }); else c.play(runner ? 'Jog_Fwd_Loop' : 'Walk_Loop', { speed: runner ? 1.1 : 0.62 });
     if (c.act('Walk_Loop')) c.act('Walk_Loop').time = rnd(0, 1);
+    if (o.raider) { c.raider = true; c.hp = c.maxHp = o.hp || 90; c.speed = 2.6; c.cd = rnd(1, 2.5); const h = new THREE.Group(); h.add(weaponMesh(o.gun || 'rifle')); h.rotation.set(Math.PI / 2, 0, 0); h.position.set(0, .08, .02); c.attach('DEF-hand.R', h); c.play('Pistol_Aim_Neutral'); if (c.mat && c.mat.userData.u && c.mat.userData.u.uShirt) c.mat.userData.u.uShirt.value.set(o.shirt || '#3a2418'); }
     this.zombies.push(c); return c; }
   horde(n, pts, o = {}) { for (let i = 0; i < n; i++) { const p = pts[i % pts.length]; this.spawnZ(p[0] + rnd(-3, 3), p[1] + rnd(-3, 3), o); } }
   alive() { return this.zombies.filter(z => !z.dead); }
 
   // ---------- UI helpers ----------
   objective(t, h) { $('#objt').textContent = t || ''; $('#objh').textContent = this.settings.hints ? (h || '') : ''; $('#obj').style.display = t ? '' : 'none'; }
+  // v1.6 human raiders: keep ~9m, strafe, shoot (telegraphed muzzle + tracer), never eat
+  raiderAI(z, d, toP, dt, zp) { if (d > Math.max(z.aggro, 28) && !this.stepData.hordeAll) return; toP.normalize(); z.root.rotation.y = angLerp(z.root.rotation.y, Math.atan2(toP.x, toP.z), Math.min(1, dt * 5));
+    z.sd = z.sd || (Math.random() < .5 ? 1 : -1); const want = d > 12 ? 1 : d < 7 ? -1 : 0; const sx = (toP.x * want + -toP.z * z.sd * .5) * z.speed * dt, sz = (toP.z * want + toP.x * z.sd * .5) * z.speed * dt;
+    if (this.moveCollide(zp, sx, sz, .3)) z.sd = -z.sd; if (Math.random() < dt * .3) z.sd = -z.sd; z.play(want || true ? 'Jog_Fwd_Loop' : 'Pistol_Aim_Neutral', { speed: .8 });
+    z.cd -= dt; if (z.cd <= 0 && d < 30 && !this.cut) { z.cd = rnd(1.3, 2.4); this.audio.at ? this.audio.at(zp).shot('rifle') : this.audio.shot('rifle'); const ok = Math.random() < (d < 10 ? .45 : .25) && this.state.roll <= 0 && !this.state.crouch; if (ok && !this.truck.driving) this.hurt(this.settings.qteEasy ? 4 : 7, zp);
+      const tr = new THREE.Mesh(new THREE.BoxGeometry(.03, .03, d), new THREE.MeshBasicMaterial({ color: '#ffd080' })); tr.position.set((zp.x + this.player.root.position.x) / 2, 1.4, (zp.z + this.player.root.position.z) / 2); tr.lookAt(this.player.root.position.x, 1.4, this.player.root.position.z); this.scene.add(tr); setTimeout(() => { this.scene.remove(tr); tr.geometry.dispose(); }, 60); }
+    if (Math.random() < dt * .05 && this.audio.shout) this.audio.shout('raider_bark', false, zp); }
   openGate(o) { const c = this.world.ch2; if (!c) return; c.gateCol.skip = o; c.gateMesh.position.x = o ? 5.8 : 0; }
   ch2Reset(g, i) { this.openGate(i >= 11); if ((this.save.ch || 1) < 2) this.save.ch = 2; }
   toast(t, s = 1.8) { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(this._tt); this._tt = setTimeout(() => e.classList.remove('on'), s * 1000); }
@@ -167,7 +176,7 @@ export class Game {
   say(lines, cb) { this.dlgQ = (this.dlgQ || []).concat(lines.map(l => ({ who: l[0], text: l[1] }))); if (cb) this.dlgQ.push({ cb }); if (!this.dlgCur) this.nextLine(); }
   nextLine() { const d = $('#dlg'); const it = this.dlgQ.shift(); if (!it) { this.dlgCur = null; d.classList.remove('on'); this.audio.stopVoice && this.audio.stopVoice(); return; } if (it.cb) { it.cb(this); this.nextLine(); return; }
     if (it.raw == null) { it.raw = it.text; const L = langLine(it.raw, this.settings.lang || 'on'); it.text = L.sub; it.vtext = L.voice; it.bleeps = L.bleeps; }
-    this.dlgCur = it; const names = { keem: 'Keem', marcus: 'Dad', nia: 'Nia', walt: 'Mr. Walt', ruth: 'Ruth', dube: 'Mr. Dube', radio: 'Radio', note: 'Dad\'s note', gus: 'Big Gus', sgt: 'Sgt. Okafor (radio)', brick: 'Coach Brickman' };
+    this.dlgCur = it; const names = { keem: 'Keem', marcus: 'Dad', nia: 'Nia', walt: 'Mr. Walt', ruth: 'Ruth', dube: 'Mr. Dube', radio: 'Radio', note: 'Dad\'s note', gus: 'Big Gus', sgt: 'Sgt. Okafor (radio)', brick: 'Coach Brickman', ronnie: 'Big Rig Ronnie', deacon: 'Deacon', reyes: 'Dr. Reyes', tuck: 'Tuck', santa: 'Mall Santa', king: 'The Toll King' };
     $('#who').textContent = names[it.who] || it.who; const cur = it; it.who !== 'keem' && this.audio.voice && this.audio.voice(it.who, it.vtext, it.bleeps).then(dd => { if (dd && this.dlgCur === cur) cur.dur = Math.max(cur.dur || 0, dd + .5); });
     
     $('#line').textContent = it.text; d.classList.add('on'); it.t = 0; it.dur = (1.6 + it.text.length * 0.045) / (this.settings.text || 1); }
@@ -364,6 +373,7 @@ export class Game {
       if (z.st === 'eat') { const det = this.state.crouch ? 4 : 7.5; if ((d < det && !this.cut) || z.hp < z.maxHp) { z.st = 'chase'; z.lk = 0; this.audio.at(zp).groan(.14); if (Math.random() < .5) this.audio.zAttack && this.audio.zAttack(); }
         z.mixer.update(dt); this.feedPose(z, dt, d, toP); continue; }
       if (z.st === 'eat' || z.st === 'idle') { const det = this.state.crouch ? 4 : (z.st === 'eat' ? 7 : 12); if (d < det && !this.cut || z.hp < z.maxHp) { z.st = 'chase'; this.audio.at(zp).groan(.12); } z.mixer.update(dt); if (z.st === 'eat' && Math.random() < dt * .3) this.audio.at(zp).groan(.05); if (z.st === 'eat' && d < 16 && (z.eatT = (z.eatT ?? rnd(0, 2)) - dt) <= 0) { z.eatT = rnd(2.2, 3.4); this.audio.at(zp).eat(Math.max(.05, .55 * (1 - d / 16))); } continue; }
+      if (z.raider && !z.boss) { this.raiderAI(z, d, toP, dt, zp); z.mixer.update(dt); this.zBones(z); continue; }
       if (z.boss) { this.updateBoss(z, d, toP, dt); z.mixer.update(dt); this.zBones(z); continue; }
       if (z.stun > 0) { z.stun -= dt; zp.addScaledVector(z.vel, dt); z.vel.multiplyScalar(.85); z.mixer.update(dt); this.zBones(z); continue; }
       if (d > z.aggro && !this.stepData.hordeAll) { z.mixer.update(dt); this.zBones(z); continue; }
@@ -475,7 +485,7 @@ export class Game {
   hud() { const s = this.save, w = WEAPONS[s.cur];
     $('#hpb i').style.width = (this.hp / this.maxHp * 100) + '%'; $('#hpTxt').textContent = `Health : ${Math.ceil(this.hp)}  ·  Lv ${s.level}  ·  $${s.cash}  ·  Med ${s.meds}`;
     $('#ammoTxt').textContent = w.type === 'gun' ? `${w.name}  ·  Ammo : ${s.mags[s.cur] || 0} / ${s.ammo[w.ammo] || 0}${this.state.reload > 0 ? '  (reloading)' : ''}` : w.name;
-    $('#grenN').textContent = s.grenades; $('#tAtk').textContent = w.type === 'gun' ? 'FIRE' : 'HIT'; $('#pages').textContent = s.pages.length ? `Comic pages ${s.pages.length}/14` : '';
+    $('#grenN').textContent = s.grenades; $('#tAtk').textContent = w.type === 'gun' ? 'FIRE' : 'HIT'; $('#pages').textContent = s.pages.length ? `Comic pages ${s.pages.length}/20` : '';
     $('#lowhp').style.opacity = this.dying ? 1 : clamp(1 - this.hp / this.maxHp * 2.2, 0, .9); const cb = $('#combo'); if (this.state.combo >= 2) { cb.textContent = `x${this.state.combo} COMBO`; cb.classList.add('on'); } else cb.classList.remove('on');
     const n = this.nearUse(); $('#prompt').textContent = n && !this.cut ? `✋ ${n.label}` : (this.truck.driving ? 'GAS / BRAKE + ◀ ▶ · W/S + A/D · RT/LT' : '');
     if (this.boss) $('#boss').classList.remove('hidden');

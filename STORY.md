@@ -21,3 +21,16 @@ Minutes after the bridge. Keem and Nia reach Haverford, the next town south. The
 - **Boss: Coach Brickman:** the gym teacher who failed Keem, now a 1.75× linebacker zombie.
 - **Cliffhanger:** the scoreboard says the evac left early and to go to Portland. Dad's sleeve is wet with blood. "It's nothing, baby. Glass. From the gate."
 New voices (Kokoro stock): Sgt. Okafor (am_eric, radio filter) and Coach Brickman (am_onyx).
+
+
+## Chapter 3 — Route 1
+On the road to Portland with a near-empty tank. The family clears the Big Moose Truck Stop for diesel, and at the Pine Tree Motel Keem finds the bite on Dad's arm from the Haverford gate. Dad: "Don't tell your sister. Not yet." Boss: Big Rig Ronnie. New weapon: chainsaw. The Tollmen announce over the radio that they own the turnpike.
+
+## Chapter 4 — Everybody Pays
+At the Maine Turnpike toll plaza the Tollmen raiders (human enemies that strafe and shoot) ambush the family. Deacon takes Dad and Nia because "the Captain pays double for biters." Keem storms the camp, breaks the cage and kills Deacon. New weapon: lever-action .30-30. Dad loses feeling in his hand.
+
+## Chapter 5 — Black Friday
+The Maine Mall. New survivors: Dr. Imani Reyes, a veterinarian, and Tuck, a kiosk kid. Keem finds three antiviral packs while the others hold the doors so Reyes can dose Dad; it buys him days. Boss: Mall Santa. New weapon: Auto-12 shotgun. Reyes has heard a "Navy" broadcast about a cure trial at Fort Williams that wants infected volunteers.
+
+## Chapter 6 — The Lighthouse
+Fort Williams and Portland Head Light. The family survives a Tollmen raid and kills the Toll King, whose last words are "The Captain… he doesn't cure them…". They signal the ship, and the "Captain" radios back: bring the infected one to the shore, alone. Dad's eyes go gray: "Keem… run." One gunshot, off-screen. **To be continued — Chapter 7 coming soon.**

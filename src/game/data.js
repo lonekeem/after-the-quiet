@@ -5,15 +5,19 @@ export const WEAPONS = {
   bat:     { name: 'Baseball Bat', type: 'melee', dmg: 48, rate: 0.7, range: 2.1, price: 150, desc: 'Dad\'s old Louisville. Heavy swing.' },
   machete: { name: 'Machete', type: 'melee', dmg: 62, rate: 0.6, range: 2.0, price: 450, sever: true, desc: 'Cuts limbs clean off.' },
   axe:     { name: 'Fire Axe', type: 'melee', dmg: 90, rate: 0.95, range: 2.2, price: 900, sever: true, desc: 'Slow. Brutal. Finisher machine.' },
+  chainsaw:{ name: 'Chainsaw', type: 'melee', dmg: 140, rate: 0.5, range: 2.3, price: 1400, sever: true, ch: 3, desc: 'Big Moose Truck Stop special. Loud. Messy. Perfect.' },
   pistol:  { name: '9mm Pistol', type: 'gun', ammo: 'light', dmg: 34, rate: 0.22, mag: 12, reload: 1.3, spread: 0.012, range: 60, price: 0, desc: 'Dad\'s lockbox pistol.' },
   revolver:{ name: '.44 Revolver', type: 'gun', ammo: 'light', dmg: 80, rate: 0.55, mag: 6, reload: 2.0, spread: 0.008, range: 70, price: 700, desc: 'Six shots. Big holes.' },
   smg:     { name: 'SMG', type: 'gun', ammo: 'light', dmg: 20, rate: 0.075, mag: 30, reload: 1.6, spread: 0.035, range: 45, auto: true, price: 1100, desc: 'Sprays the horde.' },
   shotgun: { name: 'Pump Shotgun', type: 'gun', ammo: 'shell', dmg: 22, pellets: 8, rate: 0.85, mag: 6, reload: 2.4, spread: 0.075, range: 22, price: 1300, desc: 'Close range shredder. Pops limbs.' },
   rifle:   { name: 'Patrol Rifle', type: 'gun', ammo: 'rifle', dmg: 38, rate: 0.11, mag: 30, reload: 2.0, spread: 0.016, range: 90, auto: true, price: 1800, desc: 'Sheriff\'s AR. Full auto.' },
   saw:     { name: 'Guard SAW', type: 'gun', ammo: 'rifle', dmg: 30, rate: 0.085, mag: 75, reload: 3.4, spread: 0.03, range: 85, auto: true, price: 3200, ch: 2, desc: 'Belt-fed National Guard machine gun. Unlocks in Chapter 2.' },
+  lever:   { name: 'Lever-Action .30-30', type: 'gun', ammo: 'rifle', dmg: 120, rate: 0.6, mag: 8, reload: 2.4, spread: 0.006, range: 110, price: 1800, ch: 4, desc: 'Taken off a Tollman. Hits like a mule.' },
+  auto12:  { name: 'Auto-12 Shotgun', type: 'gun', ammo: 'shell', dmg: 20, pellets: 8, rate: 0.24, mag: 12, reload: 2.8, spread: 0.07, range: 22, auto: true, price: 2600, ch: 5, desc: 'Mall security\'s worst idea. Fully automatic.' },
+  handcannon:{ name: '.50 Hand Cannon', type: 'gun', ammo: 'light', dmg: 150, rate: 0.7, mag: 7, reload: 2.0, spread: 0.01, range: 70, price: 3000, ch: 6, desc: 'The Toll King\'s sidearm. Pays every toll.' },
   sniper:  { name: 'Hunting Sniper', type: 'gun', ammo: 'rifle', dmg: 160, rate: 1.2, mag: 5, reload: 2.6, spread: 0.001, range: 160, zoom: 3, price: 2600, desc: 'One shot, one head.' },
 };
-export const WEAPON_ORDER = ['fists', 'pan', 'bat', 'machete', 'axe', 'pistol', 'revolver', 'smg', 'shotgun', 'rifle', 'saw', 'sniper'];
+export const WEAPON_ORDER = ['fists', 'pan', 'bat', 'machete', 'axe', 'chainsaw', 'pistol', 'revolver', 'smg', 'shotgun', 'rifle', 'saw', 'lever', 'auto12', 'handcannon', 'sniper'];
 export const UPGRADES = {
   dmg: { name: 'Damage', per: 0.15, max: 4 },
   mag: { name: 'Magazine', per: 0.25, max: 3, gun: true },

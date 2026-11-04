@@ -21,8 +21,9 @@ async function ensureGame() { if (game) return game; if (gamePromise) return gam
     await g.load(p => { $('#loading .lb i').style.width = Math.round(p * 100) + '%'; });
     g.onDeath = () => { state = 'dead'; $('#deadMsg').textContent = ['They got you.', 'Keem didn\'t make it.', 'Torn apart in Riverside.', 'Should\'ve rolled.'][(Math.random() * 4) | 0]; showScreen('#dead'); };
     g.onPause = () => { if (state === 'play') pause(); else if (state === 'paused') resume(); };
-    g.onComplete = (ch = 1) => { save.done = true; if (ch >= 2) save.done2 = true; save.ch = 2; save.step = ch >= 2 ? 12 : 7; writeSave(LS, save); state = 'ending'; g.paused = true; $('#endStats').innerHTML = `Kills: ${save.kills} · Level ${save.level} · Cash $${save.cash} · Comic pages ${save.pages.length}/14`;
-      $('#endH').textContent = ch >= 2 ? 'End of Chapter 2 · High Water' : 'End of Chapter 1 · The Day Before'; $('#endQ').textContent = ch >= 2 ? '“It\'s nothing, baby. Glass. From the gate.”' : '“He said he\'d be right behind us.”'; $('#endNext').textContent = ch >= 2 ? 'Chapter 3 · Portland — coming soon.' : 'Chapter 2 · High Water is unlocked. Your level, cash and weapons carry over.'; $('#btnEndNext').classList.toggle('hidden', ch >= 2); showScreen('#ending'); audio.setMood('sad'); };
+    g.onComplete = (ch = 1) => { const ST = { 2: 7, 3: 13, 4: 18, 5: 23, 6: 28 }; const E = { 1: ['The Day Before', '“He said he\'d be right behind us.”'], 2: ['High Water', '“It\'s nothing, baby. Glass. From the gate.”'], 3: ['Route 1', '“Don\'t tell your sister. Not yet.”'], 4: ['Everybody Pays', '“I can\'t feel my hand, Keem.”'], 5: ['Black Friday', '“Then I\'m volunteering.”'], 6: ['The Lighthouse', '“Keem… run.”'] };
+      save.done = true; if (ch >= 2) save.done2 = true; save.maxCh = Math.max(save.maxCh || 1, Math.min(6, ch + 1)); save.ch = Math.min(6, ch + 1); save.step = ch >= 6 ? 32 : ST[ch + 1]; writeSave(LS, save); state = 'ending'; g.paused = true; $('#endStats').innerHTML = `Kills: ${save.kills} · Level ${save.level} · Cash $${save.cash} · Comic pages ${save.pages.length}/20`;
+      $('#endH').textContent = 'End of Chapter ' + ch + ' · ' + E[ch][0]; $('#endQ').textContent = E[ch][1]; $('#endNext').textContent = ch >= 6 ? 'To be continued — Chapter 7 coming soon.' : 'Chapter ' + (ch + 1) + ' · ' + E[ch + 1][0] + ' is unlocked. Your level, cash and weapons carry over.'; $('#btnEndNext').classList.toggle('hidden', ch >= 6); showScreen('#ending'); audio.setMood('sad'); };
     game = g; $('#loading').classList.add('hidden'); return g; })();
   return gamePromise; }
 async function play(step) { showScreen(null); $('#stage').classList.remove('hidden'); state = 'loading'; const g = await ensureGame(); g.save = save; g.settings = S; state = 'play'; audio.init(); $('#hud').classList.remove('hidden'); $('#touch').classList.toggle('hidden', !(matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window)); g.start(step); }
@@ -91,7 +92,7 @@ async function openCustom(from) { back = from; state = 'custom'; showScreen('#cu
 // ---------- inventory ----------
 function openInv() { state = 'inv'; renderInv(); showScreen('#inv'); }
 function renderInv() { const s = save; const need = xpFor(s.level);
-  $('#invStats').innerHTML = `Level ${s.level} · XP ${s.xp}/${need} · Cash $${s.cash} · Kills ${s.kills} · Comic pages ${s.pages.length}/14`;
+  $('#invStats').innerHTML = `Level ${s.level} · XP ${s.xp}/${need} · Cash $${s.cash} · Kills ${s.kills} · Comic pages ${s.pages.length}/20`;
   const L = $('#invList'); L.innerHTML = ''; const add = (h, btns = [], eq) => { const d = document.createElement('div'); d.className = 'gi' + (eq ? ' eq' : ''); d.innerHTML = h; btns.forEach(([t, fn]) => { const b = document.createElement('button'); b.textContent = t; b.onclick = () => { fn(); writeSave(LS, save); renderInv(); }; d.appendChild(b); }); L.appendChild(d); };
   WEAPON_ORDER.filter(id => s.owned.includes(id)).forEach(id => { const w = WEAPONS[id]; add(`<b>${w.name}</b><div class="st">${w.type === 'gun' ? `Mag ${s.mags[id] ?? 0} · Reserve ${s.ammo[w.ammo] || 0} ${w.ammo}` : 'Melee'}</div>`, s.cur === id ? [] : [['Equip', () => { s.cur = id; if (game) game.equip(id, true); }]], s.cur === id); });
   add(`<b>Supplies</b><div class="st">Med kits ${s.meds} · Pipe grenades ${s.grenades}<br>9mm/.44 ${s.ammo.light || 0} · Shells ${s.ammo.shell || 0} · Rifle ${s.ammo.rifle || 0}</div>`, s.meds && game && back === '#pause' ? [['Use med kit (+50 HP)', () => game.heal()]] : []);
@@ -104,10 +105,12 @@ $$('.back').forEach(b => b.onclick = () => { if (state === 'custom' && back === 
 $('#btnWarn').onclick = async () => { try { audio.init(); audio.sting(); } catch (e) {} showScreen(null); $('#studio').classList.remove('hidden'); fadeIn(); ensureGame().catch(e => console.error(e)); $('#loading').classList.add('hidden');
   await Promise.race([sleep(4200), new Promise(r => addEventListener('keydown', r, { once: true }))]); $('#studio').classList.add('hidden'); toTitle(); };
 $('#btnNew').onclick = () => { if (loadSave(LS) && loadSave(LS).step > 0 && !confirm('Start a new game? Your current progress (level, cash, weapons) will be reset.')) return; clearSave(LS); save = defaultSave(); writeSave(LS, save); play(0); };
-$('#btnEndNext').onclick = () => { save = loadSave(LS) || save; play(7); };
-$('#btnChapters').onclick = () => { const s = loadSave(LS) || defaultSave(); const u = s.done || (s.step || 0) >= 7; $('#btnCh2').disabled = !u; $('#btnCh2').textContent = u ? 'Chapter 2 · High Water' : 'Chapter 2 · High Water (finish Chapter 1)'; showScreen('#chapters'); };
+$('#btnEndNext').onclick = () => { save = loadSave(LS) || save; play(save.step); };
+const CHN = ['', 'The Day Before', 'High Water', 'Route 1', 'Everybody Pays', 'Black Friday', 'The Lighthouse'], CHS = [0, 0, 7, 13, 18, 23, 28];
+const unlockedCh = (s) => Math.max(s.maxCh || 1, s.done || (s.step || 0) >= 7 ? 2 : 1, s.done2 ? 3 : 1, CHS.findLastIndex(v => (s.step || 0) >= v) || 1);
+$('#btnChapters').onclick = () => { const s = loadSave(LS) || defaultSave(); const u = unlockedCh(s); for (let c = 2; c <= 6; c++) { const b = $('#btnCh' + c); b.disabled = c > u; b.textContent = 'Chapter ' + c + ' · ' + CHN[c] + (c > u ? ' (finish Chapter ' + (c - 1) + ')' : ''); } showScreen('#chapters'); };
 $('#btnCh1').onclick = () => { save = loadSave(LS) || defaultSave(); writeSave(LS, save); play(0); };
-$('#btnCh2').onclick = () => { save = loadSave(LS) || defaultSave(); save.ch = 2; writeSave(LS, save); play(7); };
+for (let c = 2; c <= 6; c++) $('#btnCh' + c).onclick = () => { save = loadSave(LS) || defaultSave(); save.ch = c; writeSave(LS, save); play(CHS[c]); };
 $('#btnContinue').onclick = () => { save = loadSave(LS) || defaultSave(); play(save.step); };
 $('#btnCustom').onclick = () => openCustom('#title'); $('#btnShopCustom').onclick = () => openCustom(back === '#pause' ? '#pause' : '#shop');
 $('#btnArmory').onclick = () => { back = '#title'; openShop(); }; $('#btnInvT').onclick = () => { back = '#title'; openInv(); };

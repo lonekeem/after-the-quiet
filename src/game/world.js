@@ -225,8 +225,77 @@ export function buildWorld(scene, Q, texLoader, base, CM = {}) {
   [[-26, -264], [26, -292]].forEach(([x, z]) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(.15, .2, 12, 8), swMat); p.position.set(x, 6, z); scene.add(p); const h = new THREE.Mesh(new THREE.BoxGeometry(2, 1, .3), new THREE.MeshStandardMaterial({ color: '#222', emissive: '#fff', emissiveIntensity: 2 })); h.position.set(x, 12, z); scene.add(h); });
   const sl = new THREE.PointLight('#dfe8ff', 20, 50, 1.6); sl.position.set(0, 11, -278); if (Q.lamps > 3) { scene.add(sl); lights.push(sl); }
   const ch2 = { gateMesh, gateCol, panel, board };
+  // ===== CHAPTERS 3–6 · zones south of Haverford (each zone is a Group shown only during its chapter) =====
+  const zones = {}; const _add = scene.add.bind(scene);
+  const zone = (ch, fn) => { const zg = new THREE.Group(); scene.add = (...o) => { zg.add(...o); return scene; }; try { fn(); } finally { scene.add = _add; } zg.visible = false; _add(zg); zones[ch] = zg; };
+  const gL = new THREE.Mesh(new THREE.PlaneGeometry(420, 480), groundMat); gL.rotation.x = -Math.PI / 2; gL.position.set(0, -0.006, -540); gL.receiveShadow = true; scene.add(gL);
+  box(-300, -48, -900, -299); box(48, 300, -900, -299); box(-300, 300, -1000, -770);
+  const Z_jer = new THREE.MeshStandardMaterial({ color: '#8c8a82', roughness: .9 });
+  const Z_barrier = (z) => { box(-300, 300, z - .4, z + .4); const m = new THREE.Mesh(new THREE.BoxGeometry(96, 1.1, .7), Z_jer); m.position.set(0, .55, z); scene.add(m); };
+  [-416, -526, -636].forEach(Z_barrier);
+  const Z_rustM = new THREE.MeshStandardMaterial({ color: '#6a4a3a', roughness: .9, metalness: .3 }), Z_white = new THREE.MeshStandardMaterial({ color: '#d8d4c8', roughness: .7 }), Z_red = new THREE.MeshStandardMaterial({ color: '#8a1a14', roughness: .7 });
+  const Z_lamp = (x, z, c = '#ffc98a', on = true) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(.08, .1, 6, 6), swMat); p.position.set(x, 3, z); scene.add(p); const h = new THREE.Mesh(new THREE.BoxGeometry(.6, .15, .3), new THREE.MeshStandardMaterial({ color: '#222', emissive: c, emissiveIntensity: on ? 3 : 0 })); h.position.set(x, 6, z); scene.add(h); };
+  const Z_pl = (x, y, z, c, i, r) => { if (Q.lamps <= 3 && i < 12) return; const L = new THREE.PointLight(c, i, r, 2); L.position.set(x, y, z); scene.add(L); lights.push(L); return L; };
+  // CH3 — Route 1, Big Moose Truck Stop + Pine Tree Motel (z -305..-415)
+  zone(3, () => {
+    road(0, -360, 12, 110); road(-22, -350, 30, 26);
+    sign(['ROUTE 1 SOUTH', 'PORTLAND 58'], 7.5, 2.6, -312, 0, 3, 1, '#1d4a2a');
+    wallBox(16, 4, 10, plankMat('#b8a070'), -26, 2, -334); sign(['BIG MOOSE TRUCK STOP', 'DIESEL · DINER · JERKY'], -26, 4.8, -328.9, 0, 6, 1.6, '#6a2a10');
+    const canopy = new THREE.Mesh(new THREE.BoxGeometry(18, .5, 9), Z_white); canopy.position.set(-22, 4.6, -350); scene.add(canopy);
+    [-28, -22, -16].forEach(x => { wallBox(.5, 4.4, .5, Z_red, x, 2.2, -350); wallBox(.8, 1.4, .6, Z_white, x, .7, -347); });
+    Z_pl(-22, 4, -350, '#e8f0ff', 10, 22);
+    [[-34, -362, .1], [-12, -366, -.2], [16, -340, 1.5], [18, -380, 1.6]].forEach(([x, z, r]) => car(x, z, r, '#7a2a1a', { truck: 1, rust: 1 }));
+    [[-5, -330, .3], [5, -348, 2.6], [-4.5, -372, .1], [4.8, -392, 3.1]].forEach(([x, z, r], i) => car(x, z, r, ['#2a3a5a', '#5a5a5a', '#7a6a3a', '#3a3a3a'][i], { wreck: i % 2 }));
+    for (let i = 0; i < 5; i++) wallBox(5.6, 3, 7, plankMat(i % 2 ? '#a07060' : '#8a6050'), 30, 1.5, -398 + i * 6);
+    sign(['PINE TREE MOTEL', 'VACANCY · CABLE TV'], 26.8, 3.4, -386, -Math.PI / 2, 4, 1.2, '#1a3a5a');
+    fire(-10, 0, -356, 1); fire(12, 0, -402, .8);
+    [-7, 7].forEach(x => [-320, -350, -380, -405].forEach(z => Z_lamp(x, z)));
+  });
+  // CH4 — Maine Turnpike toll plaza, Tollmen raider camp (z -420..-525)
+  zone(4, () => {
+    road(0, -470, 40, 100);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(44, .6, 8), new THREE.MeshStandardMaterial({ color: '#2a4a6a', roughness: .6 })); roof.position.set(0, 5.4, -470); scene.add(roof);
+    sign(['MAINE TURNPIKE · TOLL', 'NOW UNDER NEW MANAGEMENT · PAY OR DIE'], 0, 4.4, -465.9, 0, 9, 1.4, '#3a1010');
+    for (let x = -18; x <= 18; x += 6) { wallBox(2, 2.6, 3.2, Z_white, x, 1.3, -470); const g = new THREE.Mesh(new THREE.BoxGeometry(3.6, .12, .12), Z_red); g.position.set(x + 2.8, 1.1, -468); scene.add(g); }
+    for (let i = 0; i < 8; i++) car(-34 + (i % 2) * 2, -432 - i * 11, i * .7, '#4a3a2a', { burnt: i % 2, rust: 1 });
+    for (let i = 0; i < 6; i++) car(34 - (i % 2) * 2, -440 - i * 12, -i * .6, '#3a3a3a', { wreck: 1 });
+    [[-22, -495], [-8, -502], [8, -500], [22, -494]].forEach(([x, z]) => { wallBox(5, 2.4, 5, new THREE.MeshStandardMaterial({ color: '#5a5040' }), x, 1.2, z); gable(x, z, 5, 5, 2.4, false, Z_rustM); });
+    const cage = new THREE.MeshStandardMaterial({ color: '#555', metalness: .7, roughness: .5, transparent: true, opacity: .6 });
+    wallBox(6, 2.6, .1, cage, 0, 1.3, -515); wallBox(.1, 2.6, 4, cage, -3, 1.3, -513); wallBox(.1, 2.6, 4, cage, 3, 1.3, -513);
+    sign(['TOLLMEN', 'EVERYBODY PAYS'], 0, 3, -519.5, 0, 4, 1, '#101010');
+    fire(-14, 0, -484, 1.1); fire(14, 0, -486, 1.1); fire(0, 0, -508, .9); Z_pl(0, 5, -470, '#ffe0b0', 12, 30);
+  });
+  // CH5 — Maine Mall, South Portland (z -530..-635)
+  zone(5, () => {
+    road(0, -575, 70, 70);
+    wallBox(70, 9, 18, new THREE.MeshStandardMaterial({ color: '#b8b0a0', roughness: .8 }), 0, 4.5, -622);
+    sign(['THE MAINE MALL'], 0, 7.4, -612.9, 0, 12, 2, '#1a2a4a');
+    sign(['FOOD COURT ↓', 'SANTA IS HERE! (DO NOT APPROACH SANTA)'], 12, 3, -612.9, 0, 5, 1.4, '#8a1010');
+    const door = new THREE.Mesh(new THREE.BoxGeometry(8, 3.4, .2), new THREE.MeshStandardMaterial({ color: '#203040', metalness: .6, roughness: .2, emissive: '#102030' })); door.position.set(0, 1.7, -612.8); scene.add(door);
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) if ((r + c) % 3) car(-28 + c * 11, -548 - r * 14, (r % 2) * Math.PI + .1, ['#4a5a7a', '#7a2a2a', '#d8d8d0', '#2a2a2a', '#5a6a3a'][(r * 6 + c) % 5], { wreck: (r + c) % 4 === 0, dirt: 1 });
+    [-24, 0, 24].forEach(x => [-555, -590].forEach(z => Z_lamp(x, z, '#e8f0ff', (x + z) % 2 === 0)));
+    const tree = new THREE.Mesh(new THREE.ConeGeometry(2.2, 7, 8), new THREE.MeshStandardMaterial({ color: '#1a4a2a', emissive: '#103010' })); tree.position.set(-12, 3.5, -607); scene.add(tree);
+    fire(-20, 0, -570, 1); fire(18, 0, -600, .9); Z_pl(0, 6, -595, '#ffd0a0', 12, 34);
+  });
+  // CH6 — Fort Williams Park + Portland Head Light, Cape Elizabeth (z -640..-770)
+  zone(6, () => {
+    road(0, -680, 10, 70); road(0, -720, 60, 20);
+    const Z_sea = new THREE.Mesh(new THREE.PlaneGeometry(420, 140), new THREE.MeshStandardMaterial({ color: '#0e1a22', roughness: .05, metalness: .4 })); Z_sea.rotation.x = -Math.PI / 2; Z_sea.position.set(0, -.4, -820); scene.add(Z_sea);
+    const Z_rock = new THREE.MeshStandardMaterial({ color: '#4a4844', roughness: 1 });
+    for (let i = 0; i < 14; i++) { const r = new THREE.Mesh(new THREE.DodecahedronGeometry(rnd(1.5, 3.5)), Z_rock); r.position.set(-45 + i * 7, .2, -752 + rnd(-3, 3)); scene.add(r); }
+    const Z_stone = new THREE.MeshStandardMaterial({ color: '#7a7060', roughness: 1 });
+    [[-26, -672, 14, 1.2], [-26, -684, 14, 1.2], [-33, -678, 1.2, 12], [26, -690, 12, 1.2], [32, -696, 1.2, 12]].forEach(([x, z, w, d]) => wallBox(w, 3.2, d, Z_stone, x, 1.6, z));
+    sign(['FORT WILLIAMS PARK', 'PORTLAND HEAD LIGHT · EST. 1791'], 7, 2.2, -648, 0, 4, 1.2, '#1d3a2a');
+    const tw = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2.4, 18, 14), Z_white); tw.position.set(12, 9, -738); scene.add(tw); box(10, 14, -740, -736);
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 2, 12), new THREE.MeshStandardMaterial({ color: '#202020', emissive: '#ffe8a0', emissiveIntensity: 2 })); top.position.set(12, 19, -738); scene.add(top);
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(1.7, 1.6, 12), Z_red); cap.position.set(12, 20.8, -738); scene.add(cap);
+    wallBox(8, 3.4, 6, Z_white, 4, 1.7, -735); gable(4, -735, 8, 6, 3.4, false, Z_red);
+    const beam = new THREE.SpotLight('#fff2c0', 40, 120, .12, .4, 1); beam.position.set(12, 19, -738); scene.add(beam, beam.target); updaters.push((dt, t) => { beam.target.position.set(12 + Math.sin(t * .6) * 60, 0, -738 + Math.cos(t * .6) * 60); });
+    zones._ship = new THREE.PointLight('#ff4040', 0, 80, 1); zones._ship.position.set(-30, 3, -840); scene.add(zones._ship);
+    fire(-24, 0, -690, 1); fire(20, 0, -712, .9);
+  });
   const treeSpots = []; let tries = 0;
-  while (treeSpots.length < Q.trees * 1.3 && tries++ < 20000) { const x = rnd(-90, 90), z = rnd(-300, 90); if (Math.abs(x) < 10 && z > -150) continue; if (z < -134 && Math.abs(x) < 44) continue; if (z < -106 && z > -134) continue;
+  while (treeSpots.length < Q.trees * 2 && tries++ < 20000) { const x = rnd(-90, 90), z = rnd(-760, 90); if (Math.abs(x) < 10 && z > -150) continue; if (z < -134 && Math.abs(x) < 44) continue; if (z < -106 && z > -134) continue;
     if (colliders.some(c => x > c.x0 - 2 && x < c.x1 + 2 && z > c.z0 - 2 && z < c.z1 + 2)) continue; if (Math.abs(z - 4) < 7 && Math.abs(x) < 46) continue; if (x > 4 && x < 34 && z > -66 && z < -36) continue; treeSpots.push([x, z, rnd(9, 18)]); }
   const trunks = new THREE.InstancedMesh(trunkG, bark, treeSpots.length), layers = 4, cones = new THREE.InstancedMesh(coneG, needle, treeSpots.length * layers);
   const M = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3(); const col = new THREE.Color();
@@ -255,7 +324,7 @@ export function buildWorld(scene, Q, texLoader, base, CM = {}) {
   // bounds
   box(-300, -48, -300, 300); box(48, 300, -300, 300); box(-300, 300, 66, 300); box(-300, 300, -400, -299);
 
-  return { ch2, signTex, colliders, walls, updaters, lights, fire, car, sign, frontDoor, doorCol, doorBoards, tanker, tankCol, KH, mud, update(dt, t, cam) { updaters.forEach(u => u(dt, t, cam)); } };
+  return { ch2, zones, signTex, colliders, walls, updaters, lights, fire, car, sign, frontDoor, doorCol, doorBoards, tanker, tankCol, KH, mud, update(dt, t, cam) { updaters.forEach(u => u(dt, t, cam)); } };
 }
 function mergeTwo(a, b) { const g = new THREE.BufferGeometry(); ['position', 'normal', 'uv'].forEach(k => { const A = a.attributes[k].array, B = b.attributes[k].array, o = new Float32Array(A.length + B.length); o.set(A); o.set(B, A.length); g.setAttribute(k, new THREE.BufferAttribute(o, a.attributes[k].itemSize)); });
   const ia = a.index.array, ib = b.index.array, n = a.attributes.position.count, idx = new Uint16Array(ia.length + ib.length); idx.set(ia); for (let i = 0; i < ib.length; i++) idx[ia.length + i] = ib[i] + n; g.setIndex(new THREE.BufferAttribute(idx, 1)); return g; }

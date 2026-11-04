@@ -95,6 +95,7 @@ V = {  # who: voice, base speed, pitch ratio, extra filter
  'keem': ('am_puck', 1.0, 1.05, ''), 'marcus': ('am_michael', .94, 1.0, ''), 'nia': ('af_heart', 1.0, 1.12, ''),
  'dube': ('bm_george', .9, 1.0, ''), 'walt': ('am_fenrir', .9, .98, ''), 'ruth': ('af_bella', .97, 1.0, ''), 'gus': ('am_onyx', .9, .92, ''),
  'sgt': ('am_eric', .98, 1.0, 'highpass=f=300,lowpass=f=3600,acrusher=bits=11:mix=0.15'), 'brick': ('am_onyx', .92, .9, ''),
+ 'ronnie': ('am_adam', .9, .9, ''), 'deacon': ('bm_daniel', .95, .97, ''), 'reyes': ('af_sarah', 1.0, 1.0, ''), 'tuck': ('am_liam', 1.05, 1.02, ''), 'santa': ('am_onyx', .85, .85, ''), 'king': ('bm_lewis', .92, .95, ''),
  'radio': ('am_michael', 1.0, 1.0, 'highpass=f=350,lowpass=f=3400,acrusher=bits=10:mix=0.2'),
  'npcf': ('af_heart', 1.06, 1.02, ''), 'npcm': ('am_fenrir', 1.06, 1.0, '')}
 def f0_std(a, sr):  # crude autocorrelation pitch tracker -> semitone std of voiced frames
@@ -134,6 +135,7 @@ def say(who, text, path, shout=None):
   subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', '/tmp/_v.wav', '-af', f, '-ac', '1', '-b:a', '48k', path], check=True)
 for who, text, h in json.load(open('/tmp/lines.json')): say(who, text, f'{OUT}/v/{h}.mp3')
 BARKS = {
+ 'raider_bark': ('deacon', ['Flank him!', 'Everybody pays!', 'Cover me!', 'He is over there!']),
  'keem_reload': ('keem', ['Reloading!', 'Uh, cover me? Nobody? Cool.', 'Reloading, reloading!', 'Hang on, hang on, new mag.']),
  'keem_hurt': ('keem', ['Ow!', 'Agh!', 'Get off me!', 'Ugh!', 'Nngh, okay, that hurt.']),
  'keem_kill': ('keem', ['Stay down!', 'Nope!', 'Yeah!', 'Not today!', 'Sorry, mister!', 'Okay, okay, that worked.']),
