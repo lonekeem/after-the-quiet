@@ -1,0 +1,423 @@
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { buildWorld } from './world.js';
+import { CharLib, Char, backpack, weaponMesh, makeDog } from './chars.js';
+import { WEAPONS, WEAPON_ORDER, stat, perk, xpFor, PERKS, writeSave } from './data.js';
+import { V3, clamp, lerp, rnd, angLerp, bloodTex } from './util.js';
+import { Input } from './input.js';
+import { STORY, LOOT } from './story.js';
+
+const $ = (s) => document.querySelector(s);
+export const PRESETS = {
+  low: { name: 'low', pr: 0.75, shadows: false, shadowMap: 512, trees: 160, grass: 1800, rain: 900, lamps: 3, maxZ: 9, post: false, normals: false, aniso: 1, fog: 0.042 },
+  med: { name: 'med', pr: 1.0, shadows: true, shadowMap: 1024, trees: 300, grass: 6000, rain: 2200, lamps: 5, maxZ: 14, post: false, normals: true, aniso: 4, fog: 0.036 },
+  high: { name: 'high', pr: 1.5, shadows: true, shadowMap: 2048, trees: 520, grass: 16000, rain: 4000, lamps: 7, maxZ: 22, post: true, normals: true, aniso: 8, fog: 0.032 },
+};
+export function autoQuality() {
+  const coarse = matchMedia && matchMedia('(pointer:coarse)').matches; const mem = navigator.deviceMemory || 4, cores = navigator.hardwareConcurrency || 4;
+  if (!coarse) return cores >= 6 ? 'high' : 'med'; return mem >= 6 && cores >= 8 ? 'med' : 'low';
+}
+const KEEM = { skin: '#4a2e1f', shirt: '#2f4a3a', pants: '#2a3142', shoes: '#d8d8d0', hair: '#0b0806', sleeve: 0.5 };
+export const LOOKS = {
+  keem: KEEM, marcus: { skin: '#3d2618', shirt: '#5a3a2a', pants: '#2e2e30', shoes: '#2a1e14', hair: '#0a0806', sleeve: 0.42 },
+  nia: { skin: '#4a2e1f', shirt: '#b46a8a', pants: '#3a3a5a', shoes: '#eee', hair: '#120a06', sleeve: 0.5 },
+  walt: { skin: '#c99b80', shirt: '#6a6a5a', pants: '#3a3428', hair: '#aaa69e', sleeve: 0.9 }, ruth: { skin: '#e0b096', shirt: '#7a2e3a', pants: '#2a2a2a', hair: '#7a5a3a', sleeve: 0.55 },
+  dube: { skin: '#5a3a28', shirt: '#2a4a6a', pants: '#3a3a3a', hair: '#111', sleeve: 0.45 },
+};
+const ZLOOKS = [['#7e8a72', '#3a3a30', '#2a2a26'], ['#8a8c7a', '#5a2a22', '#24282a'], ['#6e7a66', '#2e3a48', '#3a3226'], ['#8c8678', '#6a6a5e', '#2a2622'], ['#7a8070', '#2a3a2a', '#1e1e1e']];
+
+export class Game {
+  constructor(opts) { Object.assign(this, opts); this.t = 0; this.paused = true; this.running = false; this.timeScale = 1; this.hitstop = 0; this.trauma = 0; }
+  async load(progress) {
+    const S = this.settings; const qn = S.qual === 'auto' || !S.qual ? autoQuality() : S.qual; const Q = this.Q = PRESETS[qn] || PRESETS.med;
+    const canvas = $('#gl'); const r = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: Q.name !== 'low', powerPreference: 'high-performance' });
+    this.basePR = Math.min(window.devicePixelRatio || 1, Q.pr * (window.devicePixelRatio > 1 ? 1.34 : 1), 2); this.pr = this.basePR; r.setPixelRatio(this.pr);
+    r.setSize(innerWidth, innerHeight, false); r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.05; r.outputColorSpace = THREE.SRGBColorSpace;
+    r.shadowMap.enabled = Q.shadows; r.shadowMap.type = THREE.PCFSoftShadowMap;
+    const scene = this.scene = new THREE.Scene(); scene.fog = new THREE.FogExp2('#141c1a', Q.fog); scene.background = new THREE.Color('#0f1614');
+    const cam = this.camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.05, 260); scene.add(cam);
+    const mgr = new THREE.LoadingManager(); mgr.onProgress = (u, a, b) => progress && progress(a / b);
+    const base = './'; const tl = new THREE.TextureLoader(mgr);
+    const [gltf, hdr] = await Promise.all([new GLTFLoader(mgr).loadAsync(base + 'models/AnimationLibrary_Godot_Standard.gltf'), new HDRLoader(mgr).loadAsync(base + 'tex/sky.hdr').catch(() => null)]);
+    if (hdr) { const pm = new THREE.PMREMGenerator(r); const env = pm.fromEquirectangular(hdr).texture; scene.environment = env; scene.environmentIntensity = 0.32; scene.background = env; scene.backgroundIntensity = 0.06; scene.backgroundBlurriness = 0.35; hdr.dispose(); }
+    // night lighting
+    scene.add(new THREE.HemisphereLight('#3a4a5a', '#151a12', 0.55));
+    const moon = this.moon = new THREE.DirectionalLight('#9fb4d0', 0.9); moon.position.set(-30, 50, 20); moon.castShadow = Q.shadows; moon.shadow.mapSize.set(Q.shadowMap, Q.shadowMap);
+    const sc = moon.shadow.camera; sc.left = sc.bottom = -26; sc.right = sc.top = 26; sc.near = 1; sc.far = 140; moon.shadow.bias = -0.0005; moon.shadow.normalBias = 0.03; scene.add(moon, moon.target);
+    this.world = buildWorld(scene, Q, tl, base);
+    this.lib = new CharLib(gltf);
+    await new Promise(res => { if (mgr.itemsLoaded >= mgr.itemsTotal) res(); else { mgr.onLoad = res; setTimeout(res, 15000); } });
+    // player
+    const P = this.player = new Char(this.lib, KEEM, 0.9); scene.add(P.root);
+    this.pack = backpack(); this.pack.visible = false; P.attach('DEF-spine.003', this.pack); this.pack.position.set(0, 0.12, -0.2); this.pack.rotation.set(0.1, 0, 0);
+    this.hand = new THREE.Group(); P.attach('DEF-hand.R', this.hand); this.hand.rotation.set(Math.PI / 2, 0, 0); this.hand.position.set(0, 0.08, 0.02);
+    // flashlight
+    const fl = this.flash = new THREE.SpotLight('#fff4dc', 28, 26, 0.42, 0.5, 1.6); fl.castShadow = Q.shadows && Q.name === 'high'; fl.shadow.mapSize.set(512, 512); scene.add(fl, fl.target);
+    // FP viewmodel
+    this.vm = new THREE.Group(); cam.add(this.vm); this.vm.position.set(0.22, -0.2, -0.45);
+    this.weaponMeshes = {}; WEAPON_ORDER.forEach(id => { const m = weaponMesh(id); this.weaponMeshes[id] = m; });
+    // FX pools
+    this.initFX(); this.input = new Input(this);
+    this.zombies = []; this.npcs = {}; this.pickups = []; this.props = [];
+    // post
+    if (Q.post) { try { const c = this.composer = new EffectComposer(r); c.addPass(new RenderPass(scene, cam)); const ao = new GTAOPass(scene, cam, innerWidth, innerHeight); ao.blendIntensity = 0.8; c.addPass(ao);
+      c.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.45, 0.5, 0.82)); c.addPass(new OutputPass()); } catch (e) { this.composer = null; } }
+    addEventListener('resize', () => this.resize()); this.resize();
+    this.cam = { yaw: Math.PI / 2, pitch: -0.12, dist: 2.9, fp: !!S.fp, shake: V3() };
+    this.fpsAcc = 0; this.fpsN = 0; this.fpsT = 0;
+    // warm up shaders
+    r.compile(scene, cam);
+  }
+  resize() { const w = innerWidth, h = innerHeight; this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); if (this.composer) this.composer.setSize(w, h); }
+
+  // ---------- run state ----------
+  start(step) { this.save.step = step || 0; this.loadStep(this.save.step); this.paused = false; if (!this.running) { this.running = true; this.last = performance.now(); requestAnimationFrame((t) => this.frame(t)); } }
+  clearActors() { this.zombies.forEach(z => this.scene.remove(z.root)); this.zombies = []; for (const k in this.npcs) this.scene.remove(this.npcs[k].root); this.npcs = {};
+    this.pickups.forEach(p => this.scene.remove(p.mesh)); this.pickups = []; this.props.forEach(p => this.scene.remove(p)); this.props = []; this.decalN = 0; this.decals.forEach(d => d.visible = false);
+    if (this.truck) this.truck.driving = false; this.boss = null; $('#boss').classList.add('hidden'); this.dlgQ = []; this.dlgCur = null; $('#dlg').classList.remove('on'); }
+  loadStep(i) {
+    this.clearActors(); const st = STORY[i]; this.step = i; this.stepData = {}; const P = this.player; this.dead = false; this.dying = null; this.cut = null;
+    this.maxHp = 100 + (perk(this.save, 2) ? 20 : 0) + (perk(this.save, 9) ? 20 : 0) + (this.settings.qteEasy ? 50 : 0); this.hp = this.maxHp;
+    this.state = { roll: 0, atk: 0, atkHit: 0, combo: 0, comboT: 0, vy: 0, y: 0, crouch: false, run: false, aim: false, reload: 0, fireCd: 0, stun: 0 };
+    P.root.visible = true; P.model.visible = true; for (const k in P.bones) P.bones[k].scale.set(1, 1, 1);
+    const cp = st.cp; P.root.position.set(cp[0], 0, cp[1]); P.root.rotation.y = cp[2] || 0; this.cam.yaw = (cp[2] || 0) + Math.PI; this.cam.pitch = -0.1;
+    this.pack.visible = this.save.items.includes('backpack'); this.equip(this.save.cur || 'fists', true);
+    LOOT.forEach(l => { if (!this.save.loot.includes(l.id) && (l.minStep || 0) <= i + 1) this.addPickup(l); });
+    this.world.frontDoor.rotation.y = i >= 3 ? -1.6 : 0; this.setDoor(i >= 3);
+    this.setTruck(i);
+    st.enter(this); this.objective(st.obj, st.hint); this.audio.setMood(st.mood || 'night'); this.audio.beat(st.beat || 0);
+    this.checkpoint();
+  }
+  checkpoint() { this.save.step = this.step; writeSave(this.LS, this.save); }
+  setDoor(open) { const w = this.world; w.doorCol.x0 = open ? 999 : 11.9; w.doorCol.x1 = open ? 999 : 12.1; w.doorBoards.forEach(b => b.visible = !open); w.frontDoor.rotation.y = open ? -1.6 : 0; }
+  setTruck(i) { if (!this.truck) { const g = this.world.car(22, -64, 0, '#7a2218', { truck: true, lights: true }); this.truck = { g, v: 0, head: 0, driving: false }; this.truck.col = g.userData.col; }
+    const T = this.truck; T.g.position.set(22, 0, -64); T.head = 0; T.v = 0; T.g.rotation.y = 0; T.driving = false; this.updateTruckCol(); if (i >= 7) { T.g.position.set(1.5, 0, -95); T.g.rotation.y = 0.5; this.updateTruckCol(); } }
+  updateTruckCol() { const T = this.truck, p = T.g.position, c = T.col; c.x0 = p.x - 1.4; c.x1 = p.x + 1.4; c.z0 = p.z - 1.6; c.z1 = p.z + 1.6; c.skip = T.driving; }
+
+  // ---------- inventory / weapons ----------
+  equip(id, silent) { if (!this.save.owned.includes(id)) id = 'fists'; this.save.cur = id; const w = WEAPONS[id];
+    this.hand.clear(); const m = this.weaponMeshes[id]; this.hand.add(m); this.vm.clear(); const vmm = m.clone(); this.vm.add(vmm); this.vmMesh = vmm;
+    if (w.type === 'gun' && this.save.mags[id] == null) this.save.mags[id] = stat(this.save, id).mag;
+    this.ws = stat(this.save, id); if (!silent) { this.toast(w.name); this.audio.click(); } this.state && (this.state.reload = 0); }
+  swap(dir = 1) { const o = WEAPON_ORDER.filter(k => this.save.owned.includes(k)); const i = o.indexOf(this.save.cur); this.equip(o[(i + dir + o.length) % o.length]); }
+  give(id) { if (!this.save.owned.includes(id)) this.save.owned.push(id); this.equip(id); }
+  addXP(n, why) { const s = this.save; s.xp += n; let up = false; while (s.xp >= xpFor(s.level)) { s.xp -= xpFor(s.level); s.level++; up = true; }
+    if (up) { const pk = PERKS[s.level]; this.toast(`LEVEL ${s.level}!` + (pk ? ` Perk: ${pk.name} — ${pk.desc}` : ''), 3); this.audio.pickup(); if (perk(s, 2) || perk(s, 9)) { this.maxHp = 100 + (perk(s, 2) ? 20 : 0) + (perk(s, 9) ? 20 : 0) + (this.settings.qteEasy ? 50 : 0); } this.hp = this.maxHp; } }
+  addCash(n) { n = Math.round(n * (perk(this.save, 4) ? 1.3 : 1)); this.save.cash += n; this.floatText('+$' + n, '#9be37a'); }
+
+  // ---------- pickups ----------
+  addPickup(l) { const g = new THREE.Group(); let m;
+    const glow = new THREE.MeshBasicMaterial({ color: l.kind === 'page' ? '#e8e0a0' : '#7fd49a', transparent: true, opacity: .35, depthWrite: false });
+    if (l.kind === 'cash') m = new THREE.Mesh(new THREE.BoxGeometry(.25, .06, .14), new THREE.MeshStandardMaterial({ color: '#5a8a4a', emissive: '#203a10' }));
+    else if (l.kind === 'ammo') m = new THREE.Mesh(new THREE.BoxGeometry(.3, .18, .2), new THREE.MeshStandardMaterial({ color: '#4a5a2a', metalness: .4 }));
+    else if (l.kind === 'med') m = new THREE.Mesh(new THREE.BoxGeometry(.3, .2, .2), new THREE.MeshStandardMaterial({ color: '#ddd', emissive: '#400' }));
+    else if (l.kind === 'grenade') m = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, .2, 8), new THREE.MeshStandardMaterial({ color: '#555', metalness: .6 }));
+    else if (l.kind === 'page') m = new THREE.Mesh(new THREE.PlaneGeometry(.25, .33), new THREE.MeshStandardMaterial({ color: '#efe6c8', emissive: '#554a20', side: THREE.DoubleSide }));
+    else if (l.kind === 'weapon') m = weaponMesh(l.item).clone();
+    else if (l.kind === 'backpack') m = backpack();
+    else m = new THREE.Mesh(new THREE.BoxGeometry(.3, .15, .25), new THREE.MeshStandardMaterial({ color: '#555' }));
+    g.add(m); const ring = new THREE.Mesh(new THREE.RingGeometry(.25, .34, 24), glow); ring.rotation.x = -Math.PI / 2; ring.position.y = -l.pos[1] + 0.04; g.add(ring);
+    g.position.set(l.pos[0], l.pos[1], l.pos[2]); this.scene.add(g); this.pickups.push({ l, mesh: g, m }); }
+  takePickup(p) { const l = p.l, s = this.save; this.scene.remove(p.mesh); this.pickups.splice(this.pickups.indexOf(p), 1); if (l.id && !l.story) s.loot.push(l.id); this.audio.pickup();
+    if (l.kind === 'cash') this.addCash(l.n); else if (l.kind === 'ammo') { s.ammo[l.item] = (s.ammo[l.item] || 0) + l.n; this.floatText(`+${l.n} ${l.item} ammo`, '#d8e8a0'); }
+    else if (l.kind === 'med') { s.meds++; this.floatText('+1 Med kit', '#fff'); } else if (l.kind === 'grenade') { s.grenades += l.n || 1; this.floatText('+Pipe grenade', '#fff'); }
+    else if (l.kind === 'page') { s.pages.push(l.id); this.toast(`Comic page found (${s.pages.length}/8): "${l.text}"`, 3); this.addXP(25); }
+    else if (l.kind === 'weapon') { this.give(l.item); if (l.ammo) s.ammo[WEAPONS[l.item].ammo] = (s.ammo[WEAPONS[l.item].ammo] || 0) + l.ammo; }
+    else if (l.kind === 'backpack') { s.items.push('backpack'); this.pack.visible = true; this.toast('Backpack on. More room for loot.'); }
+    else if (l.kind === 'item') { s.items.push(l.item); this.toast(l.label || l.item); }
+    l.onTake && l.onTake(this); writeSave(this.LS, s); }
+
+  // ---------- NPCs & zombies ----------
+  npc(key, look, x, z, rot = 0, anim = 'Idle_Loop', scale = 0.98) { const c = new Char(this.lib, LOOKS[look] || look, scale); c.root.position.set(x, 0, z); c.root.rotation.y = rot; c.play(anim); this.scene.add(c.root); this.npcs[key] = c; c.key = key; return c; }
+  victim(x, z, look, eaters = 3) { const v = this.npc('v' + Math.random(), look, x, z, rnd(0, 6), 'Death01'); v.play('Death01', { once: true }); v.mixer.update(5); v.mat.userData.u.uBlood.value = this.settings.gore ? 1 : 0.2; v.bleed = true;
+    this.decal(x, z, 2.2); this.decal(x + .6, z - .4, 1.4);
+    for (let i = 0; i < eaters; i++) { const a = i / eaters * 6.28 + rnd(-.3, .3); const zz = this.spawnZ(x + Math.cos(a) * 0.95, z + Math.sin(a) * 0.95, { eat: v }); zz.root.rotation.y = Math.atan2(x - zz.root.position.x, z - zz.root.position.z); }
+    return v; }
+  spawnZ(x, z, o = {}) { const L = ZLOOKS[(Math.random() * ZLOOKS.length) | 0]; const zl = { skin: L[0], shirt: L[1], pants: L[2], shoes: '#1a1a18', hair: '#2a2620', sleeve: rnd(.35, .7), grime: 1, blood: this.settings.gore ? rnd(.5, 1) : 0.15, zed: this.settings.gore };
+    const sc = (o.scale || rnd(.94, 1.06)); const c = new Char(this.lib, zl, sc); c.id = Math.random() * 10; c.root.position.set(x, 0, z); c.root.rotation.y = rnd(0, 6); this.scene.add(c.root);
+    const runner = o.runner ?? Math.random() < (this.stepData.runners || 0.15);
+    Object.assign(c, { z: true, hp: o.hp || (runner ? 50 : 70), maxHp: o.hp || (runner ? 50 : 70), runner, speed: runner ? rnd(3.6, 4.4) : rnd(1.1, 1.6), st: o.eat ? 'eat' : (o.idle ? 'idle' : 'chase'), eat: o.eat, cd: rnd(0, 1), stun: 0, dead: false, boss: !!o.boss, aggro: o.aggro ?? 30, vel: V3() });
+    if (o.eat) c.play('Fixing_Kneeling', { speed: 1.4 }); else c.play(runner ? 'Jog_Fwd_Loop' : 'Walk_Loop', { speed: runner ? 1.1 : 0.62 });
+    if (c.act('Walk_Loop')) c.act('Walk_Loop').time = rnd(0, 1);
+    this.zombies.push(c); return c; }
+  horde(n, pts, o = {}) { for (let i = 0; i < n; i++) { const p = pts[i % pts.length]; this.spawnZ(p[0] + rnd(-3, 3), p[1] + rnd(-3, 3), o); } }
+  alive() { return this.zombies.filter(z => !z.dead); }
+
+  // ---------- UI helpers ----------
+  objective(t, h) { $('#objt').textContent = t || ''; $('#objh').textContent = this.settings.hints ? (h || '') : ''; $('#obj').style.display = t ? '' : 'none'; }
+  toast(t, s = 1.8) { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(this._tt); this._tt = setTimeout(() => e.classList.remove('on'), s * 1000); }
+  floatText(t, c = '#fff') { const e = document.createElement('div'); e.textContent = t; e.style.cssText = `position:absolute;left:50%;top:58%;transform:translateX(-50%);color:${c};font:800 15px system-ui;text-shadow:0 1px 3px #000;z-index:6;pointer-events:none;transition:all 1.2s ease-out`; $('#stage').appendChild(e); requestAnimationFrame(() => { e.style.top = '50%'; e.style.opacity = '0'; }); setTimeout(() => e.remove(), 1300); }
+  say(lines, cb) { this.dlgQ = (this.dlgQ || []).concat(lines.map(l => ({ who: l[0], text: l[1] }))); if (cb) this.dlgQ.push({ cb }); if (!this.dlgCur) this.nextLine(); }
+  nextLine() { const d = $('#dlg'); const it = this.dlgQ.shift(); if (!it) { this.dlgCur = null; d.classList.remove('on'); return; } if (it.cb) { it.cb(this); this.nextLine(); return; }
+    this.dlgCur = it; const names = { keem: 'Keem', marcus: 'Dad', nia: 'Nia', walt: 'Mr. Walt', ruth: 'Ruth', dube: 'Mr. Dube', radio: 'Radio', note: 'Dad\'s note', gus: 'Big Gus' };
+    $('#who').textContent = names[it.who] || it.who; const port = { keem: 'keem', marcus: 'marcus', nia: 'nia', walt: 'walt', ruth: 'ruth' }[it.who]; const pe = $('#portrait');
+    if (port) { pe.style.backgroundImage = `url(./img/char_${port}.webp)`; pe.style.display = ''; } else { pe.style.display = 'none'; }
+    $('#line').textContent = it.text; d.classList.add('on'); it.t = 0; it.dur = (1.6 + it.text.length * 0.045) / (this.settings.text || 1); }
+  skipLine() { if (this.dlgCur) this.nextLine(); }
+
+  // ---------- FX ----------
+  initFX() { const s = this.scene; const N = 500;
+    this.pGeo = new THREE.SphereGeometry(1, 5, 4); this.pMat = new THREE.MeshStandardMaterial({ color: '#5a0505', roughness: .25, metalness: 0 });
+    this.parts = new THREE.InstancedMesh(this.pGeo, this.pMat, N); this.parts.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.parts.frustumCulled = false; s.add(this.parts);
+    this.pd = []; for (let i = 0; i < N; i++) this.pd.push({ p: V3(0, -99, 0), v: V3(), life: 0, s: 0 }); this.pI = 0;
+    const bt = bloodTex(); this.decals = []; this.decalN = 0; const dm = new THREE.MeshStandardMaterial({ map: bt, transparent: true, depthWrite: false, roughness: .15, polygonOffset: true, polygonOffsetFactor: -2 });
+    for (let i = 0; i < 70; i++) { const d = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), dm); d.rotation.x = -Math.PI / 2; d.visible = false; d.renderOrder = 1; s.add(d); this.decals.push(d); }
+    const fm = new THREE.SpriteMaterial({ color: '#ffd27a', blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, map: (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, '#fff'); gr.addColorStop(.3, 'rgba(255,200,90,.9)'); gr.addColorStop(1, 'rgba(255,120,20,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })() });
+    this.muzzle = new THREE.Sprite(fm); this.muzzle.scale.setScalar(.5); this.muzzle.visible = false; s.add(this.muzzle); this.mLight = new THREE.PointLight('#ffc070', 0, 12, 2); s.add(this.mLight);
+    this.tracer = new THREE.Line(new THREE.BufferGeometry().setFromPoints([V3(), V3()]), new THREE.LineBasicMaterial({ color: '#ffe0a0', transparent: true, opacity: .8 })); this.tracer.frustumCulled = false; this.tracer.visible = false; s.add(this.tracer);
+    this.booms = []; this.gibs = []; this.grenadesLive = [];
+    this.fireSprite = fm; }
+  blood(pos, dir, n = 14, speed = 3, size = 1) { const gore = this.settings.gore; if (!gore) n = Math.ceil(n / 3);
+    for (let i = 0; i < n; i++) { const d = this.pd[this.pI = (this.pI + 1) % this.pd.length]; d.p.copy(pos); d.v.set(dir.x * speed + rnd(-1.5, 1.5), rnd(0.5, 3) + dir.y * speed, dir.z * speed + rnd(-1.5, 1.5)); d.life = rnd(.6, 1.4); d.s = rnd(.018, .05) * size * (gore ? 1 : .6); d.dec = gore && Math.random() < .08; }
+    this.pMat.color.set(gore ? '#5a0505' : '#3a3a34'); }
+  decal(x, z, s = 1) { if (!this.settings.gore) return; const d = this.decals[this.decalN++ % this.decals.length]; d.visible = true; d.position.set(x, 0.035 + (this.decalN % 10) * 0.0008, z); d.scale.setScalar(s * rnd(.8, 1.3)); d.rotation.z = rnd(0, 6); }
+  screenSplat() { if (!this.settings.gore) return; let e = $('#splat'); if (!e) { e = document.createElement('div'); e.id = 'splat'; e.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:3;transition:opacity 1.6s;opacity:0'; $('#stage').appendChild(e); }
+    const b = []; for (let i = 0; i < 7; i++) { const x = rnd(0, 100), y = rnd(0, 100), r = rnd(4, 14); b.push(`radial-gradient(circle at ${x}% ${y}%, rgba(110,0,0,.85) 0, rgba(80,0,0,.7) ${r * .6}%, transparent ${r}%)`); }
+    e.style.transition = 'none'; e.style.background = b.join(','); e.style.opacity = '1'; requestAnimationFrame(() => { e.style.transition = 'opacity 2.2s'; e.style.opacity = '0'; }); }
+  gib(pos, n = 5, col = '#5a1010', limb) { for (let i = 0; i < n; i++) { const m = limb && i === 0 ? limb : new THREE.Mesh(new THREE.BoxGeometry(rnd(.05, .12), rnd(.05, .1), rnd(.05, .12)), new THREE.MeshStandardMaterial({ color: col, roughness: .4 }));
+    m.position.copy(pos); m.castShadow = true; this.scene.add(m); this.gibs.push({ m, v: V3(rnd(-3, 3), rnd(2, 6), rnd(-3, 3)), r: V3(rnd(-9, 9), rnd(-9, 9), rnd(-9, 9)), life: 10 }); } }
+  shake(a) { if (!this.settings.still) this.trauma = Math.min(1, this.trauma + a); else this.trauma = Math.min(.3, this.trauma + a * .3); }
+  flashScreen(cls) { const f = $('#flash'); f.className = ''; void f.offsetWidth; f.className = cls; }
+  slowmo(t = 0.7) { this.slowT = t; this.timeScale = 0.22; }
+  explode(pos, R = 9, dmg = 400) { this.audio.explode(); this.shake(1); this.flashScreen('white');
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: '#ffb050', transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false })); ball.position.copy(pos); this.scene.add(ball);
+    const L = new THREE.PointLight('#ff9040', 120, 60, 2); L.position.copy(pos).y += 2; this.scene.add(L); this.booms.push({ ball, L, t: 0, R });
+    this.world.fire(pos.x, 0.5, pos.z, 1.6);
+    this.alive().forEach(z => { const d = z.root.position.distanceTo(pos); if (d < R) { const dir = z.root.position.clone().sub(pos).setY(0).normalize(); this.damageZ(z, dmg * (1 - d / R / 1.5), dir, { boom: true }); } });
+    const pd = this.player.root.position.distanceTo(pos); if (pd < R * 0.6 && !this.truck.driving) this.hurt(40 * (1 - pd / R), pos); }
+
+  // ---------- combat ----------
+  hurt(n, from) { if (this.dying || this.state.roll > 0 || this.god) return; this.hp -= n; this.audio.hurt(); this.flashScreen('hit'); this.shake(0.35); this.lastHurt = this.t;
+    if (this.settings.gore && Math.random() < .5) this.screenSplat(); const p = this.player.root.position.clone(); p.y = 1.2; this.blood(p, V3(0, .3, 0), 8, 2);
+    if (this.hp <= 0) { this.hp = 0; this.die(from); } else if (n > 15) { this.player.play('Hit_Chest', { once: true, cb: () => { this.player.curName = ''; } }); this.state.stun = 0.35; } }
+  die(from) { const P = this.player; this.dying = { t: 0, t0: performance.now() }; this.dlgQ = []; this.dlgCur = null; $('#dlg').classList.remove('on'); this.audio.beat(0); this.audio.scream(0.15); P.play('Death01', { once: true });
+    let k = null, kd = 99; this.alive().forEach(z => { const d = z.root.position.distanceTo(P.root.position); if (d < kd) { kd = d; k = z; } }); this.dying.z = k;
+    if (k && kd < 6) { const dir = P.root.position.clone().sub(k.root.position).normalize(); k.root.position.copy(P.root.position).addScaledVector(dir, -0.8); k.st = 'feast'; k.play('Fixing_Kneeling', { speed: 2 }); k.root.rotation.y = Math.atan2(dir.x, dir.z); }
+    $('#lowhp').style.opacity = 1; }
+  damageZ(z, dmg, dir, o = {}) { if (z.dead) return; z.hp -= dmg; z.st = 'chase'; z.aggro = 99; const hp = z.root.position.clone(); hp.y = o.head ? 1.6 * z.scale : 1.1 * z.scale;
+    this.blood(hp, dir, o.head ? 18 : 10, o.boom ? 6 : 2.5); if (!o.boom && Math.random() < .4) this.decal(z.root.position.x + dir.x * .8, z.root.position.z + dir.z * .8, .7);
+    z.mat.userData.u.uBlood.value = Math.min(1.3, z.mat.userData.u.uBlood.value + (this.settings.gore ? .15 : 0)); this.audio.splat();
+    if (z.hp <= 0) { this.killZ(z, dir, o); return; }
+    if (!z.boss || dmg > 60) { z.stun = z.boss ? 0.25 : 0.45; z.play(o.head ? 'Hit_Head' : 'Hit_Chest', { once: true, force: true, cb: () => { z.curName = ''; } }); z.vel.addScaledVector(dir, z.boss ? 1 : 3); } }
+  killZ(z, dir, o = {}) { z.dead = true; z.deadT = 0; z.st = 'dead'; this.save.kills++; const gore = this.settings.gore;
+    const xp = z.boss ? 400 : (o.head ? 18 : 12); this.addXP(xp); if (z.boss) this.addCash(500);
+    else if (Math.random() < .35) this.addCash(rnd(5, 18)); if (!z.boss && Math.random() < .18) { const w = WEAPONS[this.save.cur]; const a = w.ammo || 'light'; this.save.ammo[a] = (this.save.ammo[a] || 0) + (a === 'shell' ? 3 : 8); this.floatText('+ammo', '#d8e8a0'); }
+    z.play('Death01', { once: true, force: true, speed: o.boom ? 1.6 : 1 }); z.vel.addScaledVector(dir, o.boom ? 9 : 2.5); if (o.boom) z.vel.y = 6;
+    const pos = z.root.position.clone(); pos.y = 1.55 * z.scale; this.decal(z.root.position.x + dir.x, z.root.position.z + dir.z, 1.4);
+    if (gore && (o.head || (o.boom && Math.random() < .5) || (o.pellets && Math.random() < .4))) { z.noHead = true; this.blood(pos, V3(0, 1, 0), 40, 3, 1.3); this.gib(pos, 6); this.audio.splat(); }
+    if (gore && (o.sever || o.boom) && Math.random() < .8) { const side = Math.random() < .5 ? 'L' : 'R'; z.noArm = 'DEF-forearm.' + side; const limb = new THREE.Mesh(new THREE.CapsuleGeometry(.05, .35, 3, 6), z.mat); const ap = V3(); z.worldOf(z.noArm, ap); this.gib(ap, 3, '#5a1010', limb); this.blood(ap, dir, 20, 3); }
+    if (o.finisher || (this.state.combo >= 3 && Math.random() < .6) || z.boss) { this.slowmo(z.boss ? 1.6 : 0.6); this.shake(.5); this.toast(z.boss ? 'BIG GUS IS DOWN' : (o.head ? 'HEADSHOT' : 'FINISHER'), 1); if (perk(this.save, 10)) this.hp = Math.min(this.maxHp, this.hp + 10); }
+    this.audio.thud(); }
+  meleeHit() { const P = this.player, ws = this.ws, fwd = V3(Math.sin(P.root.rotation.y), 0, Math.cos(P.root.rotation.y)); let hit = 0;
+    this.alive().forEach(z => { const d = z.root.position.clone().sub(P.root.position); const dist = d.length(); d.y = 0; if (dist > ws.range + (z.boss ? .8 : 0)) return; d.normalize(); if (d.dot(fwd) < .35) return;
+      const heavy = WEAPONS[this.save.cur].type === 'melee' && this.save.cur !== 'fists'; const fin = this.state.combo >= 2 && heavy && z.hp <= ws.dmg * 1.6;
+      this.damageZ(z, ws.dmg * (fin ? 1.6 : 1) * (1 + this.state.combo * .1), d, { sever: WEAPONS[this.save.cur].sever, finisher: fin, head: fin && WEAPONS[this.save.cur].sever }); hit++; });
+    if (hit) { this.audio.hit(); if (WEAPONS[this.save.cur].bonk) { this.audio.bonk(); this.floatText('BONK!', '#ffd35a'); } this.hitstop = 0.07; this.shake(.18); this.state.combo++; this.state.comboT = 2; } else this.audio.swing();
+    // tanker can be smashed too? no — only shot
+  }
+  aimRay() { const r = new THREE.Raycaster(); const ws = this.ws; const sp = this.state.aim ? ws.spread * .45 : ws.spread * (this.cam.fp ? .8 : 1.4);
+    r.setFromCamera(new THREE.Vector2(rnd(-sp, sp) * 4, 0.08 + rnd(-sp, sp) * 4), this.camera); return r.ray; }
+  fire() { const s = this.state, id = this.save.cur, w = WEAPONS[id], ws = this.ws; if (s.reload > 0 || s.fireCd > 0) return;
+    if ((this.save.mags[id] || 0) <= 0) { this.audio.click(); s.fireCd = .25; if ((this.save.ammo[w.ammo] || 0) > 0) this.reload(); else this.toast('Out of ammo — loot or buy more'); return; }
+    this.save.mags[id]--; s.fireCd = w.rate; this.audio.shot(id); this.shake(id === 'shotgun' || id === 'sniper' ? .28 : .1); this.cam.pitch += (id === 'sniper' ? .05 : .015) * (s.aim ? .5 : 1); this.cam.yaw += rnd(-.006, .006);
+    const mz = V3(); const muzzle = (this.cam.fp ? this.vmMesh : this.weaponMeshes[id]).getObjectByName('muzzle'); if (muzzle) muzzle.getWorldPosition(mz); else this.player.worldOf('DEF-hand.R', mz);
+    this.muzzle.position.copy(mz); this.muzzle.visible = true; this.muzzle.material.rotation = rnd(0, 6); this.mLight.position.copy(mz); this.mLight.intensity = 30; this.mT = 0.05;
+    if (!this.cam.fp && this.player.curName.startsWith('Pistol') || this.player.curName === 'Idle_Loop') this.player.play('Pistol_Shoot', { once: true, force: true, speed: 2, cb: () => { this.player.curName = ''; } });
+    const pellets = w.pellets || 1; let end = null;
+    for (let k = 0; k < pellets; k++) { const ray = this.aimRay(); let best = null, bd = ws.range;
+      // world walls
+      const rc = new THREE.Raycaster(ray.origin, ray.direction, 0, ws.range); const wh = rc.intersectObjects(this.world.walls, false)[0]; if (wh) bd = wh.distance;
+      const hp = V3(), tmp = V3(); this.alive().forEach(z => { z.worldOf('DEF-head', hp); hp.y += .08 * z.scale; const hr = (z.boss ? .28 : .17);
+        const t = tmp.copy(hp).sub(ray.origin).dot(ray.direction); if (t > 0 && t < bd) { const c = ray.at(t, V3()); if (c.distanceTo(hp) < hr && !z.noHead) { bd = t; best = { z, head: true }; return; } }
+        const a = z.root.position.clone(); a.y = .15; const b = z.root.position.clone(); b.y = 1.35 * z.scale; const pr = V3(), ps = V3(); const d2 = ray.distanceSqToSegment(a, b, pr, ps); const dd = pr.distanceTo(ray.origin);
+        if (d2 < (z.boss ? .5 : .1) && dd < bd) { bd = dd; best = { z, head: false }; } });
+      // tanker
+      if (this.stepData.tankerHP > 0) { const tp = this.world.tanker.position; const c = new THREE.Box3(V3(tp.x - 1.3, 0, tp.z - 3.6), V3(tp.x + 1.3, 3.2, tp.z + 5.8)); const ip = ray.intersectBox(c, V3()); if (ip && ip.distanceTo(ray.origin) < bd) { bd = ip.distanceTo(ray.origin); best = { tanker: true }; } }
+      end = ray.at(bd, V3());
+      if (best && best.z) { const dmg = ws.dmg * (best.head ? (2.5 * (perk(this.save, 8) ? 1.5 : 1)) * (best.z.boss ? .6 : 1) : 1); this.damageZ(best.z, dmg, ray.direction.clone().setY(0).normalize(), { head: best.head, pellets: pellets > 1 }); this.hitMark(best.head); }
+      else if (best && best.tanker) { this.stepData.tankerHP -= ws.dmg * pellets / pellets; this.blood(end, V3(0, 1, 0), 3, 1); if (this.stepData.tankerHP <= 0) this.stepData.tankerBoom = true; }
+      else if (end) { this.pMat.color.set('#3a3a34'); } }
+    const tp = this.tracer.geometry.attributes.position; tp.setXYZ(0, mz.x, mz.y, mz.z); tp.setXYZ(1, end.x, end.y, end.z); tp.needsUpdate = true; this.tracer.visible = true; this.trT = 0.04; }
+  hitMark(head) { const x = $('#xhair'); x.style.color = head ? '#f44' : '#fc8'; clearTimeout(this._hm); this._hm = setTimeout(() => x.style.color = '#fff', 120); }
+  reload() { const id = this.save.cur, w = WEAPONS[id]; if (w.type !== 'gun' || this.state.reload > 0) return; const need = this.ws.mag - (this.save.mags[id] || 0); if (need <= 0 || !(this.save.ammo[w.ammo] > 0)) return;
+    this.state.reload = this.ws.reload; this.audio.click(); if (!this.cam.fp) this.player.play('Pistol_Reload', { once: true, force: true, speed: 1.4 / this.ws.reload, cb: () => { this.player.curName = ''; } }); }
+  finishReload() { const id = this.save.cur, w = WEAPONS[id]; const need = this.ws.mag - (this.save.mags[id] || 0); const n = Math.min(need, this.save.ammo[w.ammo] || 0); this.save.mags[id] += n; this.save.ammo[w.ammo] -= n; this.audio.click(); }
+  attack() { const w = WEAPONS[this.save.cur]; if (this.truck.driving || this.cut || this.dying) return; if (w.type === 'gun') return this.fire(); const s = this.state; if (s.atk > 0 || s.roll > 0) return;
+    const P = this.player; // soft lock
+    let best = null, bd = 3.5; this.alive().forEach(z => { const d = z.root.position.distanceTo(P.root.position); if (d < bd) { bd = d; best = z; } }); if (best) P.root.rotation.y = Math.atan2(best.root.position.x - P.root.position.x, best.root.position.z - P.root.position.z);
+    const rate = this.ws.rate; s.atk = rate; s.atkHit = rate * .45; const anim = this.save.cur === 'fists' ? (s.combo % 2 ? 'Punch_Cross' : 'Punch_Jab') : 'Sword_Attack';
+    P.play(anim, { once: true, force: true, speed: (this.lib.clips[anim].duration / rate) * .8, cb: () => { P.curName = ''; } }); this.audio.swing(); }
+  roll() { const s = this.state; if (s.roll > 0 || this.truck.driving || this.cut) return; s.roll = 0.62; this.player.play('Roll', { once: true, force: true, speed: 1.35, cb: () => { this.player.curName = ''; } });
+    const mv = this.input.move; if (mv.lengthSq() > .04) this.player.root.rotation.y = Math.atan2(mv.x, mv.y) + this.cam.yaw + Math.PI; }
+  jump() { const s = this.state; if (s.y > 0.01 || this.truck.driving || this.cut) return; s.vy = 4.8; this.player.play('Jump_Start', { once: true, force: true, speed: 1.5, cb: () => this.player.play('Jump_Loop') }); }
+  grenade() { if (this.save.grenades <= 0) { this.toast('No grenades'); return; } if (this.truck.driving || this.cut) return; this.save.grenades--; const P = this.player;
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, .2, 8), new THREE.MeshStandardMaterial({ color: '#444' })); const p = P.root.position.clone(); p.y = 1.6; m.position.copy(p); this.scene.add(m);
+    const f = V3(); this.camera.getWorldDirection(f); this.grenadesLive.push({ m, v: f.multiplyScalar(13).add(V3(0, 4.5, 0)), t: 1.7 }); this.audio.swing(); }
+  heal() { if (this.save.meds <= 0 || this.hp >= this.maxHp) return; this.save.meds--; this.hp = Math.min(this.maxHp, this.hp + 50); this.toast('+50 health'); this.audio.pickup(); }
+  use() { if (this.dlgCur && this.cut) { this.skipLine(); return; } const P = this.player.root.position;
+    if (this.truck.driving) { return; }
+    const near = this.nearUse(); if (near) { if (near.pickup) this.takePickup(near.pickup); else near.fn(this); return; }
+    if (this.dlgCur) this.skipLine(); }
+  nearUse() { const P = this.player.root.position; let best = null, bd = 1.7;
+    this.pickups.forEach(p => { const d = Math.hypot(p.mesh.position.x - P.x, p.mesh.position.z - P.z); if (d < bd) { bd = d; best = { pickup: p, label: p.l.label || p.l.kind }; } });
+    (this.stepData.uses || []).forEach(u => { if (u.done) return; const d = Math.hypot(u.x - P.x, u.z - P.z); if (d < (u.r || 1.7) && d < bd + .5) { bd = d; best = { fn: (g) => { if (!u.repeat) u.done = true; u.fn(g); }, label: u.label }; } });
+    if (!this.truck.driving && this.stepData.canDrive && Math.hypot(this.truck.g.position.x - P.x, this.truck.g.position.z - P.z) < 3.4) best = { fn: (g) => g.enterTruck(), label: 'Drive the truck' };
+    return best; }
+  enterTruck() { this.truck.driving = true; this.player.root.visible = false; this.updateTruckCol(); this.audio.engine(true, 0); this.stepData.onDrive && this.stepData.onDrive(this); }
+  exitTruck() { const T = this.truck; T.driving = false; this.audio.engine(false); const p = T.g.position; this.player.root.position.set(p.x + Math.cos(T.head) * 2, 0, p.z - Math.sin(T.head) * 2); this.player.root.visible = true; this.updateTruckCol(); }
+
+  // ---------- frame ----------
+  frame(now) { if (!this.running) return; requestAnimationFrame((t) => this.frame(t)); let rdt = Math.min(0.05, (now - this.last) / 1000); this.last = now;
+    this.fpsAcc += rdt; this.fpsN++; if (this.fpsAcc > 3) { const fps = this.fpsN / this.fpsAcc; this.fps = fps; this.fpsAcc = 0; this.fpsN = 0;
+      if (fps < 27 && this.pr > 0.55) { this.pr = Math.max(0.55, this.pr * 0.82); this.renderer.setPixelRatio(this.pr); this.resize(); } else if (fps > 55 && this.pr < this.basePR) { this.pr = Math.min(this.basePR, this.pr * 1.1); this.renderer.setPixelRatio(this.pr); this.resize(); } }
+    this.input.poll(rdt);
+    if (!this.paused) { if (this.hitstop > 0) { this.hitstop -= rdt; } else { if (this.slowT > 0) { this.slowT -= rdt; if (this.slowT <= 0) this.timeScale = 1; } this.update(rdt * this.timeScale, rdt); } }
+    this.render(rdt); }
+  update(dt, rdt) { this.t += dt; const P = this.player, s = this.state, I = this.input, T = this.truck;
+    // dialog
+    if (this.dlgCur) { this.dlgCur.t += rdt; if (this.dlgCur.t > this.dlgCur.dur && (this.settings.auto !== false || !this.cut)) this.nextLine(); }
+    if (this.dying) { this.updateDying(dt); this.updateZ(dt); this.updateFX(dt); return; }
+    // cutscene camera
+    const st = STORY[this.step]; st.update && st.update(this, dt);
+    if (s.fireCd > 0) s.fireCd -= dt; if (s.reload > 0) { s.reload -= dt; if (s.reload <= 0) this.finishReload(); }
+    if (s.comboT > 0) { s.comboT -= dt; if (s.comboT <= 0) s.combo = 0; }
+    if (this.hp < this.maxHp && this.t - (this.lastHurt || 0) > 5) this.hp = Math.min(this.maxHp, this.hp + dt * 4);
+    if (T.driving) this.updateTruck(dt); else if (!this.cut) this.updatePlayer(dt);
+    else { P.play(this.cut.anim || 'Idle_Loop'); }
+    P.mixer.update(dt);
+    this.updateZ(dt); for (const k in this.npcs) { const n = this.npcs[k]; n.update && n.update(dt); n.mixer.update(dt); if (n.bleed && Math.random() < dt * 3) { const p = n.root.position.clone(); p.y = .3; this.blood(p, V3(0, .6, 0), 3, 1.2); } }
+    // pickups
+    this.pickups.forEach(p => { p.m.rotation.y += dt * 1.6; p.m.position.y = Math.sin(this.t * 3) * .05; if (!p.l.story && !p.l.manual) { const d = Math.hypot(p.mesh.position.x - P.root.position.x, p.mesh.position.z - P.root.position.z); if (d < 1.0 && !T.driving) this.takePickup(p); } });
+    this.updateFX(dt);
+    if (this.stepData.tankerBoom && !this.stepData.tankerDone) { this.stepData.tankerDone = true; const tp = this.world.tanker.position.clone(); tp.y = 1.5; this.explode(tp, 12, 500); this.world.tanker.children.forEach(c => c.material && c.material.color && c.material.color.set('#151210')); this.world.tankCol.x0 = 999; this.world.tanker.rotation.z = 0.25; }
+    this.world.update(dt, this.t, this.camera.position); }
+  updatePlayer(dt) { const P = this.player, s = this.state, I = this.input, w = WEAPONS[this.save.cur], gun = w.type === 'gun';
+    if (I.pressed('swap')) this.swap(1); if (I.pressed('reload')) this.reload(); if (I.pressed('gren')) this.grenade(); if (I.pressed('heal')) this.heal(); if (I.pressed('jump')) this.jump(); if (I.pressed('roll')) this.roll(); if (I.pressed('use')) this.use();
+    if (I.pressed('crouch')) s.crouch = !s.crouch; if (I.pressed('view')) { this.cam.fp = !this.cam.fp; this.settings.fp = this.cam.fp; }
+    s.aim = I.aim && gun; if (I.atk && (w.auto || I.pressed('atk') || !gun)) { if (gun || I.pressed('atk')) this.attack(); }
+    const mv = I.move; const mag = Math.min(1, mv.length()); const run = (I.run || mag > .95 && I.touchRun) && !s.crouch && !s.aim;
+    let spd = s.crouch ? 1.6 : run ? 6.2 * (perk(this.save, 7) ? 1.15 : 1) : 3.1; if (s.aim) spd = 2.2; if (s.atk > 0) spd *= .3; if (s.stun > 0) { spd = 0; s.stun -= dt; }
+    const yaw = this.cam.yaw; let dx = 0, dz = 0;
+    if (mag > .08) { const a = Math.atan2(mv.x, mv.y) + yaw + Math.PI; dx = Math.sin(a) * spd * mag; dz = Math.cos(a) * spd * mag;
+      if (!(gun || this.cam.fp) && s.atk <= 0 && s.roll <= 0) P.root.rotation.y = angLerp(P.root.rotation.y, a, Math.min(1, dt * 12)); }
+    if (gun || this.cam.fp) P.root.rotation.y = angLerp(P.root.rotation.y, yaw + Math.PI, Math.min(1, dt * 18));
+    if (s.roll > 0) { s.roll -= dt; const f = 6.5; dx = Math.sin(P.root.rotation.y) * f; dz = Math.cos(P.root.rotation.y) * f; }
+    if (s.atk > 0) { s.atk -= dt; if (s.atkHit > 0) { s.atkHit -= dt; if (s.atkHit <= 0) this.meleeHit(); } }
+    const p = P.root.position; this.moveCollide(p, dx * dt, dz * dt, 0.35);
+    // vertical
+    if (s.y > 0 || s.vy > 0) { s.vy -= 14 * dt; s.y = Math.max(0, s.y + s.vy * dt); if (s.y === 0) { s.vy = 0; P.play('Jump_Land', { once: true, force: true, speed: 1.6, cb: () => P.curName = '' }); } } p.y = s.y;
+    // locomotion anims
+    if (!P.oneShot) { if (s.y > 0) P.play('Jump_Loop'); else if (mag > .08) { if (s.crouch) P.play('Crouch_Fwd_Loop'); else if (run) P.play('Sprint_Loop'); else if (spd * mag > 2.6) P.play('Jog_Fwd_Loop', { speed: .9 }); else P.play('Walk_Loop', { speed: 1.1 }); }
+      else if (s.crouch) P.play('Crouch_Idle_Loop'); else if (gun) P.play(s.aim ? 'Pistol_Aim_Neutral' : 'Pistol_Idle_Loop'); else P.play('Idle_Loop'); }
+    P.model.visible = !this.cam.fp; }
+  moveCollide(p, dx, dz, r) { const C = this.world.colliders; let nx = p.x + dx, nz = p.z + dz;
+    for (let i = 0; i < C.length; i++) { const c = C[i]; if (c.skip) continue; if (nx > c.x0 - r && nx < c.x1 + r && nz > c.z0 - r && nz < c.z1 + r) {
+      const ox = Math.min(nx - (c.x0 - r), (c.x1 + r) - nx), oz = Math.min(nz - (c.z0 - r), (c.z1 + r) - nz);
+      if (ox < oz) nx = nx - (c.x0 + c.x1) / 2 < 0 ? c.x0 - r : c.x1 + r; else nz = nz - (c.z0 + c.z1) / 2 < 0 ? c.z0 - r : c.z1 + r; } }
+    const hitWall = Math.abs(nx - p.x - dx) + Math.abs(nz - p.z - dz) > 1e-4; p.x = nx; p.z = nz; return hitWall; }
+  updateTruck(dt) { const T = this.truck, I = this.input; const thr = clamp(-I.move.y + (I.atk ? 1 : 0), -1, 1), str = clamp(I.move.x, -1, 1);
+    T.v += thr * (thr * T.v < 0 ? 22 : 11) * dt; T.v *= (1 - dt * (thr ? .25 : 1.2)); T.v = clamp(T.v, -7, 19); T.head -= str * dt * clamp(T.v / 6, -1, 1) * 1.7;
+    T.g.rotation.y = T.head; const p = T.g.position; const fx = Math.sin(T.head) * T.v * dt, fz = Math.cos(T.head) * T.v * dt;
+    if (this.moveCollide(p, fx, fz, 1.3) && Math.abs(T.v) > 4) { this.shake(.4); this.audio.crash(); T.v *= -0.3; } else if (this.moveCollide(p, 0, 0, 1.3)) T.v *= .9;
+    this.audio.engine(true, Math.abs(T.v) / 19);
+    this.alive().forEach(z => { const d = z.root.position.distanceTo(p); if (d < 2.1) { if (Math.abs(T.v) > 3.5) { const dir = z.root.position.clone().sub(p).setY(0).normalize(); this.damageZ(z, 200, dir, { boom: true }); this.shake(.25); this.hitstop = .04; this.audio.thud(); T.v *= .93; } else { z.st = 'chase'; } } });
+    this.player.root.position.copy(p); this.updateTruckCol(); }
+  updateZ(dt) { const P = this.player, pp = this.truck.driving ? this.truck.g.position : P.root.position; const Z = this.zombies;
+    for (let i = 0; i < Z.length; i++) { const z = Z[i]; const zp = z.root.position;
+      if (z.dead) { z.deadT += dt; if (z.vel.lengthSq() > .01) { zp.addScaledVector(z.vel, dt); z.vel.y -= 14 * dt; if (zp.y < 0) { zp.y = 0; z.vel.y = 0; } z.vel.x *= .9; z.vel.z *= .9; }
+        z.mixer.update(dt); this.zBones(z); if (z.deadT > 25 && Z.length > 26) { this.scene.remove(z.root); Z.splice(i--, 1); } continue; }
+      const toP = V3(pp.x - zp.x, 0, pp.z - zp.z); const d = toP.length();
+      if (z.st === 'feast') { z.mixer.update(dt); if (Math.random() < dt * 8 && this.settings.gore) { const b = P.root.position.clone(); b.y = .3; this.blood(b, V3(rnd(-1, 1), .5, rnd(-1, 1)), 4, 2); } continue; }
+      if (z.st === 'eat' || z.st === 'idle') { const det = this.state.crouch ? 4 : (z.st === 'eat' ? 7 : 12); if (d < det && !this.cut || z.hp < z.maxHp) { z.st = 'chase'; this.audio.groan(.12); } z.mixer.update(dt); if (z.st === 'eat' && Math.random() < dt * .3) this.audio.groan(.05); continue; }
+      if (z.boss) { this.updateBoss(z, d, toP, dt); z.mixer.update(dt); this.zBones(z); continue; }
+      if (z.stun > 0) { z.stun -= dt; zp.addScaledVector(z.vel, dt); z.vel.multiplyScalar(.85); z.mixer.update(dt); this.zBones(z); continue; }
+      if (d > z.aggro && !this.stepData.hordeAll) { z.mixer.update(dt); this.zBones(z); continue; }
+      if (z.cd > 0) z.cd -= dt;
+      if (d < 1.25 && !this.truck.driving) { if (z.cd <= 0) { z.cd = rnd(1.2, 1.8); z.play('Punch_Jab', { once: true, force: true, speed: .9, cb: () => { z.curName = ''; } }); z.hitAt = .35; } }
+      else if (!z.oneShot) { toP.normalize(); let sx = toP.x * z.speed * dt, sz = toP.z * z.speed * dt;
+        for (let j = 0; j < Z.length; j++) { if (j === i || Z[j].dead) continue; const o = Z[j].root.position; const ex = zp.x - o.x, ez = zp.z - o.z, e2 = ex * ex + ez * ez; if (e2 < .5 && e2 > 1e-4) { sx += ex / e2 * dt * .25; sz += ez / e2 * dt * .25; } }
+        this.moveCollide(zp, sx, sz, .3); z.root.rotation.y = angLerp(z.root.rotation.y, Math.atan2(toP.x, toP.z), Math.min(1, dt * 6)); z.play(z.runner ? 'Jog_Fwd_Loop' : 'Walk_Loop', { speed: z.runner ? 1.1 : .62 }); }
+      if (z.hitAt > 0) { z.hitAt -= dt; if (z.hitAt <= 0 && d < 1.7 && !this.truck.driving) this.hurt(this.settings.qteEasy ? 6 : 11, zp); }
+      if (Math.random() < dt * .08) this.audio.groan(.06);
+      z.mixer.update(dt); this.zBones(z); } }
+  zBones(z) { const b = z.bones; if (!z.dead && !z.oneShot) { // zombie posture: arms reaching, head lolled
+      ['DEF-upper_arm.L', 'DEF-upper_arm.R'].forEach((n, k) => { const bn = b[n]; if (bn) { bn.rotateX(z.runner ? -0.5 : -1.05); bn.rotateZ((k ? -1 : 1) * 0.12); } });
+      if (b['DEF-head']) b['DEF-head'].rotateZ(Math.sin(this.t * 1.3 + z.id) * .25 + .2); if (b['DEF-spine.002']) b['DEF-spine.002'].rotateX(.18); }
+    if (z.noHead && b['DEF-head']) b['DEF-head'].scale.setScalar(0.001); if (z.noArm && b[z.noArm]) b[z.noArm].scale.setScalar(0.001); }
+  updateBoss(z, d, toP, dt) { const zp = z.root.position; z.t = (z.t || 0) + dt; $('#bossb i').style.width = Math.max(0, z.hp / z.maxHp * 100) + '%';
+    if (z.stun > 0) { z.stun -= dt; return; }
+    if (z.mode === 'slam') { z.mt -= dt; z.ring.scale.setScalar(1 + (0.9 - z.mt) * 3); if (z.mt <= 0) { z.mode = null; this.scene.remove(z.ring); this.shake(.7); this.audio.thud(); this.audio.boom(); if (d < 3.4) this.hurt(28, zp); z.cd = 2; } return; }
+    if (z.mode === 'charge') { z.mt -= dt; const f = V3(Math.sin(z.root.rotation.y), 0, Math.cos(z.root.rotation.y)); if (this.moveCollide(zp, f.x * 9 * dt, f.z * 9 * dt, .6)) { z.mt = 0; z.stun = 1.2; this.shake(.5); this.audio.crash(); this.toast('He hit the wall — punish him!'); }
+      if (d < 1.6 && !z.hitP) { z.hitP = true; this.hurt(25, zp); } if (z.mt <= 0) { z.mode = null; z.cd = 1.5; } return; }
+    toP.normalize(); z.root.rotation.y = angLerp(z.root.rotation.y, Math.atan2(toP.x, toP.z), dt * 4); z.cd -= dt;
+    if (z.cd <= 0 && d < 3) { z.mode = 'slam'; z.mt = 0.9; z.play('Sword_Attack', { once: true, force: true, speed: .7, cb: () => z.curName = '' }); const ring = z.ring = new THREE.Mesh(new THREE.RingGeometry(.9, 1.1, 32), new THREE.MeshBasicMaterial({ color: '#f22', transparent: true, opacity: .6, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.position.copy(zp).y = .06; this.scene.add(ring); return; }
+    if (z.cd <= 0 && d > 7) { z.mode = 'charge'; z.mt = 1.3; z.hitP = false; z.play('Sprint_Loop', { force: true }); this.audio.groan(.3); this.toast('CHARGE — ROLL!', 0.8); return; }
+    this.moveCollide(zp, toP.x * z.speed * dt, toP.z * z.speed * dt, .6); z.play('Walk_Loop', { speed: .55 }); if (Math.random() < dt * .4) this.audio.groan(.2); }
+  updateDying(dt) { const D = this.dying; D.t += dt; this.player.mixer.update(dt); if (D.z) { D.z.mixer.update(dt); }
+    if (this.settings.gore && Math.random() < dt * 10) { const p = this.player.root.position.clone(); p.y = .4; this.blood(p, V3(rnd(-1, 1), 1, rnd(-1, 1)), 6, 3); if (Math.random() < .2) this.decal(p.x + rnd(-1, 1), p.z + rnd(-1, 1), 1); }
+    if (D.t > .3 && !D.s1) { D.s1 = 1; this.screenSplat(); this.audio.splat(); } if (D.t > 1.2 && !D.s2) { D.s2 = 1; this.screenSplat(); this.audio.scream(.1); }
+    if ((D.t > 2.6 || performance.now() - D.t0 > 4200) && !D.done) { D.done = 1; this.paused = true; this.onDeath && this.onDeath(); } }
+  updateFX(dt) { const M = new THREE.Matrix4(), q = new THREE.Quaternion(), s = V3();
+    for (let i = 0; i < this.pd.length; i++) { const d = this.pd[i]; if (d.life > 0) { d.life -= dt; d.v.y -= 12 * dt; d.p.addScaledVector(d.v, dt); if (d.p.y < .03) { d.p.y = .03; d.v.set(0, 0, 0); if (d.dec) { d.dec = false; this.decal(d.p.x, d.p.z, .35); } } if (d.life <= 0) d.p.y = -99; }
+      M.compose(d.p, q, s.setScalar(d.life > 0 ? d.s : 0)); this.parts.setMatrixAt(i, M); }
+    this.parts.instanceMatrix.needsUpdate = true;
+    for (let i = this.gibs.length - 1; i >= 0; i--) { const g = this.gibs[i]; g.life -= dt; if (g.m.position.y > .04) { g.v.y -= 14 * dt; g.m.position.addScaledVector(g.v, dt); g.m.rotation.x += g.r.x * dt; g.m.rotation.y += g.r.y * dt; } else { g.m.position.y = .04; } if (g.life <= 0) { this.scene.remove(g.m); this.gibs.splice(i, 1); } }
+    for (let i = this.booms.length - 1; i >= 0; i--) { const b = this.booms[i]; b.t += dt; b.ball.scale.setScalar(1 + b.t * b.R * 1.6); b.ball.material.opacity = Math.max(0, 1 - b.t * 1.4); b.L.intensity = Math.max(0, 120 * (1 - b.t)); if (b.t > 1.2) { this.scene.remove(b.ball, b.L); this.booms.splice(i, 1); } }
+    for (let i = this.grenadesLive.length - 1; i >= 0; i--) { const g = this.grenadesLive[i]; g.t -= dt; g.v.y -= 14 * dt; g.m.position.addScaledVector(g.v, dt); if (g.m.position.y < .06) { g.m.position.y = .06; g.v.multiplyScalar(.4); g.v.y = Math.abs(g.v.y) * .3; }
+      if (g.t <= 0) { this.scene.remove(g.m); this.grenadesLive.splice(i, 1); this.explode(g.m.position.clone(), 6, 260); const tp = this.world.tanker.position; if (this.stepData.tankerHP > 0 && g.m.position.distanceTo(tp) < 8) this.stepData.tankerBoom = true; } }
+    if (this.mT > 0) { this.mT -= dt; if (this.mT <= 0) { this.muzzle.visible = false; this.mLight.intensity = 0; } } if (this.trT > 0) { this.trT -= dt; if (this.trT <= 0) this.tracer.visible = false; } }
+  render(rdt) { const cam = this.camera, P = this.player, C = this.cam, I = this.input, T = this.truck;
+    // camera
+    C.yaw -= I.look.x; C.pitch = clamp(C.pitch - I.look.y, -1.1, 0.9); I.look.set(0, 0);
+    const aim = this.state && this.state.aim; const ws = this.ws || {};
+    let target, desired; const fov = aim ? 62 / (ws.zoom || 1.35) : 62; cam.fov = lerp(cam.fov, fov, Math.min(1, rdt * 12)); cam.updateProjectionMatrix();
+    if (this.cut && this.cut.cam) { cam.position.lerp(this.cut.cam, Math.min(1, rdt * 3)); const lk = this.cut.look; this._lk = this._lk ? this._lk.lerp(lk, Math.min(1, rdt * 3)) : lk.clone(); cam.lookAt(this._lk); }
+    else if (this.dying) { const p = P.root.position; const want = V3(p.x + Math.sin(this.t * .3) * 2.4, 1.1, p.z + Math.cos(this.t * .3) * 2.4); cam.position.lerp(want, rdt * 2); cam.lookAt(p.x, .4, p.z); }
+    else if (T && T.driving) { const p = T.g.position; desired = V3(p.x - Math.sin(T.head) * 8, 3.6, p.z - Math.cos(T.head) * 8); cam.position.lerp(desired, Math.min(1, rdt * 5)); cam.lookAt(p.x + Math.sin(T.head) * 4, 1.2, p.z + Math.cos(T.head) * 4); C.yaw = T.head + Math.PI; }
+    else if (C.fp) { const hp = V3(); P.worldOf('DEF-head', hp); hp.y += .05; cam.position.copy(P.root.position).setY(P.root.position.y + (this.state.crouch ? 1.0 : 1.48)); const f = V3(-Math.sin(C.yaw), 0, -Math.cos(C.yaw)); cam.position.addScaledVector(f, .12);
+      cam.rotation.set(0, 0, 0, 'YXZ'); cam.rotation.order = 'YXZ'; cam.rotation.y = C.yaw; cam.rotation.x = C.pitch; }
+    else { target = P.root.position.clone(); target.y += this.state && this.state.crouch ? 1.05 : 1.5; const dist = aim ? 1.6 : 2.7, sh = aim ? .62 : .5;
+      const cp = Math.cos(C.pitch), back = V3(Math.sin(C.yaw) * cp, -Math.sin(C.pitch), Math.cos(C.yaw) * cp); const right = V3(Math.cos(C.yaw), 0, -Math.sin(C.yaw));
+      const pivot = target.clone().addScaledVector(right, sh); let dd = dist; const rc = new THREE.Raycaster(pivot, back, 0, dist + .3); const h = rc.intersectObjects(this.world.walls, false)[0]; if (h) dd = Math.max(.3, h.distance - .25);
+      // side collision for shoulder
+      const rc2 = new THREE.Raycaster(target, right, 0, sh + .2); const h2 = rc2.intersectObjects(this.world.walls, false)[0]; if (h2) { pivot.copy(target).addScaledVector(right, Math.max(0, h2.distance - .25)); }
+      cam.position.copy(pivot).addScaledVector(back, dd); cam.rotation.order = 'YXZ'; cam.rotation.set(C.pitch, C.yaw, 0); }
+    // shake
+    if (this.trauma > 0) { const k = this.trauma * this.trauma * .25; cam.position.x += rnd(-k, k); cam.position.y += rnd(-k, k); cam.rotation.z += rnd(-k, k) * .4; this.trauma = Math.max(0, this.trauma - rdt * 1.6); }
+    // viewmodel
+    this.vm.visible = !!(C.fp && !(T && T.driving) && !this.cut && !this.dying); if (this.vm.visible) { const s = this.state; const bob = Math.sin(this.t * 9) * .012 * Math.min(1, this.input.move.length()); this.vm.position.set(aim ? 0.0 : .22, (aim ? -.14 : -.2) + bob, -.45);
+      const w = WEAPONS[this.save.cur]; this.vm.rotation.set(s.atk > 0 && w.type === 'melee' ? -1.2 + s.atk / this.ws.rate * 2.4 : (s.reload > 0 ? .6 : 0), w.type === 'melee' ? .3 : 0, 0); }
+    $('#xhair').classList.toggle('hidden', !(WEAPONS[this.save?.cur]?.type === 'gun' || C.fp) || !!(T && T.driving) || !!this.cut || !!this.dying);
+    // flashlight from chest
+    const fl = this.flash; const fpos = P.root.position.clone(); fpos.y += 1.3; const fdir = V3(); cam.getWorldDirection(fdir); if (T && T.driving) { fpos.copy(T.g.position).y += 1; fdir.set(Math.sin(T.head), -.1, Math.cos(T.head)); }
+    fl.position.copy(fpos).addScaledVector(fdir, .3); fl.target.position.copy(fpos).addScaledVector(fdir, 10); fl.visible = !this.cut || this.cut.flash;
+    // moon shadow follows
+    const mp = P.root.position; this.moon.position.set(mp.x - 20, 40, mp.z + 14); this.moon.target.position.copy(mp);
+    if (this.composer) this.composer.render(); else this.renderer.render(this.scene, cam);
+    if (this.running && !this.paused) this.hud(); }
+  hud() { const s = this.save, w = WEAPONS[s.cur];
+    $('#hpb i').style.width = (this.hp / this.maxHp * 100) + '%'; $('#hpTxt').textContent = `Health : ${Math.ceil(this.hp)}  ·  Lv ${s.level}  ·  $${s.cash}  ·  Med ${s.meds}`;
+    $('#ammoTxt').textContent = w.type === 'gun' ? `${w.name}  ·  Ammo : ${s.mags[s.cur] || 0} / ${s.ammo[w.ammo] || 0}${this.state.reload > 0 ? '  (reloading)' : ''}` : w.name;
+    $('#grenN').textContent = s.grenades; $('#tAtk').textContent = w.type === 'gun' ? 'FIRE' : 'HIT'; $('#pages').textContent = s.pages.length ? `Comic pages ${s.pages.length}/8` : '';
+    $('#lowhp').style.opacity = this.dying ? 1 : clamp(1 - this.hp / this.maxHp * 2.2, 0, .9); const cb = $('#combo'); if (this.state.combo >= 2) { cb.textContent = `x${this.state.combo} COMBO`; cb.classList.add('on'); } else cb.classList.remove('on');
+    const n = this.nearUse(); $('#prompt').textContent = n && !this.cut ? `✋ ${n.label}` : (this.truck.driving ? 'Drive: stick / WASD · FIRE = gas' : '');
+    if (this.boss) $('#boss').classList.remove('hidden');
+    // waypoint
+    const wpE = $('#wp'); const tgt = this.wpTarget; if (tgt && !this.cut) { const v = V3(tgt[0], tgt[1] || 1.2, tgt[2]); const dist = v.distanceTo(this.player.root.position); const p = v.clone().project(this.camera); let x = (p.x * .5 + .5) * innerWidth, y = (-p.y * .5 + .5) * innerHeight; const behind = p.z > 1;
+      if (behind) { x = innerWidth - x; y = innerHeight - 40; } x = clamp(x, 40, innerWidth - 40); y = clamp(y, 60, innerHeight - 60); wpE.style.display = ''; wpE.style.left = x + 'px'; wpE.style.top = y + 'px'; wpE.querySelector('.d').textContent = Math.round(dist) + ' m';
+      wpE.querySelector('.arr').textContent = behind ? '▼' : (dist < 3 ? '◆' : '▲'); } else wpE.style.display = 'none';
+    this.mini(); }
+  mini() { const c = $('#mini'), g = c.getContext('2d'), W = c.width, S = 1.4; const P = this.player.root.position; g.clearRect(0, 0, W, W); g.save(); g.beginPath(); g.arc(W / 2, W / 2, W / 2 - 1, 0, 7); g.clip(); g.fillStyle = 'rgba(10,20,14,.7)'; g.fillRect(0, 0, W, W);
+    g.translate(W / 2, W / 2); g.rotate(this.cam.yaw); g.scale(1 / S, 1 / S); g.translate(-P.x, -P.z);
+    g.fillStyle = '#3a4038'; g.fillRect(-5.5, -155, 11, 220); g.fillRect(-45, -0.5, 90, 9); g.fillStyle = '#1e3a4a'; g.fillRect(-200, -131, 400, 22); g.fillStyle = '#555'; g.fillRect(-5, -132, 10, 24);
+    g.fillStyle = '#5a5248'; this.world.colliders.forEach(k => { if (k.x1 - k.x0 > 3 && k.x1 - k.x0 < 20 && k.z1 - k.z0 < 20) g.fillRect(k.x0, k.z0, k.x1 - k.x0, k.z1 - k.z0); });
+    g.fillStyle = '#e33'; this.alive().forEach(z => { g.beginPath(); g.arc(z.root.position.x, z.root.position.z, 1.4, 0, 7); g.fill(); });
+    if (this.wpTarget) { g.fillStyle = '#7fd49a'; g.beginPath(); g.arc(this.wpTarget[0], this.wpTarget[2], 3, 0, 7); g.fill(); }
+    g.restore(); g.fillStyle = '#fff'; g.beginPath(); g.moveTo(W / 2, W / 2 - 6); g.lineTo(W / 2 - 4, W / 2 + 4); g.lineTo(W / 2 + 4, W / 2 + 4); g.fill(); }
+}

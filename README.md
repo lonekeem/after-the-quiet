@@ -1,15 +1,22 @@
-# After the Quiet (working title)
-A story-driven first-person zombie game by **Lone Keem Studios**. Set in the fictional town of Lone Keem, Maine.
-Chapter 1, "The Day Before," is playable. See STORY.md for the series bible and CREDITS.md for licenses.
+# After the Quiet — v1.3.0 Story Mode
+A free-roam third-person horror action shooter by **Lone Keem Studios** (Three.js + Vite + Capacitor).
+You play **Keem**, a kid with a backpack, fighting out of **Riverside, Maine** on the night it falls.
+
+**Rated MATURE 18+** — intense violence, strong blood and gore (dismemberment, zombies eating people), gunfire, frightening scenes, death of a parent. A *Gore* toggle in Settings turns blood/dismemberment off.
 
 ```
 npm install
-npm run dev     # local
-npm run build   # dist/
-npm run smoke   # Playwright smoke test + screenshots
-tools/render_narration.sh   # re-render narrator audio (needs Piper + ffmpeg)
+npm run dev            # local
+npm run build          # dist/
+npm run android:debug  # APK  (android/app/build/outputs/apk/debug/)
+npm run android:release# AAB  (needs the private upload keystore, never committed)
 ```
-Controls: keyboard+mouse, touch (joystick/drag/buttons), gamepad (Xbox/PlayStation/generic).
+Debug: `?step=0..6` jumps to a chapter, `&god` gives weapons and invulnerability.
 
-> This repo previously hosted the Lone Keem Studios AI series app. It is preserved at tag `ai-series-final`.
-> Android: `npm run android:debug` / `npm run android:release` (app id com.lonekeemstudios.app).
+**Controls** — Touch: left joystick, drag to look, FIRE/HIT, AIM, JUMP, ROLL, RUN, CRCH, reload, swap, grenade, use, first-person toggle.
+Keyboard/mouse: WASD, mouse look (click to lock), LMB attack, RMB aim, Shift run, C crouch, Space jump, Ctrl roll, R reload, Q swap, G grenade, H heal, E/F use, V camera, Esc pause. Gamepad: standard mapping.
+
+**Progression** (localStorage `atq3.save`): loot cash/ammo/meds/grenades/comic pages, XP and levels with perks, Armory (in-game cash only — **no real money, no IAP**) for guns, melee, upgrades (damage, magazine, reload, accuracy/scope) and supplies, inventory screen, checkpoints per chapter.
+
+Quality presets Low/Med/High with auto-detect (High adds GTAO + bloom). See STORY.md and CREDITS.md.
+The old cinematic movie version is preserved at tag `cinematic-final`.

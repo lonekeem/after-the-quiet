@@ -98,4 +98,33 @@ export class AudioSys {
       g.gain.linearRampToValueAtTime(0.09, t + 6); }
     if (!on && this._dr) { const d = this._dr; this._dr = null; d.g.gain.setTargetAtTime(0, t, 0.05); setTimeout(() => d.os.forEach(o => o.stop()), 800); } }
   boom() { if (!this.ctx) return; this.tone(32, 3, 'sine', 0.7, this.sfx, 0.01); this.noise(2.2, 120, 0.6); this.tone(65, 4, 'triangle', 0.06, this.verb, 0.05); }
+
+  // action soundtrack: synthesized drum + bass loop (level 0 off, 1 groove, 2 full fight)
+  beat(level) { if (!this.ctx) return; this._bl = level;
+    if (level && !this._bt) { let step = 0; const ctx = this.ctx;
+      this._bt = setInterval(() => { if (!this._bl || ctx.state !== 'running') return; const s = step++ % 16, L = this._bl;
+        if (s % 4 === 0 || (L > 1 && s === 10)) { this.tone(52, 0.25, 'sine', 0.35, this.music, 0.003); }
+        if (s === 4 || s === 12) this.noise(0.18, 1800, L > 1 ? 0.28 : 0.16, 'bandpass', 0.7);
+        if (L > 1 && s % 2 === 1) this.noise(0.04, 8000, 0.05, 'highpass');
+        const bass = [41.2, 41.2, 49, 36.7][Math.floor(step / 16) % 4];
+        if (s % 4 === 2 || (L > 1 && s % 4 === 3)) this.tone(bass * 2, 0.14, 'sawtooth', 0.05, this.music, 0.005);
+        if (L > 1 && s === 0 && Math.random() < .5) this.tone(bass * 4, 0.9, 'square', 0.015, this.verb, 0.05);
+      }, 125); }
+    if (!level && this._bt) { clearInterval(this._bt); this._bt = null; } }
+  bonk() { if (!this.ctx) return; this.tone(660, 0.35, 'triangle', 0.25, this.sfx, 0.002); this.tone(990, 0.25, 'sine', 0.12, this.sfx, 0.002); this.noise(0.08, 2000, 0.4); }
+  explode() { if (!this.ctx) return; this.boom(); this.noise(2.8, 500, 1.0); setTimeout(() => this.noise(1.5, 2500, 0.3, 'bandpass'), 200); }
+  pickup() { if (!this.ctx) return; [784, 1175].forEach((f, i) => setTimeout(() => this.tone(f, 0.2, 'triangle', 0.08, this.sfx, 0.005), i * 90)); }
+  bark() { if (!this.ctx) return; this.noise(0.12, 700, 0.35, 'bandpass', 3); this.tone(380, 0.1, 'square', 0.05, this.sfx, 0.005); }
+  engine(on, rpm = 0) { if (!this.ctx) return; const ctx = this.ctx;
+    if (on && !this._en) { const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(); o.type = 'sawtooth'; f.type = 'lowpass'; f.frequency.value = 300; g.gain.value = 0.05; o.connect(f); f.connect(g); g.connect(this.sfx); o.start(); this._en = { o, g }; }
+    if (this._en) { if (!on) { this._en.o.stop(); this._en = null; return; } this._en.o.frequency.setTargetAtTime(35 + rpm * 60, ctx.currentTime, 0.1); } }
+  scream(vol = 0.12) { if (!this.ctx) return; const ctx = this.ctx, t = ctx.currentTime, o = ctx.createOscillator(), o2 = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    o.type = 'sawtooth'; o2.type = 'square'; const b = 600 + Math.random() * 300; o.frequency.setValueAtTime(b, t); o.frequency.linearRampToValueAtTime(b * 1.5, t + 0.25); o.frequency.linearRampToValueAtTime(b * 0.8, t + 1.3);
+    o2.frequency.value = 7; const lg = ctx.createGain(); lg.gain.value = 40; o2.connect(lg); lg.connect(o.frequency);
+    f.type = 'bandpass'; f.frequency.value = 1400; f.Q.value = 2; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.08); g.gain.linearRampToValueAtTime(0, t + 1.4);
+    o.connect(f); f.connect(g); g.connect(this.sfx); g.connect(this.verb); o.start(); o2.start(); o.stop(t + 1.5); o2.stop(t + 1.5); }
+  shot(kind = 'pistol') { if (!this.ctx) return; const big = kind === 'shotgun' || kind === 'sniper' || kind === 'revolver';
+    this.noise(big ? 0.5 : 0.22, big ? 900 : 1600, big ? 1.0 : 0.7); this.tone(big ? 60 : 110, 0.15, 'square', 0.25, this.sfx, 0.002); }
+  click() { if (!this.ctx) return; this.tone(1800, 0.04, 'square', 0.05, this.sfx, 0.001); }
+  splat() { if (!this.ctx) return; this.noise(0.25, 350, 0.5, 'lowpass', 2); this.noise(0.12, 900, 0.2, 'bandpass', 4); }
 }

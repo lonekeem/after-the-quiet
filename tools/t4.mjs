@@ -1,0 +1,12 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ args: ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
+const ctx = await b.newContext({ viewport:{width:915,height:412}, hasTouch:true, isMobile:true });
+const p = await ctx.newPage(); const errs=[]; p.on('pageerror', e=>errs.push(e.message));
+await p.goto('http://localhost:4181/'); await p.waitForTimeout(1500);
+await p.screenshot({path:'/tmp/shots/warn.png'}); await p.click('#btnWarn'); await p.waitForTimeout(7000);
+await p.screenshot({path:'/tmp/shots/title.png'});
+await p.evaluate(()=>{const s=window.__atq.save; s.cash=1500;}); await p.click('#btnArmory'); await p.waitForTimeout(800);
+await p.screenshot({path:'/tmp/shots/shop.png'});
+const buy = await p.$('#shopList button:not([disabled])'); if (buy) { await buy.click(); await p.waitForTimeout(400);} await p.screenshot({path:'/tmp/shots/shop2.png'});
+console.log('saved', await p.evaluate(()=>localStorage.length), errs);
+await b.close();
