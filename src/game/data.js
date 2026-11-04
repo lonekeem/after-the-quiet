@@ -46,9 +46,9 @@ export function defaultSave() {
   return { v: 3, step: 0, cash: 0, xp: 0, level: 1, owned: ['fists'], up: {}, ammo: { light: 0, shell: 0, rifle: 0 }, mags: {}, grenades: 0, meds: 1,
     pages: [], items: [], loot: [], cur: 'fists', kills: 0, done: false, ch: 1, done2: false };
 }
-export function loadSave(LS) { try { const s = JSON.parse(LS.getItem(KEY) || 'null'); if (s && s.v === 3) return Object.assign(defaultSave(), s); } catch (e) {} return null; }
-export function writeSave(LS, s) { try { LS.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
-export function clearSave(LS) { try { LS.removeItem(KEY); } catch (e) {} }
+export function loadSave(LS) { for (const k of [KEY, KEY + '.bak']) { try { const s = JSON.parse(LS.getItem(k) || 'null'); if (s && (s.v | 0) >= 3) return Object.assign(defaultSave(), s, { v: 3 }); } catch (e) {} } return null; }
+export function writeSave(LS, s) { try { const j = JSON.stringify(s); LS.setItem(KEY, j); LS.setItem(KEY + '.bak', j); } catch (e) {} }
+export function clearSave(LS) { try { LS.removeItem(KEY); LS.removeItem(KEY + '.bak'); } catch (e) {} }
 export function stat(save, w) {
   const b = WEAPONS[w], u = save.up[w] || {}, o = Object.assign({}, b);
   o.dmg = b.dmg * (1 + UPGRADES.dmg.per * (u.dmg || 0)) * (b.type === 'melee' && perk(save, 5) ? 1.25 : 1);

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { partnerEnter, partnerUpdate, ventUse } from './partner.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -87,7 +88,7 @@ export class Game {
     P.attach('DEF-spine.003', this.pack); this.pack.position.set(0, 0.12, -0.2); this.pack.rotation.set(0.1, 0, 0);
     P.attach('DEF-hand.R', this.hand); this.hand.rotation.set(Math.PI / 2, 0, 0); this.hand.position.set(0, 0.08, 0.02);
     this.pack.visible = !!(P.wantsPack || (this.save && this.save.items.includes('backpack'))); return P; }
-  start(step) { if (this._lookKey !== JSON.stringify(playerLook())) this.makePlayer(); this.save.step = step || 0; this.loadStep(this.save.step); this.paused = false; if (!this.running) { this.running = true; this.last = performance.now(); requestAnimationFrame((t) => this.frame(t)); } }
+  start(step) { if (this._lookKey !== JSON.stringify(playerLook())) this.makePlayer(); step = step || 0; if (!(STORY[step] && STORY[step].survival)) this.save.step = step; this.loadStep(step); this.paused = false; if (!this.running) { this.running = true; this.last = performance.now(); requestAnimationFrame((t) => this.frame(t)); } }
   clearActors() { this.zombies.forEach(z => this.scene.remove(z.root)); this.zombies = []; for (const k in this.npcs) this.scene.remove(this.npcs[k].root); this.npcs = {};
     this.pickups.forEach(p => this.scene.remove(p.mesh)); this.pickups = []; this.props.forEach(p => this.scene.remove(p)); this.props = []; this.decalN = 0; this.decals.forEach(d => d.visible = false);
     if (this.truck) this.truck.driving = false; document.body.classList.remove('driving'); $('#drive')?.classList.add('hidden'); this.drv = {}; this.boss = null; $('#boss').classList.add('hidden'); this.dlgQ = []; this.dlgCur = null; $('#dlg').classList.remove('on'); }
@@ -98,12 +99,12 @@ export class Game {
     P.root.visible = true; P.model.visible = true; for (const k in P.bones) P.bones[k].scale.set(1, 1, 1);
     const cp = st.cp; P.root.position.set(cp[0], 0, cp[1]); P.root.rotation.y = cp[2] || 0; this.cam.yaw = (cp[2] || 0) + Math.PI; this.cam.pitch = -0.1;
     this.pack.visible = this.save.items.includes('backpack') || !!this.player.wantsPack; this.equip(this.save.cur || 'fists', true);
-    const ch = chOf(i); const zs = this.world.zones || {}; for (const k in zs) if (zs[k] && zs[k].isObject3D) zs[k].visible = +k === ch; if (ch > (this.save.ch || 1)) this.save.ch = ch;
-    LOOT.forEach(l => { const lc = chOf(l.minStep || 0); if (!this.save.loot.includes(l.id) && (l.minStep || 0) <= i + 1 && (lc === ch || (ch <= 2 && lc <= 2))) this.addPickup(l); });
+    this.survival = !!st.survival; const ch = chOf(i); const zs = this.world.zones || {}; for (const k in zs) if (zs[k] && zs[k].isObject3D) zs[k].visible = +k === ch; if (ch > (this.save.ch || 1) && !st.survival) this.save.ch = ch;
+    if (!st.survival) LOOT.forEach(l => { const lc = chOf(l.minStep || 0); if (!this.save.loot.includes(l.id) && (l.minStep || 0) <= i + 1 && (lc === ch || (ch <= 2 && lc <= 2))) this.addPickup(l); });
     this.world.frontDoor.rotation.y = i >= 3 ? -1.6 : 0; this.setDoor(i >= 3);
     this.setTruck(i);
     st.enter(this); this.objective(st.obj, st.hint); this.audio.setMood(st.mood || 'night'); this.audio.rain && this.audio.rain(st.rain !== false && st.mood !== 'day'); this.audio.beat(st.beat || 0);
-    this.checkpoint();
+    partnerEnter(this); this.checkpoint();
   }
   // v1.6.3 failsafes: unstick player/targets, respawn a missing boss, offer an objective skip after 3 min stuck
   inCol(x, z, r = .3) { return this.world.colliders.some(c => x > c.x0 - r && x < c.x1 + r && z > c.z0 - r && z < c.z1 + r); }
@@ -122,9 +123,9 @@ export class Game {
     if (this.boss && !this.boss.dead) { this.damageZ(this.boss, 1e7, P.clone().normalize(), {}); return; }
     const A = this.alive(); if (A.length) { A.forEach(z => this.damageZ(z, 1e7, z.root.position.clone().normalize(), {})); return; }
     if (this.wpTarget) { P.x = this.wpTarget[0]; P.z = this.wpTarget[2]; return; }
-    if (this.step < STORY.length - 1) this.loadStep(this.step + 1); }
+    if (this.step < STORY.length - 1 && !STORY[this.step].survival && !STORY[this.step + 1].survival) this.loadStep(this.step + 1); }
   restartCheckpoint() { this.stepTok = (this.stepTok || 0) + 1; this.paused = false; this.last = performance.now(); try { this.loadStep(this.step); } catch (e) { console.error(e); this.clearActors(); this.cut = null; this.dying = null; this.dead = false; const cp = STORY[this.step].cp; this.player.root.position.set(cp[0], 0, cp[1]); } }
-  checkpoint() { this.save.step = this.step; writeSave(this.LS, this.save); }
+  checkpoint() { if (!this.survival) { this.save.step = this.step; this.save.played = true; } writeSave(this.LS, this.save); }
   setDoor(open) { const w = this.world; w.doorCol.x0 = open ? 999 : 11.9; w.doorCol.x1 = open ? 999 : 12.1; w.doorBoards.forEach(b => b.visible = !open); w.frontDoor.rotation.y = open ? -1.6 : 0; }
   setTruck(i) { if (!this.truck) { const g = this.world.car(22, -64, 0, '#7a2218', { truck: true, lights: true }); this.truck = { g, v: 0, head: 0, driving: false }; this.truck.col = g.userData.col; }
     const T = this.truck; T.g.position.set(22, 0, -64); T.head = 0; T.v = 0; T.g.rotation.y = 0; T.driving = false; this.updateTruckCol(); if (i >= 7) { T.g.position.set(1.5, 0, -95); T.g.rotation.y = 0.5; this.updateTruckCol(); } }
@@ -338,6 +339,7 @@ export class Game {
     if (this.dlgCur) this.skipLine(); }
   nearUse() { const P = this.player.root.position; let best = null, bd = 1.7;
     this.pickups.forEach(p => { const d = Math.hypot(p.mesh.position.x - P.x, p.mesh.position.z - P.z); if (d < bd) { bd = d; best = { pickup: p, label: p.l.label || p.l.kind }; } });
+    { const vu = ventUse(this, P); if (vu && !best) best = vu; }
     (this.stepData.uses || []).forEach(u => { if (u.done) return; const d = Math.hypot(u.x - P.x, u.z - P.z); if (d < (u.r || 1.7) && d < bd + .5) { bd = d; best = { fn: (g) => { if (!u.repeat) u.done = true; u.fn(g); }, label: u.label }; } });
     if (!this.truck.driving && this.stepData.canDrive && Math.hypot(this.truck.g.position.x - P.x, this.truck.g.position.z - P.z) < 3.4) best = { fn: (g) => g.enterTruck(), label: 'Drive the truck' };
     return best; }
@@ -357,7 +359,7 @@ export class Game {
     if (this.dying) { this.updateDying(dt); if (this.boss && !this.boss.propped) { this.boss.propped = 1; bossProp(this, this.boss, document.querySelector('#bossn')?.textContent); }
     this.updateZ(dt); this.updateFX(dt); return; }
     // cutscene camera
-    const st = STORY[this.step]; st.update && st.update(this, dt); this.failsafe(dt);
+    const st = STORY[this.step]; st.update && st.update(this, dt); partnerUpdate(this, dt); this.failsafe(dt);
     if (s.fireCd > 0) s.fireCd -= dt; if (s.reload > 0) { s.reload -= dt; if (s.reload <= 0) this.finishReload(); }
     if (s.comboT > 0) { s.comboT -= dt; if (s.comboT <= 0) s.combo = 0; }
     if (this.hp < this.maxHp && this.t - (this.lastHurt || 0) > 5) this.hp = Math.min(this.maxHp, this.hp + dt * 4);

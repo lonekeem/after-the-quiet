@@ -1,4 +1,4 @@
-# After the Quiet — v1.8.3 Story Mode
+# After the Quiet — v1.9.0 Story Mode
 A free-roam third-person horror action shooter by **Lone Keem Studios** (Three.js + Vite + Capacitor).
 You play **Keem**, a kid with a backpack, fighting out of **Riverside, Maine** on the night it falls.
 
@@ -21,6 +21,11 @@ Keyboard/mouse: WASD, mouse look (click to lock), LMB attack, RMB aim, Shift run
 Quality presets Low/Med/High with auto-detect (High adds GTAO + bloom). See STORY.md and CREDITS.md.
 The old cinematic movie version is preserved at tag `cinematic-final`.
 
+
+## v1.9.0
+- Nia partner: hands Keem ammo/meds when low (60s cooldown), spots nearby zombies (pink marker + af_heart callouts), and crawls through optional vents in Ch2, Ch3, Ch5, Ch6 for bonus supplies (never required, so no softlocks).
+- Survival mode (main menu): endless waves on Haverford Main Street, current weapons/Armory/cash, wave counter, saved best wave.
+- Continue button at the top of the menu; autosave at every checkpoint (with backup copy), survives restarts and updates.
 
 ## v1.8.3
 - Nia restored to her pre-v1.6.1 little-sister scale (0.62); v1.6.1 had accidentally set her to 0.95.

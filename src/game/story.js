@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const PI = Math.PI;
+const rnd = (a, b) => a + Math.random() * (b - a);
 const dist2 = (g, x, z) => Math.hypot(g.player.root.position.x - x, g.player.root.position.z - z);
 function follow(g, n, off) { n.update = (dt) => { const P = g.player.root.position, p = n.root.position; const tx = P.x + off[0], tz = P.z + off[1]; const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
   if (d > 1.2) { const sp = Math.min(d, 1) * (d > 4 ? 5 : 2.8); p.x += dx / d * sp * dt; p.z += dz / d * sp * dt; n.root.rotation.y = Math.atan2(dx, dz); n.play(d > 4 ? 'Jog_Fwd_Loop' : 'Walk_Loop'); } else n.play('Idle_Loop'); }; }
@@ -373,6 +374,18 @@ export const STORY = [
       g.say([['vance', "Well. You're as stubborn as she said you'd be."], ['keem', "As who said?"], ['vance', "Volunteer number two. Dana Pell. She signed up the first week."],
         ['marcus', "…Dana's alive?"], ['nia', "Mommy? Keem. Keem, she said Mommy."], ['vance', "Your mother is downstairs. Whether she's still your mother is a longer conversation."], ['keem', "…Take me to her. Now."]], () => { g.shake(.5); setTimeout(() => g.onComplete && g.onComplete(11), 1500); }); } },
 
+  // v1.9.0 Survival mode — endless waves on Haverford Main Street (Ch2 map). Not part of story progress.
+  { id: 'survival', ch: 2, survival: true, cp: [0, -236, 0], obj: 'Survival — get ready', hint: 'Endless waves. Pause → Armory to spend cash between waves.', mood: 'tense', beat: 2, rain: true,
+    enter(g) { const D = g.stepData; g.ch2Reset(g, 10); D.wave = 0; D.gap = 5; D.left = 0; D.sp = 0; D.hordeAll = true; D.best = +(g.LS.getItem('atq3.survBest') || 0);
+      const nia = g.npc('nia', 'nia', -1.4, -238, 0, 'Idle_Loop', .62); follow(g, nia, [-1.2, -1]); D.nia = nia; g.wpTarget = null; g.toast('SURVIVAL — Best: wave ' + D.best, 2.5); },
+    update(g, dt) { const D = g.stepData; const al = g.alive().length; const PTS = [[-6, -212], [6, -214], [-20, -222], [18, -220], [0, -200], [-14, -250], [14, -252]];
+      if (D.left > 0) { D.sp -= dt; if (D.sp <= 0 && al < 18) { D.sp = 1.6; const n = Math.min(D.left, 4); D.left -= n; for (let i = 0; i < n; i++) { const p = PTS[(Math.random() * PTS.length) | 0]; const hp = 70 + D.wave * 8;
+          if (D.wave >= 5 && Math.random() < .12) g.spawnZ(p[0] + rnd(-3, 3), p[1] + rnd(-3, 3), { raider: true, hp: 90 + D.wave * 6, aggro: 99, gun: Math.random() < .5 ? 'smg' : 'rifle' });
+          else g.spawnZ(p[0] + rnd(-3, 3), p[1] + rnd(-3, 3), { aggro: 99, hp, runner: Math.random() < Math.min(.6, .1 + D.wave * .05) }); } } }
+      if (D.wave > 0 && D.left <= 0 && al === 0 && !D.clear) { D.clear = true; D.gap = 8; const bonus = 20 + D.wave * 15; g.addCash(bonus); g.floatText('Wave ' + D.wave + ' cleared · +$' + bonus, '#9f9');
+        if (D.wave > D.best) { D.best = D.wave; g.LS.setItem('atq3.survBest', String(D.wave)); g.toast('New best: wave ' + D.wave + '!', 2); } g.checkpoint(); }
+      if (D.left <= 0 && al === 0 && (D.wave === 0 || D.clear)) { D.gap -= dt; if (D.gap <= 0) { D.wave++; D.clear = false; D.left = 5 + D.wave * 3; D.sp = 0; g.zombies = g.zombies.filter(z => { if (z.dead) g.scene.remove(z.root); return !z.dead; }); g.audio.roar && g.audio.roar(); } }
+      const txt = 'Survival · Wave ' + D.wave + ' · ' + (D.wave && !D.clear ? (al + D.left) + ' left' : 'next wave in ' + Math.ceil(Math.max(0, D.gap)) + 's') + ' · Best ' + D.best; if (txt !== D.lt) { D.lt = txt; g.objective(txt, 'Pause → Armory to buy guns, ammo & upgrades with your cash.'); } } },
 ];
 const $q = (s) => document.querySelector(s);
 
@@ -380,6 +393,7 @@ const $q = (s) => document.querySelector(s);
 const CH_START = { 1: 0, 2: 7, 3: 13, 4: 18, 5: 23, 6: 28, 7: 33, 8: 36, 9: 40, 10: 45, 11: 50 };
 export function chOf(i) { const s = STORY[i]; return s && s.ch ? s.ch : 1; }
 export { CH_START };
+export const SURVIVAL_STEP = STORY.findIndex(s => s.survival);
 function fam(g, D, z, x = 0, noDad) { g.openGate(true); if (!noDad) { const d = g.npc('marcus', 'marcus', x + 1.6, z + 1.5, PI, 'Walk_Loop'); follow(g, d, [1.6, 1.2]); D.dad = d; } const n = g.npc('nia', 'nia', x - 1.4, z + 1.5, PI, 'Walk_Loop', .62); follow(g, n, [-1.2, .9]); D.nia = n; }
 function dadGun(g, D) { D.dadGun = true; }
 function dadTick(g, D, dt) { if (!D.dad || !D.dadGun || (D.dcd = (D.dcd || 0) - dt) > 0) return; D.dcd = .9; const dp = D.dad.root.position; let best = null, bd = 18; g.alive().forEach(z => { if (z.boss) return; const d = z.root.position.distanceTo(dp); if (d < bd) { bd = d; best = z; } }); if (best) { const dir = best.root.position.clone().sub(dp).normalize(); g.damageZ(best, 60, dir, { head: Math.random() < .35 }); g.audio.shot('shotgun'); } }
