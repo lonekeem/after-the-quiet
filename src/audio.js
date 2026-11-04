@@ -1,6 +1,6 @@
 // Procedural audio: every sound and music cue here is synthesized at runtime (no external sample files).
 export class AudioSys {
-  constructor(settings) { this.s = settings; this.ctx = null; this.voiceEl = null; }
+  constructor(settings) { this.s = settings; this.ctx = null; }
   init() {
     if (this.ctx) { this.ctx.resume(); return; }
     const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
@@ -30,7 +30,6 @@ export class AudioSys {
   applyVolumes() { if (!this.ctx) return;
     if (!this.ctx) return;
     this.master.gain.value = this.s.vol; this.music.gain.value = this.s.music;
-    if (this.voiceEl) this.voiceEl.volume = Math.min(1, this.s.vol * this.s.voice);
   }
   setMood(mode) { if (!this.ctx) return; this.mode = mode; if (!this.ctx) return;
     const t = this.ctx.currentTime;
@@ -91,16 +90,6 @@ export class AudioSys {
   sting() { if (!this.ctx) return; this.tone(55, 4, 'sawtooth', 0.08, this.sfx, 0.05); [110, 164.8, 220, 329.6].forEach((f, i) => setTimeout(() => this.tone(f, 3.5, 'triangle', 0.05, this.verb, 0.4), 200 + i * 120)); this.noise(2.5, 6000, 0.05, 'highpass'); }
   radioJingle() { if (!this.ctx) return; [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.tone(f, 0.4, 'square', 0.02, this.sfx, 0.01), i * 160)); }
   // narration files
-  playVoice(url) {
-    return new Promise(res => {
-      if (this.voiceEl) { this.voiceEl.pause(); }
-      const a = this.voiceEl = new Audio(url); a.volume = Math.min(1, this.s.vol * this.s.voice);
-      let done = false; const fin = () => { if (!done) { done = true; res(true); } };
-      a.onended = fin; a.onerror = () => res(false);
-      a.play().catch(() => res(false));
-    });
-  }
-  stopVoice() { if (this.voiceEl) { this.voiceEl.pause(); this.voiceEl.onended?.(); } }
   // trailer score: deep detuned drone + slow swells
   drone(on) { if (!this.ctx) return; const ctx = this.ctx, t = ctx.currentTime;
     if (on && !this._dr) { const g = ctx.createGain(); g.gain.value = 0; g.connect(this.music); g.connect(this.verb);

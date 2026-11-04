@@ -2,11 +2,10 @@ import { AudioSys } from './audio.js';
 import { SCENES, CAST, ITEMS, CHAPTER_STARTS, hash } from './script.js';
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const DEF = { vol: 0.9, voice: 1, music: 0.6, text: 1, subs: true, gore: true, qteEasy: false, still: false, hints: true };
+const DEF = { vol: 0.9, auto: false, music: 0.6, text: 1, subs: true, gore: true, qteEasy: false, still: false, hints: true };
 const S = Object.assign({}, DEF, JSON.parse(localStorage.getItem('atq2.settings') || '{}'));
 const saveS = () => localStorage.setItem('atq2.settings', JSON.stringify(S));
 const audio = new AudioSys(S);
-const VOICED = new Set(['narrator', 'marcus', 'dana', 'walt', 'ruth', 'tv', 'radio', 'pell', 'mailman', 'fisher', 'regular', 'gus', 'barber']);
 const G = window.__atq = { state: 'boot', scene: -1, inv: [], flags: {}, device: 'kbd' };
 // ---------- input ----------
 let listeners = [];
@@ -80,20 +79,22 @@ $('#stage').addEventListener('click', e => { if (e.target.closest('button,.hot,#
 let abortScene = null; // set to reject current scene on retry/quit
 class Abort extends Error {}
 let abortRes = null, abortP = new Promise(r => abortRes = r);
-function setAbort(w) { abortScene = w; audio.stopVoice(); abortRes(); abortP = new Promise(r => abortRes = r); emit('tick'); }
+function setAbort(w) { abortScene = w; abortRes(); abortP = new Promise(r => abortRes = r); emit('tick'); }
 function guard() { if (abortScene) throw new Abort(); }
 async function say(who, text, { auto = false } = {}) {
-  guard(); const sub = $('#subs'), c = CAST[who];
-  $('#who').textContent = who === 'narrator' ? '' : c?.name || who; $('#line').textContent = text;
-  $('#who').style.color = c?.color || ''; sub.classList.toggle('narr', who === 'narrator');
+  guard(); const sub = $('#subs'), c = CAST[who], line = $('#line'), narr = who === 'narrator';
+  $('#who').textContent = narr ? '' : c?.name || who; $('#who').style.color = c?.color || ''; sub.classList.toggle('narr', narr);
   const pt = $('#portrait'); if (c?.img) { pt.style.backgroundImage = `url(${imgURL(c.img)})`; pt.style.display = ''; } else { pt.style.display = 'none'; }
-  sub.classList.toggle('on', S.subs || !VOICED.has(who)); cont(auto ? null : 'next');
-  const read = sleep(Math.max(3400, text.length * 78) / S.text);
-  const skip = auto ? abortP.then(() => 'ok') : Promise.race([waitFor(['ok']), abortP.then(() => 'ok')]);
-  let r = VOICED.has(who) ? await Promise.race([audio.playVoice(`./audio/v/${hash(who + '|' + text)}.mp3`).then(ok => ok ? 'end' : 'fail'), skip]) : 'fail';
-  if (r === 'fail') r = await Promise.race([read, skip]);
-  if (r === 'ok') audio.stopVoice(); else await sleep(who === 'narrator' ? 1900 : 750);
-    sub.classList.remove('on'); cont(null); await sleep(450); guard();
+  line.textContent = ''; const chars = [...text].map(ch => { const e = document.createElement('span'); e.className = 'ch'; e.textContent = ch; line.appendChild(e); return e; });
+  sub.classList.add('on'); cont(auto ? null : 'next');
+  const skip = Promise.race([waitFor(['ok']), abortP]).then(() => 'ok');
+  // typewriter fade: reveal letter by letter, tap completes the line
+  const per = (narr ? 34 : 24) / S.text; let done = false; const tapEarly = skip.then(() => { done = true; });
+  for (let i = 0; i < chars.length && !done && !abortScene; i++) { chars[i].classList.add('in'); if (per > 1) await Promise.race([sleep(per * (/[.,!?—]/.test(chars[i].textContent) ? 6 : 1)), tapEarly]); }
+  chars.forEach(e => e.classList.add('in')); guard();
+  if (auto || S.auto) await Promise.race([sleep(Math.max(1800, text.length * 45) / S.text), waitFor(['ok']), abortP]);
+  else await Promise.race([waitFor(['ok']), abortP]);
+  sub.classList.remove('on'); cont(null); await sleep(450); guard();
 }
 async function choice(opts) {
   guard(); const box = $('#choices'); box.innerHTML = ''; let sel = 0;
@@ -188,7 +189,7 @@ async function play(from) {
     abortScene = null; let skipOff = null;
     if (SCENES[i].trailer) { cont('skip'); skipOff = on(a => { if (a === 'ok' || a === 'cont' || a === 'pause') setAbort('skip'); }); }
     try { await runScene(i); } catch (e) {
-      skipOff?.(); cont(null); $('#subs').classList.remove('on'); $('#hots').innerHTML = ''; $('#choices').innerHTML = ''; $('#qte').classList.add('hidden'); audio.stopVoice(); obj('');
+      skipOff?.(); cont(null); $('#subs').classList.remove('on'); $('#hots').innerHTML = ''; $('#choices').innerHTML = ''; $('#qte').classList.add('hidden'); obj('');
       if (!(e instanceof Abort)) { console.error(e); }
       const why = abortScene || e.message; abortScene = null;
       if (why === 'skip') { audio.drone(false); await blackCut('The day before...'); continue; }
@@ -228,10 +229,10 @@ $('#btnChapters').onclick = () => { const L = $('#chapterList'); L.innerHTML = '
 const bindS = (id, k, chk) => { const el = $(id); if (chk) { el.checked = S[k]; el.onchange = () => { S[k] = el.checked; saveS(); applyS(); }; } else { el.value = S[k]; el.oninput = () => { S[k] = +el.value; saveS(); applyS(); }; } };
 function applyS() { audio.applyVolumes(); document.body.classList.toggle('still', S.still); if (!S.still) applyPar(); else $('#par').style.transform = '';
   const sc = SCENES[G.scene]; if (sc) $$('.layer.on').forEach(l => l.classList.toggle('gore-soft', !!sc.gore && !S.gore)); }
-bindS('#sVol', 'vol'); bindS('#sVoice', 'voice'); bindS('#sMusic', 'music'); bindS('#sText', 'text'); bindS('#sSubs', 'subs', 1); bindS('#sGore', 'gore', 1); bindS('#sQte', 'qteEasy', 1); bindS('#sMotion', 'still', 1); bindS('#sHints', 'hints', 1); applyS();
+bindS('#sVol', 'vol'); bindS('#sMusic', 'music'); bindS('#sText', 'text'); bindS('#sAuto', 'auto', 1); bindS('#sGore', 'gore', 1); bindS('#sQte', 'qteEasy', 1); bindS('#sMotion', 'still', 1); bindS('#sHints', 'hints', 1); applyS();
 $('#btnSettings').onclick = () => showScreen('#settings'); $('#btnControls').onclick = () => showScreen('#controls'); $('#btnCredits').onclick = () => showScreen('#credits');
-function pause() { if (G.state !== 'play' || SCENES[G.scene]?.trailer) return; G.state = 'paused'; audio.voiceEl?.pause(); $$('.layer').forEach(l => l.style.animationPlayState = 'paused'); showScreen('#pause'); }
-function resume() { G.state = 'play'; showScreen(null); audio.voiceEl?.play().catch(() => {}); $$('.layer').forEach(l => l.style.animationPlayState = ''); }
+function pause() { if (G.state !== 'play' || SCENES[G.scene]?.trailer) return; G.state = 'paused'; $$('.layer').forEach(l => l.style.animationPlayState = 'paused'); showScreen('#pause'); }
+function resume() { G.state = 'play'; showScreen(null); $$('.layer').forEach(l => l.style.animationPlayState = ''); }
 $('#btnPause').onclick = e => { e.stopPropagation(); pause(); };
 $('#btnInv').onclick = e => { e.stopPropagation(); openInv(); };
 function openInv() { if (G.state !== 'play') return; G.state = 'inv'; $('#invList').innerHTML = G.inv.length ? G.inv.map(i => `<div class="invi"><b>${ITEMS[i].name}</b><br>${ITEMS[i].desc}</div>`).join('') : '<p class="small">Empty pockets.</p>'; showScreen('#inv'); }

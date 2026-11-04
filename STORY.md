@@ -4,7 +4,7 @@
 ## Premise
 Lone Keem, Maine is a small harbor town of 4,000 people, pine hills, one bridge, one diner, and a paper mill that closed years ago. In late October, a sickness called "the Quiet" (because the infected stop speaking first) spreads from the coast. In a single night the town falls.
 
-The story is told by an old man looking back: **Kemoy Hart, years later**. His warm, deep, unhurried voice frames each chapter like a storyteller by a fire. We play as 13-year-old Kemoy across five chapters as he tries to keep his little sister alive and find his father, learning what family means when the world ends.
+The story is told by **Nia Hart, grown up**, looking back on the night her big brother Kemoy carried her out of Lone Keem. Her warm, gentle, unhurried voice frames each chapter like a bedtime story. We play as 13-year-old Kemoy; Nia was four, and tells his story as he told it to her.
 
 Tone: grim, frightening, grounded. Moments of tenderness are the point. The violence is there to show what is lost, not as spectacle.
 
@@ -12,7 +12,7 @@ Tone: grim, frightening, grounded. Moments of tenderness are the point. The viol
 | Name | Age | Who they are | Voice notes |
 |---|---|---|---|
 | **Kemoy Hart** (lead, player) | 13 *(placeholder, easy to change)* | African American boy, short twists/coils, deep brown skin, green hoodie. Curious, funny in a dry way, draws comic strips in a sketchbook, wants to be an engineer like the bridge builders he reads about. Protective of his sister but pretends she annoys him. Arc: from a kid who waits for grown-ups to fix things to someone who chooses to be brave, gently. | Young, quick, a little sarcastic, softens around Nia. |
-| **Old Kemoy** (Narrator) | ~70 | Kemoy, grown old. | Deep, warm, slow, like a classic movie narrator. Original synthetic voice (Piper "ryan", pitched down and slowed). |
+| **Grown-up Nia** (Narrator) | ~70 | Nia, grown old, telling her brother's story. | Presented as on-screen cinematic serif text (no voice audio). |
 | **Marcus Hart** | 42 | Kemoy's dad. Runs Hart's Auto on Front Street. Big laugh, bad jokes, steady hands. Raised the kids with Dana; teaches Kemoy that "fixing things is just patience with a wrench." | Low, easy, teasing. |
 | **Dana Hart** | 40 | Kemoy's mom, an ER nurse at County General. Tired, kind, fiercely practical. She sees the sickness first. | Calm under pressure, warm. |
 | **Nia Hart** | 7 | Kemoy's sister. Carries a stuffed rabbit named Biscuit. Asks too many questions. Hums when scared. | Bright, earnest. |
@@ -21,9 +21,9 @@ Tone: grim, frightening, grounded. Moments of tenderness are the point. The viol
 | **Ruth Okafor** | 55 | Owns the Lighthouse Diner. Knows everyone's order. | Brisk, motherly. |
 
 ## Chapter 1 — "The Day Before" (≈15–25 min)
-**Cold open (v1.2):** a 60–90s skippable trailer: burning city, jammed highway, burning suburb, horde on a bridge, flooded street, dead mall, subway, snowy Maine town. Old Kemoy narrates over a deep drone score, then a hard cut to black: "The day before..."
+**Cold open (v1.2):** a 60–90s skippable trailer: burning city, jammed highway, burning suburb, horde on a bridge, flooded street, dead mall, subway, snowy Maine town. Grown-up Nia narrates (on-screen text) over a deep drone score, then a hard cut to black: "The day before..."
 
-**Prologue (title card, narration):** "Everybody remembers where they were the day the world ended. I remember the day before. It was the best day I ever had in Lone Keem, Maine."
+**Prologue (title card, narration):** "Everybody remembers where they were the day the world ended. I remember the day before. It was the best day my brother ever had, in Lone Keem, Maine."
 
 **Act I — An Ordinary Saturday (warm)**
 1. Kemoy wakes in his bedroom. Morning light, fog over the harbor. Objective: get dressed / grab sketchbook.
@@ -49,7 +49,7 @@ Tone: grim, frightening, grounded. Moments of tenderness are the point. The viol
 
 **Act IV — Cliffhanger**
 16. Drive/run to the Harbor Bridge, which has sandbags and army lights. Dad stays back to hold the gate as the horde arrives. "Get your sister across. I'll be right behind you."
-17. Across the bridge, the lights die. The radio crackles: a voice says Kemoy's name. Black screen. Old Kemoy: "He was right behind us. That's what I told myself for a long, long time."
+17. Across the bridge, the lights die. The radio crackles: a voice says Kemoy's name. Black screen. Nia: "He was right behind us. That's what I told myself for a long, long time."
 **END OF CHAPTER 1**
 
 ## Future Chapters (notes)

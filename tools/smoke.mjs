@@ -19,6 +19,7 @@ try {
   await page.click('#btnChapters'); await page.waitForTimeout(300); await page.screenshot({ path: `${OUT}/04-chapter-select.png` });
   await page.click('[data-act=new]'); await page.waitForTimeout(9000);
   console.log('trailer:', await st(page)); await page.screenshot({ path: `${OUT}/05-cold-open.png` });
+  await page.waitForTimeout(2500); await page.screenshot({ path: `${OUT}/05b-narration-text.png` });
   await page.keyboard.press('Space'); await page.waitForTimeout(11000); // skip trailer -> black cut -> bedroom
   let s = await st(page); console.log('after skip:', s); if (s.scene !== 'bedroom') ok = false;
   // advance narration, then pick up sketchbook hotspot
@@ -30,6 +31,7 @@ try {
   const p2 = await mk(); await p2.goto(URL + '?id=kitchen'); await p2.waitForTimeout(2500);
   for (let k = 0; k < 10 && !(await p2.$('#choices button')); k++) { await p2.keyboard.press('Space'); await p2.waitForTimeout(1200); }
   await p2.screenshot({ path: `${OUT}/07-kitchen-choice.png` }); if (!(await p2.$('#choices button'))) ok = false;
+  await p2.waitForTimeout(2500); await p2.screenshot({ path: `${OUT}/08b-dialogue-full.png` });
   await p2.keyboard.press('2'); await p2.waitForTimeout(800); await p2.screenshot({ path: `${OUT}/08-dialogue.png` });
   // QTE scene
   const p3 = await mk(); await p3.goto(URL + '?id=dadfight'); await p3.waitForTimeout(1500);

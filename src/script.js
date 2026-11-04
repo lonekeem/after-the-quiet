@@ -33,13 +33,13 @@ export const SCENES = [
    { shot: 'p04_flood', kb: 'in', fx: ['rain'], n: 'The water rose. Nobody came to stop it.' },
    { shot: 'p05_mall', kb: 'out', fx: ['dust'], n: 'We hid in the places we used to spend our Saturdays.' },
    { shot: 'p06_subway', kb: 'in', fx: ['flicker'], n: 'And under the ground, the dark was full.' },
-   { shot: 'p07_snow_town', kb: 'right', fx: ['snow'], n: 'I am an old man now. I have had a long time to remember.' },
+   { shot: 'p07_snow_town', kb: 'right', fx: ['snow'], n: 'I am an old woman now. I have had a long time to remember.' },
    { shot: 's01_town', kb: 'out', fx: ['fog'], n: 'But I do not remember the end, so much. I remember the day before.' },
    { black: 'The day before...' },
-   { shot: 's01_town', kb: 'in', fx: ['fog'], n: 'It was the best day I ever had. In Lone Keem, Maine.' },
+   { shot: 's01_town', kb: 'in', fx: ['fog'], n: 'It was the best day my brother ever had. In Lone Keem, Maine.' },
    { card: ['CHAPTER ONE', 'The Day Before'] } ] },
  { id: 'bedroom', goal: 'Get ready. Grab your sketchbook.', img: 's02_bedroom', kb: 'in', fx: ['dust'], mood: 'day', cp: true, act: 'Act I · An Ordinary Saturday', beats: [
-   { n: 'I was thirteen. The fog came in off the harbor every morning, like it was checking on us.' },
+   { n: 'Kemoy was thirteen. I was four. The fog came in off the harbor every morning, like it was checking on us.' },
    { n: 'That Saturday, nothing in the world was wrong yet.' },
    { obj: 'Get ready. Grab your sketchbook.' },
    { hot: [
@@ -48,7 +48,7 @@ export const SCENES = [
      { x: 52, y: 30, l: 'Poster', look: 'Golden Gate blueprint poster. Someday.' } ], need: ['sketchbook'] },
    { s: ['marcus', 'Kemoy! Pancakes! Well. Pancake-shaped objects!'] } ] },
  { id: 'kitchen', goal: 'Breakfast with Dad and Nia', img: 's03_kitchen', kb: 'left', mood: 'day', beats: [
-   { n: 'My father could fix any engine in the county. But he could not make a pancake, to save his life.' },
+   { n: 'Our father could fix any engine in the county. But he could not make a pancake, to save his life.' },
    { s: ['marcus', 'Morning, chief. Chef recommends the dark ones. Extra crunch.'] },
    { s: ['nia', 'Biscuit wants a pancake too. A not-burnt one.'] },
    { choice: [
@@ -60,7 +60,7 @@ export const SCENES = [
      { x: 60, y: 55, l: 'Dad', talk: [['marcus', 'Fixing things is just patience with a wrench. Pancakes too. Mostly.']] },
      { x: 80, y: 60, l: 'Nia', talk: [['nia', 'Why is fog? Where does it go at night?'], ['kemoy', 'Back to the ocean. It has a curfew.']] } ], optional: true } ] },
  { id: 'mom', img: 's04_mom_home', kb: 'in', mood: 'day', beats: [
-   { n: 'My mother came home from her night shift, smelling of hospital soap.' },
+   { n: 'Our mother came home from her night shift, smelling of hospital soap.' },
    { s: ['dana', 'Something smells... structurally unsound.'] },
    { s: ['marcus', 'It is called flavor, nurse Hart.'] },
    { s: ['dana', 'Long night. Lot of folks down from the coast with a fever. Wash your hands today, okay? Both of you.'] },
@@ -87,7 +87,7 @@ export const SCENES = [
    { s: ['walt', 'Forty years on the harbor, this never lied to me once. So you can always find your way home.'] },
    { item: 'compass' } ] },
  { id: 'compass', img: 's08_compass', kb: 'in', mood: 'day', beats: [
-   { n: 'He gave me his old compass that morning. I have it still.' },
+   { n: 'He gave my brother his old compass that morning. I have it still.' },
    { s: ['walt', 'Pardon me. Bad flu going down the coast. They say Portland is full up with it.'] },
    { choice: [
      { t: '"Thank you, Walt. I will keep it safe."', flag: 'thanked', r: [['walt', 'I know you will.']] },
@@ -103,7 +103,7 @@ export const SCENES = [
      { x: 80, y: 72, l: 'Dog', look: 'Sunny, the Morrisons\' retriever. She has never once met a stranger.' },
      { x: 77, y: 40, l: 'Porch', look: 'The Morrisons, coffee in hand, arguing about the Red Sox. Like always.' },
      { x: 47, y: 62, l: 'Theo', talk: [['theo', 'Kickflip. Almost. That counts.'], ['kemoy', 'It does not count.']] } ], optional: true },
-   { n: 'I did not know I was memorizing it.' } ] },
+   { n: 'Kemoy did not know he was memorizing it. He told me about it so often, I feel I remember it too.' } ] },
  { id: 'main', goal: 'Walk into town', img: 's09_mainstreet', kb: 'right', mood: 'day', beats: [
    { n: 'Lone Keem had one bridge, one diner, and four thousand people who all knew your business.' },
    { n: 'I thought it would always be there.' },
@@ -133,23 +133,23 @@ export const SCENES = [
      { x: 70, y: 35, l: 'Waitress', look: 'Molly. Saving for nursing school, like Mom.' },
      { x: 50, y: 40, l: 'Ruth', talk: [['ruth', 'You tell your mama I have a slice of blueberry with her name on it.']] } ], optional: true } ] },
  { id: 'comics', img: 's40_comics', kb: 'left', fx: ['dust'], mood: 'day', beats: [
-   { n: 'After lunch, Theo and I sat on his porch steps, and drew until our hands hurt.' },
+   { n: 'After lunch, Theo and my brother sat on the porch steps, and drew until their hands hurt.' },
    { s: ['theo', 'Okay, Captain Rivet needs a sidekick. Someone brave. Handsome. Named Theo.'] },
    { s: ['kemoy', 'Captain Rivet works alone.'] },
    { s: ['theo', 'Everybody says that. Then issue two comes out, and boom. Sidekick.'] },
    { choice: [
      { t: 'Draw Theo in as the sidekick.', flag: 'sidekick', r: [['theo', 'Is that me? Why is my cape so small?'], ['kemoy', 'It is a starter cape. You earn the big one.']] },
      { t: 'Draw Theo as the villain.', r: [['theo', 'Doctor Lindqvist. Okay. Okay, honestly? I love it.']] } ] },
-   { n: 'I wish I still had those pages. I would give a lot, to see his little cape again.' } ] },
+   { n: 'I wish we still had those pages. I would give a lot, to see Theo\'s little cape again.' } ] },
  { id: 'dock', goal: 'Go down to the dock', img: 's39_dock', kb: 'right', mood: 'day', beats: [
-   { n: 'Later, my father took me down to the town dock. We never caught anything. That was never the point.' },
+   { n: 'Later, our father took Kemoy down to the town dock. We never caught anything. That was never the point.' },
    { s: ['marcus', 'You know why I like fishing, chief?'] },
    { s: ['kemoy', 'Because you are bad at it, and fish cannot laugh at you?'] },
    { s: ['marcus', 'Because for one hour, nothing needs fixing. Just you, me, and a whole lot of patient water.'] },
    { choice: [
      { t: '"Can we do this every Saturday?"', flag: 'everySat', r: [['marcus', 'Every Saturday. That is a promise. Write it in your comic.']] },
      { t: '"Dad, are you worried about the flu thing?"', r: [['marcus', 'Your mom is on it. And if your mom is on it, it is handled.']] } ] },
-   { n: 'The gulls were loud, and the water was gold. I remember thinking, this is what normal feels like.' },
+   { n: 'The gulls were loud, and the water was gold. Kemoy said he remembered thinking, this is what normal feels like.' },
    { n: 'You never know, you are in the last of something.' } ] },
  { id: 'harbor', goal: 'Watch the boats come in (optional)', img: 's43_harbor_life', kb: 'right', fx: ['fog'], mood: 'day', beats: [
    { n: 'Down at the harbor, the boats came in heavy. Gulls screaming. Diesel and salt.' },
@@ -162,10 +162,10 @@ export const SCENES = [
    { s: ['nia', 'Faster, horsey! Biscuit wants to see the lighthouse!'] },
    { s: ['kemoy', 'This horsey charges by the minute.'] },
    { s: ['nia', 'I will pay you one hug. And half a milkshake.'] },
-   { n: 'Nia weighed about as much as a bag of groceries. I carried her the whole way home, and complained the whole way.' },
-   { n: 'I would carry her a lot farther, before that week was over.' } ] },
+   { n: 'I weighed about as much as a bag of groceries. Kemoy carried me the whole way home, and complained the whole way.' },
+   { n: 'He would carry me a lot farther, before that week was over.' } ] },
  { id: 'shopday', goal: 'Hang out at Hart’s Auto', img: 's45_shop_day', kb: 'left', mood: 'day', beats: [
-   { n: 'That afternoon, I sat in Dad\'s shop and drew while he worked.' },
+   { n: 'That afternoon, Kemoy sat in Dad\'s shop and drew while he worked.' },
    { s: ['marcus', 'Gus. Nine-sixteenths. No. The other nine-sixteenths.'] },
    { s: ['gus', 'There is only one nine-sixteenths, Marcus.'] },
    { s: ['marcus', 'Then it is hiding.'] },
@@ -177,7 +177,7 @@ export const SCENES = [
    { n: 'Mom picked up an extra shift. County was short. More fevers.' },
    { s: ['nia', 'Biscuit is having tea. You are not invited, Mom, because you are leaving.'] },
    { s: ['dana', 'I will be back before Biscuit finishes her second cup. Promise.'] },
-   { n: 'She looked worried. I did not ask why. I wish I had asked why.' } ] },
+   { n: 'She looked worried. Kemoy did not ask why. He always wished he had asked why.' } ] },
  { id: 'tv', goal: 'Something is wrong. Watch the news.', img: 's11_diner_tv', kb: 'in', fx: ['flicker'], mood: 'evening', act: 'Act II · Creeping Hints', cp: true, beats: [
    { s: ['tv', 'Breaking tonight. Reports of unrest in Portland. Residents are advised to stay indoors and avoid—'] },
    { s: ['ruth', 'That is enough of that.'] },
@@ -192,8 +192,8 @@ export const SCENES = [
    { choice: [
      { t: 'Hug her.', flag: 'hugged', r: [['dana', 'Hey. You are braver than you know. Look after your sister.']] },
      { t: '"You just got home."', r: [['dana', 'I know, baby. I know. Breakfast. I promise.']] } ] },
-   { n: 'She hugged me at the door longer than usual. I pretended I did not notice.' },
-   { n: 'I wish I had held on.' } ] },
+   { n: 'She hugged him at the door longer than usual. He pretended he did not notice.' },
+   { n: 'He wished he had held on.' } ] },
  { id: 'waltdoor', img: 's38_walt_door', kb: 'left', mood: 'evening', fx: ['fog'], beats: [
    { n: 'By evening the sirens had stopped sounding far away.' },
    { obj: 'Check on Walt.' },
@@ -203,7 +203,7 @@ export const SCENES = [
  { id: 'waltwall', img: 's14_walt_wall', kb: 'in', fx: ['fog'], mood: 'tense', beats: [
    { n: 'Mister Abernathy was standing in his yard, facing the wall.' },
    { s: ['kemoy', 'Walt? Mister Abernathy?'] },
-   { n: 'He did not answer, when I called his name.' },
+   { n: 'He did not answer, when Kemoy called his name.' },
    { choice: [
      { t: 'Step closer.', flag: 'closer', r: [['kemoy', 'Walt... are you okay?']] },
      { t: 'Back away. Go home.', r: [] } ] },
@@ -215,7 +215,7 @@ export const SCENES = [
      { t: 'Draw Nia a comic.', flag: 'comic', r: [['nia', 'Biscuit is a superhero? With a cape?'], ['kemoy', 'Captain Biscuit. Fears nothing. Except baths.']] },
      { t: '"She will be home by breakfast."', r: [['nia', 'Promise?'], ['kemoy', 'Promise.']] } ] } ] },
  { id: 'hallway', goal: 'Find out what the noise is', img: 's16_hallway', kb: 'in', fx: ['flicker'], mood: 'night', act: 'Act III · The Night It Changes', cp: true, beats: [
-   { n: 'At two in the morning, I heard glass break downstairs.' },
+   { n: 'At two in the morning, we heard glass break downstairs.' },
    { sfx: 'glass' },
    { n: 'That was the end of the quiet. And the beginning, of the other kind.' },
    { s: ['marcus', 'Stay with your sister. I mean it.'] } ] },
@@ -265,23 +265,23 @@ export const SCENES = [
      { t: 'Charge the porch with the bat.', flag: 'savedPell', r: [['kemoy', 'Get away from her!']] },
      { t: 'Keep running. Do not look back.', flag: 'leftPell', r: [['pell', 'Kemoy! Kemoy, please!']] } ] },
    { ifFlag: 'savedPell', then: [['marcus', 'Kemoy, NO!']] },
-   { ifFlag: 'leftPell', then: [['narrator', 'I heard her calling my name for a long time. I still hear it.']] } ] },
+   { ifFlag: 'leftPell', then: [['narrator', 'Kemoy heard her calling his name for a long time. He said he still heard it.']] } ] },
 { id: 'pellfight', img: 'h04_mrs_pell', kb: 'in', gore: true, fx: ['fog', 'flicker'], mood: 'tense', ifFlag: 'savedPell', beats: [
    { qte: { type: 'timing', time: 2.2, label: 'SWING' } },
    { qte: { type: 'press', time: 1.3, label: 'SHOVE' } },
    { s: ['pell', 'Go. Go, boy. Get your family out.'] },
    { n: 'She pushed us off the porch, and she closed the door, and she stayed. She was already bitten. She knew.' } ] },
 { id: 'undercar', goal: 'Hide. Do not make a sound.', img: 'h02_under_car', kb: 'in', gore: true, fx: ['fog'], mood: 'tense', cp: true, beats: [
-   { n: 'We got separated. I rolled under the Morrisons\' car and put my hand over my mouth.' },
+   { n: 'We got separated. Kemoy rolled under the Morrisons\' car and put his hand over his mouth.' },
    { sfx: 'groan' },
    { n: 'Feet. Bare feet. Close enough to touch.' },
    { qte: { type: 'still', time: 7, label: 'HOLD YOUR BREATH' } },
-   { n: 'They moved on. I breathed again. I did not know I could be that quiet.' } ] },
+   { n: 'They moved on. He breathed again. He did not know he could be that quiet.' } ] },
 { id: 'theodad', goal: 'Find Theo', img: 'h06_theo_dad', kb: 'in', fx: ['flicker'], gore: true, mood: 'tense', beats: [
    { n: 'Theo\'s house was dark. The family pictures were crooked on the wall.' },
    { n: 'Mr. Lindqvist was standing at the end of the hall. Just standing.' },
    { s: ['kemoy', 'Mr. Lindqvist? It is Kemoy. Are you... okay?'] },
-   { n: 'He tilted his head. Like he was listening for my heartbeat.' },
+   { n: 'He tilted his head. Like he was listening for my brother\'s heartbeat.' },
    { scare: 'h03_window_scare' },
    { qte: { type: 'press', time: 1.1, label: 'DODGE' } },
    { s: ['marcus', 'Kitchen! Go, go, go!'] } ] },
@@ -310,7 +310,7 @@ export const SCENES = [
    { sfx: 'crash' } ] },
  { id: 'crash', img: 's27_mom_crash', kb: 'in', gore: true, mood: 'sad', beats: [
    { n: 'There are moments that split your life in two. Before, and after.' },
-   { n: 'This is mine.' },
+   { n: 'This was ours.' },
    { s: ['marcus', 'Dana! Dana, no, no—'] },
    { s: ['dana', 'I had to find you. I had to.'] } ] },
  { id: 'momgoodbye', img: 's28_mom_goodbye', kb: 'in', mood: 'sad', beats: [
@@ -327,7 +327,7 @@ export const SCENES = [
  { id: 'door', img: 's30_door_closes', kb: 'out', mood: 'sad', beats: [
    { n: 'She closed the garage door herself.' },
    { sfx: 'thud' },
-   { n: 'That was the last time I saw my mother.' } ] },
+   { n: 'That was the last time we saw our mother.' } ] },
  { id: 'drive', goal: 'Get to the bridge', img: 's31_truck_drive', kb: 'right', fx: ['rain'], mood: 'tense', act: 'Act IV · The Bridge', cp: true, beats: [
    { s: ['marcus', 'Harbor Bridge. The army is holding it. We get across, we are safe.'] },
    { s: ['theo', 'In the movies, that is always where it goes wrong.'] },
@@ -339,7 +339,7 @@ export const SCENES = [
    { qte: { type: 'timing', time: 2.4, label: 'SLIP THROUGH' } } ] },
  { id: 'hold', goal: 'Survive', img: 's33_dad_holds', kb: 'in', fx: ['rain', 'embers'], gore: true, mood: 'tense', beats: [
    { s: ['marcus', 'They are too close. I have to hold the gate.'] },
-   { n: 'My father said, get your sister across.' },
+   { n: 'Our father told Kemoy, get your sister across.' },
    { s: ['marcus', 'Get your sister across. I will be right behind you.'] },
    { choice: [
      { t: '"Dad, no!"', r: [['marcus', 'Patience with a wrench, chief. Go!']] },

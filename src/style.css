@@ -38,7 +38,7 @@ body.still .layer{animation:none!important}
 #portrait{width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center 25%;border:2px solid var(--g);flex:none}
 #portrait:empty:not([style]){display:none}
 #who{font:600 13px system-ui;letter-spacing:.15em;text-transform:uppercase;color:var(--g)}
-#line{font-size:clamp(17px,2.2vw,24px);line-height:1.4;background:rgba(0,0,0,.45);padding:6px 12px;border-radius:6px}
+#line{font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;font-size:clamp(19px,2.5vw,28px);line-height:1.45;letter-spacing:.01em;background:rgba(0,0,0,.45);padding:6px 12px;border-radius:6px}
 #subs.narr #line{font-style:italic;background:none;text-align:center}
 #choices{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(max(4vh,50vh - 28.125vw) + 3vh);z-index:6;display:flex;flex-direction:column;gap:10px;width:min(620px,92vw)}
 #choices button,.menu button,.panel button{font:inherit;font-size:18px;color:var(--tx);background:rgba(10,30,18,.85);border:1px solid var(--gd);padding:12px 18px;border-radius:8px;cursor:pointer;text-align:left}
@@ -91,3 +91,7 @@ body.snap .layer{transition:none!important}
 #qzone{background:rgba(80,220,120,.6)!important}
 #tut{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:50;max-width:min(520px,90vw);background:rgba(8,18,12,.94);border:1px solid var(--g);border-radius:12px;padding:22px 26px;color:#dfe;font:16px/1.6 system-ui;text-align:center;box-shadow:0 0 40px rgba(0,0,0,.7)}
 #tut .tk{margin-top:14px;color:var(--g);font-weight:700}
+
+.ch{opacity:0;transition:opacity .35s ease}.ch.in{opacity:1}
+#subs.narr{bottom:calc(max(4vh,50vh - 28.125vw) + 5vh);background:linear-gradient(transparent,rgba(0,0,0,.55) 30%,rgba(0,0,0,.55) 70%,transparent);padding:10px 40px;border-radius:0}
+#subs.narr #line{color:#f3ead8;font-size:clamp(20px,2.7vw,30px)}
