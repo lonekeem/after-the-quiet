@@ -161,7 +161,7 @@ BARKS = {
  'marcus_shout': ('marcus', ['Keem! Over here!', 'Behind you, son!', 'Keep moving!', 'Good shot!']),
  'marcus_chat': ('marcus', ['Stay close, son.', 'Eyes up. Watch the treeline.', 'Easy... easy.', "You're doin' good, Keem.", "Breathe. We're gettin' out of here."]),
  'nia_shout': ('nia', ['Keem, move!', 'Keem, BEHIND you!', 'Hurry up!']),
- 'nia_chat': ('nia', ["Keem, I'm scared.", 'Biscuit is okay. Stop asking!', 'Can we go home now?', "Uh, Keem? There's one right there!", "I'm not crying. YOU'RE crying."]),
+ 'nia_chat': ('nia', ["Keem, I'm scared.", "Biscuit is okay. Stop asking! He's slaying.", 'Can we go home now?', "Uh, Keem? There's one right there! That's sus!", "I'm not crying. YOU'RE crying."]),
  'npc_chat': ('npcm', ['Is anybody out there?', 'Lock your doors!', "They're comin' from the river!", 'Oh God... oh God.', 'Somebody call nine one one!']),
  'npcf_chat': ('npcf', ['Has anyone seen my husband?', 'Get inside! Get inside!', "Don't let them hear you!", "Oh my God, they're everywhere."]),
  'npcf_scream': ('npcf', ['Aaaah! No! Nooo!', 'Help meee! Please!', 'Get it off! Get it off me!']),
