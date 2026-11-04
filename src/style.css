@@ -74,7 +74,9 @@ table{border-collapse:collapse;font:14px system-ui}td,th{padding:6px 10px;border
 h1{font-size:clamp(40px,8vw,92px);margin:.15em 0;letter-spacing:.12em;text-shadow:0 0 30px rgba(127,212,154,.35)}
 .tag{font-style:italic;opacity:.8}
 .menu{margin-top:auto;margin-bottom:6vh;display:flex;flex-direction:column;gap:8px;width:min(300px,80vw)}.menu button{text-align:center}
-.foot{position:absolute!important;bottom:12px;font:12px system-ui;opacity:.5}
+.foot{position:relative;flex:none;padding:6px 0 10px;font:12px system-ui;opacity:.5;text-align:center}
+#title{overflow-y:auto}#title .menu{margin-bottom:2vh}
+@media (max-height:560px){#title{padding-top:3vh}#title h1{font-size:clamp(30px,6vw,56px)}#title .menu{gap:5px}#title .menu button{padding:7px 10px;font-size:14px}#title .foot{padding:4px 0 6px}}
 #studio{position:fixed;inset:0;z-index:40;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadein 2s}
 #studio .sp{font-size:clamp(22px,4vw,44px);letter-spacing:.4em;color:var(--g)}#studio .sl{width:160px;height:1px;background:var(--g);margin:14px}#studio .ss{font-style:italic}
 .chap{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #1d3a28;font:15px system-ui}
@@ -165,3 +167,13 @@ body.snap .layer{transition:none!important}
 #drive .gas { width: 96px; height: 120px; background: rgba(40,140,70,.45); } #drive .dbtn.on { background: rgba(255,255,255,.35); }
 body.driving #stickZone, body.driving #lbtns, body.driving #tbtns > :not(#tUse), body.driving #btnGren { display: none !important; }
 body.driving #tbtns { bottom: 150px; }
+
+/* v1.4 customizer */
+.panel.cust{max-width:1000px;width:96vw;max-height:96vh;overflow:auto}
+.cwrap{display:flex;gap:12px;align-items:flex-start}.cprev{flex:0 0 auto;text-align:center}
+#cPrev{width:min(34vw,300px);height:min(44vw,380px,70vh);background:radial-gradient(#2a3a30,#0c1410);border-radius:10px;touch-action:none;cursor:grab}
+.cside{flex:1;min-width:0}.clist{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;max-height:min(52vh,420px);overflow:auto;margin-top:6px}
+.clist button{min-width:0;padding:7px 6px;font-size:12px;text-align:left;line-height:1.2}.clist button.on{border-color:#7fd49a;background:#1f3a28}
+.clist button.lock{opacity:.6}.clist .sw{display:inline-block;width:22px;height:22px;border-radius:50%;border:2px solid #0006;vertical-align:middle}
+.clist .swb{text-align:center}.crow{display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap}
+@media (max-height:500px){#cPrev{height:62vh;width:min(34vw,240px)}.clist{max-height:50vh}}

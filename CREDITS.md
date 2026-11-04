@@ -1,9 +1,10 @@
-# Credits & Licenses — After the Quiet v1.3.2 (Story Mode)
+# Credits & Licenses — After the Quiet v1.4.0 (Story Mode)
 Lone Keem Studios · created by Keem
 
 | Asset | Source | License |
 |---|---|---|
 | Rigged humanoid + animations (`public/models/`) | Quaternius — Universal Animation Library (quaternius.com) | CC0 |
+| Vehicles: truck, sedan, SUV, police, ambulance, debris (`public/models/cars/`) | Kenney — Car Kit (kenney.nl) | CC0 (see `KENNEY_LICENSE.txt`) |
 | PBR textures (asphalt, mud, forest ground, bark, rust, planks) and HDRI sky (`public/tex/`) | Poly Haven (polyhaven.com) | CC0 |
 | Character portraits, title art | Removed in v1.3.1 (no photos ship with the game) | — |
 | Footsteps, melee impacts, reload clicks/latches, shell casings, glass, metal, wood, door, cloth, coins (`public/sfx/step_*`, `punch*`, `bat*`, `flesh*`, `metal*`, `shell*`, `glass*`, `plank*`, `reload_*`, `cloth*`, `door_open`, `creak`, `knife`, `chop`, `coins`) | Kenney — Impact Sounds & RPG Audio (kenney.nl), converted to mp3 | CC0 (see `public/sfx/KENNEY_LICENSE.txt`) |

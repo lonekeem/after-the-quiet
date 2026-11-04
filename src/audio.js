@@ -134,7 +134,7 @@ export class AudioSys {
 // Every method falls back to the synthesized version above if its sample has not loaded yet.
 export const vhash = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); };
 const BASE = (import.meta.env && import.meta.env.BASE_URL || '/') + 'sfx/';
-const FAM = { gun_pistol: 3, gun_rifle: 3, gun_shotgun: 3, gun_revolver: 3, gun_smg: 3, gun_sniper: 3, thunder: 3, z_growl: 6, z_moan: 4, z_attack: 3, z_eat: 3, scream: 4,
+const FAM = { gun_pistol: 3, gun_rifle: 3, gun_shotgun: 3, gun_revolver: 3, gun_smg: 3, gun_sniper: 3, thunder: 3, z_growl: 6, z_moan: 4, z_attack: 3, z_eat: 3, z_chew: 4, z_tear: 3, scream: 4,
   step_concrete: 5, step_grass: 5, step_wood: 5, punch: 5, bat: 5, flesh: 5, metal: 5, shell: 5, plank: 5, glass: 5, cloth: 2 };
 const ONE = ['explosion', 'rain_loop', 'truck_loop', 'boss_roar', 'reload_out', 'reload_in', 'door_open', 'creak', 'knife', 'coins', 'chop'];
 const P = AudioSys.prototype, O = {};
@@ -179,6 +179,8 @@ P.door = function () { this.play('door_open', { vol: .8 }); };
 P.pickup = function () { O.pickup.call(this); this.play('coins', { vol: .35 }); if (Math.random() < .2) this.shout('keem_pickup'); };
 P.scream = function (vol = .12) { if (!this.play('scream', { vol: Math.min(1, vol * 6), verb: true })) O.scream.call(this, vol); };
 P.victimScream = function (vol = .12) { this.scream(vol); if (Math.random() < .7) setTimeout(() => this.shout(Math.random() < .5 ? 'npcf_help' : 'npcm_help', true), 900); };
+P.chew = function (vol = .3) { if (!this.play('z_chew', { vol, jit: .12 })) this.eat(vol * .8); };
+P.tear = function (vol = .3) { if (!this.play('z_tear', { vol, jit: .1 })) this.splat(); };
 P.eat = function (vol = .3) { this.play('z_eat', { vol, jit: .1 }); };
 P.thunder = function (vol = .7) { if (!this.play('thunder', { vol, verb: true, jit: .1, delay: Math.random() * 1.5 })) this.boom(); };
 P.rain = function (on, vol = .16) { if (!this.ctx) return; const t = this.ctx.currentTime;
@@ -192,10 +194,15 @@ P.engine = function (on, rpm = 0) { if (!this.ctx) return; const t = this.ctx.cu
 P.ambientTick = function () { O.ambientTick.call(this); if (!this.ctx || this.ctx.state !== 'running') return;
   if ((this.mode === 'night' || this.mode === 'tense') && Math.random() < .035) this.thunder(.5 + Math.random() * .4); };
 // ---- voices ----
-P.voice = function (who, text) { this.stopVoice(); if (!this.ctx || this.s.voices === false || who === 'note') return Promise.resolve(0);
+P.voice = function (who, text, bleeps) { this.stopVoice(); if (!this.ctx || this.s.voices === false || who === 'note') return Promise.resolve(0);
   const n = 'v/' + vhash(who + '|' + text); const tok = this.vTok = (this.vTok || 0) + 1;
-  return this.load(n).then(b => { if (!b || tok !== this.vTok) return 0; this.vSrc = this.play(n, { bus: this.voiceBus, jit: 0 }); this.lastBark = performance.now(); this.vEnd = this.ctx.currentTime + b.duration; return b.duration; }); };
+  return this.load(n).then(b => { if (!b || tok !== this.vTok) return 0; this.vSrc = this.play(n, { bus: this.voiceBus, jit: 0 }); this.lastBark = performance.now(); this.vEnd = this.ctx.currentTime + b.duration;
+    if (bleeps && bleeps.length && this.vSrc) { const t0 = this.ctx.currentTime + 0.05, sp = Math.max(.3, b.duration - .15), g0 = this.vSrc.g.gain.value;
+      bleeps.forEach(([a, c]) => { const ta = t0 + a * sp - .04, tb = t0 + c * sp + .06; this.vSrc.g.gain.setValueAtTime(0.02, ta); this.vSrc.g.gain.setValueAtTime(g0, tb);
+        const o = this.ctx.createOscillator(), og = this.ctx.createGain(); o.frequency.value = 1000; og.gain.value = 0; og.gain.setValueAtTime(.22, ta); og.gain.setValueAtTime(0, tb); o.connect(og); og.connect(this.voiceBus); o.start(ta); o.stop(tb + .05); }); }
+    return b.duration; }); };
 P.stopVoice = function () { this.vTok = (this.vTok || 0) + 1; if (this.vSrc) { try { this.vSrc.stop(); } catch {} this.vSrc = null; } };
 P.shout = function (key, force) { if (!this.ctx || this.s.voices === false) return; const now = performance.now(); if (!force && now - this.lastBark < 4000) return;
   if (!force && this.ctx.currentTime < (this.vEnd || 0)) return; this.lastBark = now;
+  if (this.s.lang !== 'clean' && this.s.lang !== 'bleep' && this.man && this.man.barks[key + '_x'] && Math.random() < .5) key = key + '_x';
   const n = (this.man && this.man.barks[key]) || 2; const name = 'v/' + key + Math.floor(Math.random() * n); const s = this.play(name, { bus: this.voiceBus, jit: .02, vol: key.startsWith('npc') ? .7 : 1 }); if (!s) this.load(name); };

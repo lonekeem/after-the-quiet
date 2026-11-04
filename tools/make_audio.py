@@ -59,6 +59,15 @@ for v in range(3):
   for k in range(9): c = int(rng.uniform(0, 2.4)*SR); L = int(rng.uniform(.06, .2)*SR); burst = lp(rng.standard_normal(L), rng.uniform(.05, .2)) * np.hanning(L) * rng.uniform(.5, 1); y[c:c+L] += burst[:len(y[c:c+L])]
   for k in range(4): c = int(rng.uniform(0, 2.4)*SR); L = int(.04*SR); y[c:c+L] += rng.standard_normal(L)*np.exp(-np.arange(L)/300)*.6
   y += zvoice(2.6, 75, 70, [(350, 1), (800, .5)], rough=.7) * .35; enc(f'{OUT}/z_eat{v}.mp3', y, filt='lowpass=f=3500')
+# v1.4 feeding: wet chewing (short squelch bursts + low gnaw) and flesh tearing (rip noise sweep)
+for v in range(4):
+  T = t(1.1); y = np.zeros_like(T)
+  for k in range(5): c = int(rng.uniform(0, .95)*SR); L = int(rng.uniform(.05, .13)*SR); y[c:c+L] += (lp(rng.standard_normal(L), rng.uniform(.06, .25)) * np.hanning(L) * rng.uniform(.6, 1))[:len(y[c:c+L])]
+  y += zvoice(1.1, 70, 62, [(300, 1), (700, .4)], rough=.8) * .25; enc(f'{OUT}/z_chew{v}.mp3', y, filt='lowpass=f=3200')
+for v in range(3):
+  T = t(.55); n = rng.standard_normal(len(T)); f = np.linspace(rng.uniform(1800, 2600), 500, len(T)); y = np.zeros_like(T)
+  for i0 in range(0, len(T) - 2048, 1024): seg = n[i0:i0+2048] * np.hanning(2048); y[i0:i0+2048] += bp(seg, f[i0], 3) * (1 + (rng.random() < .3) * 2)
+  y *= np.minimum(1, T/.02) * np.exp(-T*3.5); y += lp(rng.standard_normal(len(T)), .15) * np.exp(-T*9) * .6; enc(f'{OUT}/z_tear{v}.mp3', y)
 # human screams (procedural, formant "ah" with pitch rise and vibrato) — NPC victims
 def scream(dur, f0, f1, female):
   T = t(dur); f = np.interp(T, [0, dur*.2, dur], [f0*.8, f1, f0]) * (1 + .03*np.sin(2*np.pi*6.5*T)) * (1 + .02*lp(rng.standard_normal(len(T)), .01)*20)
@@ -95,6 +104,9 @@ BARKS = {
  'keem_kill': ('keem', ['Stay down!', 'Nope!', 'Headshot!', 'Yeah!', 'Not today!', 'Sorry, mister!']), 'keem_pickup': ('keem', ['Ooh, nice.', 'Mine now.', 'Got it.']),
  'keem_empty': ('keem', ['Out of ammo!', 'Empty! Come on!']), 'keem_boss': ('keem', ['That is a big dude!', 'Nope nope nope!']),
  'marcus_shout': ('marcus', ['Keem! Over here!', 'Behind you, son!', 'Keep moving!', 'Good shot!']), 'nia_shout': ('nia', ['Keem, hurry!', 'Biscuit, hold on!', 'Behind you!']),
+ 'keem_kill_x': ('keem', ['Stay the fuck down!', 'Eat shit!', 'Hell yeah!', 'Fuck off!', 'Not today, motherfucker!']), 'keem_hurt_x': ('keem', ['Shit!', 'Ah, fuck!', 'Get the fuck off me!']),
+ 'keem_empty_x': ('keem', ['Empty! Shit!', 'Out of ammo, dammit!']), 'keem_boss_x': ('keem', ['That is one big motherfucker!', 'Oh, hell no!']), 'keem_reload_x': ('keem', ['Reloading, shit, shit!', 'Come on, damn it!']),
+ 'marcus_shout_x': ('marcus', ['Behind you, damn it!', 'Move your ass, son!', 'Hell of a shot!']), 'npcm_help_x': ('npcm', ['Holy shit, run!', 'Get the fuck away from me!']),
  'npcf_help': ('npcf', ['Help! Somebody help me!', 'No! Get off me!', 'Please! Help!']), 'npcm_help': ('npcm', ['Run! Just run!', 'Help! Help!', 'Get away from me!']),
 }
 manifest = {}

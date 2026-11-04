@@ -2,7 +2,7 @@ import { AudioSys } from './audio.js';
 import { WEAPONS, WEAPON_ORDER, UPGRADES, upCost, AMMO_SHOP, PERKS, xpFor, defaultSave, loadSave, writeSave, clearSave, stat } from './game/data.js';
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const DEF = { vol: 0.9, auto: true, music: 0.6, text: 1, subs: true, gore: true, qteEasy: false, still: false, hints: true, qual: 'auto', sens: 1, fp: false, sfxVol: 1, voiceVol: 1, voices: true };
+const DEF = { vol: 0.9, auto: true, music: 0.6, text: 1, subs: true, gore: true, lang: 'on', qteEasy: false, still: false, hints: true, qual: 'auto', sens: 1, fp: false, sfxVol: 1, voiceVol: 1, voices: true };
 const LS = (() => { try { const k = '__t'; localStorage.setItem(k, 1); localStorage.removeItem(k); return localStorage; } catch { const m = {}; return { getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: k => { delete m[k]; } }; } })();
 let _saved = {}; try { _saved = JSON.parse(LS.getItem('atq3.settings') || '{}') || {}; } catch {}
 const S = Object.assign({}, DEF, _saved); const saveS = () => LS.setItem('atq3.settings', JSON.stringify(S));
@@ -48,6 +48,42 @@ function renderShop() { $('#shopCash').textContent = `Cash: $${save.cash}  ·  L
       card(`<b>${w.name}</b><div class="st">${keys.map(k => `${UPGRADES[k].name} ${u[k] || 0}/${UPGRADES[k].max}`).join(' · ')}</div>`, keys.map(k => { const lv = u[k] || 0, c = upCost(id, k, lv); return [lv >= UPGRADES[k].max ? `${UPGRADES[k].name} MAX` : `${UPGRADES[k].name} $${c}`, () => { if (buy(c)) { u[k] = lv + 1; if (game) game.ws = stat(save, save.cur); } }, lv >= UPGRADES[k].max || save.cash < c]; })); }); }
   if (shopTab === 'sup') Object.entries(AMMO_SHOP).forEach(([k, a]) => { const have = k === 'grenade' ? save.grenades : k === 'med' ? save.meds : save.ammo[k] || 0;
     card(`<b>${a.name}</b><div class="st">You have: ${have}</div>`, [[`Buy $${a.price}`, () => { if (buy(a.price)) { if (k === 'grenade') save.grenades += a.n; else if (k === 'med') save.meds += a.n; else save.ammo[k] = (save.ammo[k] || 0) + a.n; } }, save.cash < a.price]]); }); }
+// ---------- customizer ----------
+let cust = null;
+async function openCustom(from) { back = from; state = 'custom'; showScreen('#custom'); $('#cList').innerHTML = '<p class="small">Loading…</p>';
+  const g = await ensureGame(); const [{ OUTFITS, OUTFIT, HAIRS, HAIR_COLORS, SKINS, FACES, BEARDS, EYES, DEFAULT_LOOK }, { Char }, THREE] = await Promise.all([import('./game/looks.js'), import('./game/chars.js'), import('three')]);
+  save.outfits = save.outfits || ['classic'];
+  let L; try { L = Object.assign({}, DEFAULT_LOOK, JSON.parse(LS.getItem('atq3.look') || '{}')); } catch { L = Object.assign({}, DEFAULT_LOOK); }
+  if (!cust) { const cv = $('#cPrev'); const r = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true }); r.setPixelRatio(Math.min(2, devicePixelRatio)); r.outputColorSpace = THREE.SRGBColorSpace;
+    const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight('#dfe8ff', '#30281e', 1.3)); const d = new THREE.DirectionalLight('#fff2dc', 2.4); d.position.set(2, 3, 3); sc.add(d); const d2 = new THREE.DirectionalLight('#8fb4ff', 1); d2.position.set(-3, 2, -2); sc.add(d2);
+    const cam = new THREE.PerspectiveCamera(30, 0.78, 0.1, 50); cust = { r, sc, cam, ch: null, rot: 0, zoom: 0, drag: null, clock: new THREE.Clock() };
+    cv.addEventListener('pointerdown', e => { cust.drag = e.clientX; cv.setPointerCapture(e.pointerId); }); cv.addEventListener('pointermove', e => { if (cust.drag != null) { cust.rot += (e.clientX - cust.drag) * 0.012; cust.drag = e.clientX; } }); cv.addEventListener('pointerup', () => { cust.drag = null; });
+    const loop = () => { if (state === 'custom') { const w = cv.clientWidth, h = cv.clientHeight; if (w && (cv.width !== w * cust.r.getPixelRatio() | 0)) { cust.r.setSize(w, h, false); cust.cam.aspect = w / h; cust.cam.updateProjectionMatrix(); }
+        const dt = cust.clock.getDelta(); if (cust.ch) { cust.ch.mixer.update(dt); cust.ch.root.rotation.y = cust.rot; } const zf = cust.tab === 'hair' || cust.tab === 'face' || cust.tab === 'skin' ? 1 : 0; cust.zoom += (zf - cust.zoom) * Math.min(1, dt * 5);
+        cust.cam.position.set(0, 1.0 + cust.zoom * 0.42, 4.6 - cust.zoom * 3.3); cust.cam.lookAt(0, 0.92 + cust.zoom * 0.52, 0); cust.r.render(cust.sc, cust.cam); } requestAnimationFrame(loop); }; loop(); }
+  const rebuild = () => { if (cust.ch) cust.sc.remove(cust.ch.root); const c = cust.ch = new Char(g.lib, L, 0.9); cust.sc.add(c.root); c.play('Idle_Loop');
+    const o = OUTFIT[L.outfit]; if (c.wantsPack || L.pack) { import('./game/chars.js').then(({ backpack }) => { const bp = backpack(); c.attach('DEF-spine.003', bp); bp.position.set(0, 0.12, -0.2); bp.rotation.x = .1; }); } };
+  const owned = (o) => !o.price || save.outfits.includes(o.id);
+  cust.tab = cust.tab || 'outfit';
+  const render = () => { $('#cCash').textContent = `Cash: $${save.cash} · Level ${save.level}`; const T = $('#cTabs'); T.innerHTML = '';
+    [['outfit', 'Outfits'], ['hair', 'Hair'], ['face', 'Face'], ['skin', 'Skin & eyes'], ['extra', 'Extras']].forEach(([k, n]) => { const b = document.createElement('button'); b.textContent = n; b.className = cust.tab === k ? 'on' : ''; b.onclick = () => { cust.tab = k; render(); }; T.appendChild(b); });
+    const Lst = $('#cList'); Lst.innerHTML = ''; const btn = (html, on, fn, cls = '') => { const b = document.createElement('button'); b.innerHTML = html; b.className = (on ? 'on ' : '') + cls; b.onclick = () => { fn(); rebuild(); render(); }; Lst.appendChild(b); };
+    const sw = (key, arr) => arr.forEach(c => btn(`<span class="sw" style="background:${c}"></span>`, L[key] === c, () => { L[key] = c; }, 'swb'));
+    const head = (t) => { const h = document.createElement('div'); h.className = 'small'; h.style.gridColumn = '1/-1'; h.textContent = t; Lst.appendChild(h); };
+    if (cust.tab === 'outfit') OUTFITS.forEach(o => { const own = owned(o), lockLv = o.lvl && save.level < o.lvl;
+      btn(`<b>${o.name}</b><br><small>${own ? (L.outfit === o.id ? 'Wearing' : 'Owned') : lockLv ? `🔒 Level ${o.lvl} · $${o.price}` : `$${o.price}`}</small>`, L.outfit === o.id, () => {
+        if (!own) { if (lockLv) { toastC(`Reach level ${o.lvl} to unlock ${o.name}.`); return; } if (save.cash < o.price) { toastC(`Need $${o.price} — loot more cash.`); return; } if (!confirm(`Buy ${o.name} for $${o.price} (in-game cash)?`)) return; save.cash -= o.price; save.outfits.push(o.id); writeSave(LS, save); audio.pickup && audio.pickup(); }
+        L.outfit = o.id; }, own ? '' : 'lock'); });
+    if (cust.tab === 'hair') { Object.entries(HAIRS).forEach(([k, n]) => btn(n, L.hair === k, () => { L.hair = k; })); head('Hair colour'); sw('hairColor', HAIR_COLORS); }
+    if (cust.tab === 'face') { Object.entries(FACES).forEach(([k, f]) => btn(f.name, L.face === k, () => { L.face = k; })); head('Facial hair'); Object.entries(BEARDS).forEach(([k, n]) => btn(n, L.beard === k, () => { L.beard = k; })); }
+    if (cust.tab === 'skin') { head('Skin tone'); sw('skin', SKINS); head('Eye colour'); sw('eyes', EYES); }
+    if (cust.tab === 'extra') { btn(`Backpack: <b>${L.pack ? 'On' : 'Off'}</b>`, L.pack, () => { L.pack = !L.pack; }); btn(`Glasses: <b>${L.glasses ? 'On' : 'Off'}</b>`, L.glasses, () => { L.glasses = !L.glasses; });
+      head('Build'); [[.92, 'Slim'], [1, 'Average'], [1.1, 'Stocky']].forEach(([v, n]) => btn(n, L.build === v, () => { L.build = v; })); }
+  };
+  const toastC = (t) => { $('#cCash').textContent = t; setTimeout(() => { if (state === 'custom') $('#cCash').textContent = `Cash: $${save.cash} · Level ${save.level}`; }, 2200); };
+  $('#cSave').onclick = () => { LS.setItem('atq3.look', JSON.stringify(L)); writeSave(LS, save); if (back === '#pause') { g.makePlayer(); state = 'paused'; showScreen('#pause'); } else if (back === '#shop') openShop(); else { state = 'title'; showScreen('#title'); } };
+  $('#cReset').onclick = () => { L = Object.assign({}, DEFAULT_LOOK); rebuild(); render(); };
+  rebuild(); render(); }
 // ---------- inventory ----------
 function openInv() { state = 'inv'; renderInv(); showScreen('#inv'); }
 function renderInv() { const s = save; const need = xpFor(s.level);
@@ -60,11 +96,12 @@ function renderInv() { const s = save; const need = xpFor(s.level);
   add(`<b>Collectibles</b><div class="st">${s.pages.length ? s.pages.length + ' Captain Riverside comic pages found' : 'Find the 8 Captain Riverside comic pages hidden around town.'}</div>`); }
 
 // ---------- buttons ----------
-$$('.back').forEach(b => b.onclick = () => { if (back === '#pause') { state = 'paused'; showScreen('#pause'); return; } state = 'title'; showScreen('#title'); });
+$$('.back').forEach(b => b.onclick = () => { if (state === 'custom' && back === '#shop') { openShop(); return; } if (back === '#pause') { state = 'paused'; showScreen('#pause'); return; } state = 'title'; showScreen('#title'); });
 $('#btnWarn').onclick = async () => { try { audio.init(); audio.sting(); } catch (e) {} showScreen(null); $('#studio').classList.remove('hidden'); fadeIn(); ensureGame().catch(e => console.error(e)); $('#loading').classList.add('hidden');
   await Promise.race([sleep(4200), new Promise(r => addEventListener('keydown', r, { once: true }))]); $('#studio').classList.add('hidden'); toTitle(); };
 $('#btnNew').onclick = () => { if (loadSave(LS) && loadSave(LS).step > 0 && !confirm('Start a new game? Your current progress (level, cash, weapons) will be reset.')) return; clearSave(LS); save = defaultSave(); writeSave(LS, save); play(0); };
 $('#btnContinue').onclick = () => { save = loadSave(LS) || defaultSave(); play(save.step); };
+$('#btnCustom').onclick = () => openCustom('#title'); $('#btnShopCustom').onclick = () => openCustom(back === '#pause' ? '#pause' : '#shop');
 $('#btnArmory').onclick = () => { back = '#title'; openShop(); }; $('#btnInvT').onclick = () => { back = '#title'; openInv(); };
 $('#btnPShop').onclick = () => { back = '#pause'; openShop(); }; $('#btnPInv').onclick = () => { back = '#pause'; openInv(); };
 $('#btnSettings').onclick = () => { back = '#title'; state = 'settings'; showScreen('#settings'); }; $('#btnControls').onclick = () => showScreen('#controls'); $('#btnCredits').onclick = () => showScreen('#credits');
@@ -78,7 +115,7 @@ $('#btnDeadQuit').onclick = toTitle; $('#btnEndTitle').onclick = toTitle;
 const bindS = (id, k, kind) => { const el = $(id); if (!el) return; if (kind === 'chk') { el.checked = !!S[k]; el.onchange = () => { S[k] = el.checked; saveS(); applyS(k); }; } else if (kind === 'sel') { el.value = S[k]; el.onchange = () => { S[k] = el.value; saveS(); applyS(k); }; } else { el.value = S[k]; el.oninput = () => { S[k] = +el.value; saveS(); applyS(k); }; } };
 function applyS(k) { audio.applyVolumes(); document.body.classList.toggle('still', S.still); if (game && k === 'fp') game.cam.fp = S.fp; if (k === 'qual' && game) game.toast?.('Quality change applies after reloading the app', 2.5); }
 bindS('#sVol', 'vol'); bindS('#sMusic', 'music'); bindS('#sSfx', 'sfxVol'); bindS('#sVoiceVol', 'voiceVol'); bindS('#sVoices', 'voices', 'chk'); bindS('#sText', 'text'); bindS('#sAuto', 'auto', 'chk'); bindS('#sGore', 'gore', 'chk'); bindS('#sQte', 'qteEasy', 'chk'); bindS('#sMotion', 'still', 'chk'); bindS('#sHints', 'hints', 'chk');
-bindS('#sQual', 'qual', 'sel'); bindS('#sSens', 'sens'); bindS('#sFP', 'fp', 'chk'); applyS();
+bindS('#sQual', 'qual', 'sel'); bindS('#sLang', 'lang', 'sel'); bindS('#sSens', 'sens'); bindS('#sFP', 'fp', 'chk'); applyS();
 // boot
 document.body.dataset.dev = 'ontouchstart' in window ? 'touch' : 'kbd'; fadeIn();
 const qs = new URLSearchParams(location.search);

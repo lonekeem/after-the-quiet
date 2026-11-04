@@ -1,0 +1,21 @@
+// v1.4 feeding-scene + gore + customizer screenshot test. Needs `vite preview --port 4181`.
+import { chromium } from 'playwright';
+const b = await chromium.launch({ args: ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
+const ctx = await b.newContext({ viewport:{width:960,height:540} }); await ctx.addInitScript(()=>localStorage.setItem('atq3.settings',JSON.stringify({qual:'low',gore:true})));
+const p = await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:4181/?step=3&god'); await p.waitForTimeout(10000);
+const r = await p.evaluate(()=>{ const g=window.__atq.game; for(let i=0;i<30;i++) g.skipLine?.(); g.zombies.forEach(z=>g.damageZ(z,9999,{}));
+  const P=g.player.root.position; const v=g.victim(P.x+1, P.z+9, 'ruth', 3); g.state.crouch=true;
+  const C=P.constructor; g.cut={cam:new C(P.x+3.5,1.6,P.z+5.5), look:new C(P.x+1,.4,P.z+9), anim:'Idle_Loop'}; return !!v.pool; });
+await p.waitForTimeout(6000); await p.screenshot({path:'/tmp/shots/feeding.png',timeout:120000});
+const lk = await p.evaluate(()=>{ const g=window.__atq.game; g.cut=null; const P=g.player.root.position; const e=g.zombies.filter(z=>z.st==='eat'); P.set(e[0].root.position.x+1,0,e[0].root.position.z-10); return e.length; });
+await p.waitForTimeout(3000); const lks = await p.evaluate(()=>window.__atq.game.zombies.filter(z=>z.st==='eat').map(z=>(z.lk||0).toFixed(2)).join(','));
+const gore = await p.evaluate(()=>{ const g=window.__atq.game; const P=g.player.root.position; const z=g.spawnZ(P.x,P.z+3,{idle:true}); g.damageZ(z,9999,P.clone().sub(P).set(0,0,1),{boom:true,finisher:true}); return (z.noLimbs||[]).length+'/'+!!z.noHead; });
+await p.waitForTimeout(1500); await p.screenshot({path:'/tmp/shots/gore.png',timeout:120000});
+await p.goto('http://localhost:4181/'); await p.waitForTimeout(6000);
+await p.evaluate(()=>{ document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden')); document.querySelector('#title')?.classList.remove('hidden'); });
+await p.screenshot({path:'/tmp/shots/title.png',timeout:120000});
+await p.click('#btnCustom',{force:true}).catch(e=>errs.push('click '+e.message)); await p.waitForTimeout(4000);
+const boss = await p.evaluate(()=>{ const el=[...document.querySelectorAll('#cList *')].find(e=>/boss/i.test(e.textContent)&&e.children.length<3); el?.click(); return el?el.textContent.slice(0,40):'none'; });
+await p.waitForTimeout(3000); await p.screenshot({path:'/tmp/shots/custom_boss.png',timeout:120000});
+console.log(JSON.stringify({r,eaters:lk,lookup:lks,gore,boss,errs:errs.slice(0,5)})); await b.close();

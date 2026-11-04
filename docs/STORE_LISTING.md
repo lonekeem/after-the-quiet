@@ -6,5 +6,5 @@ Lone Keem Studios presents AFTER THE QUIET. Riverside, Maine falls in one night.
 • Free-roam third-person action (or first-person)  • Pistols, rifles, shotguns, melee combos, grenades
 • Armory upgrades, XP, perks and collectibles — earned in-game only, no purchases
 • Touch, keyboard/mouse and gamepad controls
-MATURE 18+: intense violence, strong blood and gore, dismemberment, frightening scenes. Gore can be turned off.
-**Content rating:** update the IARC questionnaire in Play Console → target Mature 18+ / PEGI 18 (graphic violence, blood/gore).
+MATURE 18+: intense violence, strong blood and gore, dismemberment, strong language (frequent profanity), frightening scenes. Gore can be turned off and language bleeped or cleaned.
+**Content rating:** update the IARC questionnaire in Play Console → target Mature 18+ / PEGI 18 (graphic violence, blood/gore, strong language).

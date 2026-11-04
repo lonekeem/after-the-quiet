@@ -50,7 +50,7 @@ setTimeout(function(){if(!window.__atqBooted)show('The game did not start. Your 
 <div id="warning" class="screen">
   <div class="panel">
     <h2>Mature 18+ · Content Warning</h2>
-    <p>This is a <b>mature horror</b> game. It contains <b>intense violence</b>, <b>strong blood and gore</b> (dismemberment, graphic zombie attacks and deaths), gunfire, frightening scenes, and themes of <b>death and loss</b>, including the loss of a parent. Gore can be turned off in Settings.</p>
+    <p>This is a <b>mature horror</b> game. It contains <b>intense violence</b>, <b>strong blood and gore</b> (dismemberment, graphic zombie attacks and deaths), gunfire, frightening scenes, and <b>strong language</b> (frequent profanity), and themes of <b>death and loss</b>, including the loss of a parent. Gore and strong language can be toned down in Settings.</p>
     <p class="small">Headphones recommended.</p>
     <button id="btnWarn" class="primary">I Understand</button>
   </div>
@@ -62,12 +62,13 @@ setTimeout(function(){if(!window.__atqBooted)show('The game did not start. Your 
     <button id="btnContinue" class="hidden">Continue</button>
     <button id="btnNew" class="primary">New Game</button>
     <button id="btnArmory">Armory (weapon shop)</button>
+    <button id="btnCustom">Customize Keem</button>
     <button id="btnInvT">Inventory &amp; Stats</button>
     <button id="btnSettings">Settings</button>
     <button id="btnControls">Controls</button>
     <button id="btnCredits">Credits</button>
   </div>
-  <div class="foot">v1.3.2 · Story Mode · Chapter 1 · The Day Before</div>
+  <div class="foot">v1.4.0 · Story Mode · Chapter 1 · The Day Before</div>
 </div>
 <div id="settings" class="screen hidden">
   <div class="panel">
@@ -80,6 +81,7 @@ setTimeout(function(){if(!window.__atqBooted)show('The game did not start. Your 
     <label>Text speed <input type="range" id="sText" min="0.5" max="2" step="0.1"></label>
     <label class="chk"><input type="checkbox" id="sAuto"> Auto-advance text</label>
     <label class="chk"><input type="checkbox" id="sGore"> Blood &amp; gore (off = softened)</label>
+    <label>Strong language <select id="sLang"><option value="on">On (uncensored)</option><option value="bleep">Bleeped</option><option value="clean">Off (clean words)</option></select></label>
     <label>Graphics quality <select id="sQual"><option value="auto">Auto</option><option value="low">Low</option><option value="med">Medium</option><option value="high">High</option></select></label>
     <label>Camera sensitivity <input type="range" id="sSens" min="0.3" max="2" step="0.1"></label>
     <label class="chk"><input type="checkbox" id="sFP"> First-person camera</label>
@@ -113,7 +115,7 @@ setTimeout(function(){if(!window.__atqBooted)show('The game did not start. Your 
   <div class="panel">
     <h2>Credits</h2>
     <p><b>Lone Keem Studios</b><br>Created by Keem</p>
-    <p>Story, characters and direction: Keem. Characters: Quaternius Universal Animation Library (CC0). Textures &amp; sky: Poly Haven (CC0). Engine: three.js (MIT). No voice acting: all dialogue is on-screen text. Sound and music: synthesized in code.</p>
+    <p>Story, characters and direction: Keem. Characters: Quaternius Universal Animation Library (CC0). Vehicles: Kenney Car Kit (kenney.nl, CC0). Textures &amp; sky: Poly Haven (CC0). Engine: three.js (MIT). Voices: Kokoro TTS stock voices (Apache-2.0), no real person's voice cloned. Sound and music: synthesized in code plus CC0 samples.</p>
     <p class="small">Full license list in CREDITS.md.</p>
     <button class="back primary">Back</button>
   </div>
@@ -130,7 +132,11 @@ setTimeout(function(){if(!window.__atqBooted)show('The game did not start. Your 
   </div>
 </div>
 <div id="dead" class="screen hidden"><div class="dbig">YOU DIED</div><p class="small" id="deadMsg">They got you.</p><button id="btnRetry" class="primary">Retry from checkpoint</button><button id="btnDeadQuit">Quit to title</button></div>
-<div id="shop" class="screen hidden"><div class="panel wide"><h2>Armory</h2><p class="small">Spend the cash you loot from Riverside. In-game money only — there are no real-money purchases in this game.</p><div class="cashline" id="shopCash"></div><div class="tabs" id="shopTabs"></div><div id="shopList" class="glist"></div><button class="back primary">Back</button></div></div>
+<div id="shop" class="screen hidden"><div class="panel wide"><h2>Armory</h2><p class="small">Spend the cash you loot from Riverside. In-game money only — there are no real-money purchases in this game.</p><div class="cashline" id="shopCash"></div><button id="btnShopCustom" class="small">👕 Outfits &amp; look</button><div class="tabs" id="shopTabs"></div><div id="shopList" class="glist"></div><button class="back primary">Back</button></div></div>
+<div id="custom" class="screen hidden"><div class="panel wide cust"><h2>Customize Keem</h2><div class="cashline" id="cCash"></div>
+  <div class="cwrap"><div class="cprev"><canvas id="cPrev" width="360" height="460"></canvas><div class="small">Drag to rotate</div></div>
+  <div class="cside"><div class="tabs" id="cTabs"></div><div id="cList" class="clist"></div></div></div>
+  <div class="crow"><button id="cReset">Reset to default</button><button id="cSave" class="primary">Save &amp; back</button><button class="back">Cancel</button></div></div></div>
 <div id="inv" class="screen hidden"><div class="panel wide"><h2>Inventory</h2><div id="invStats" class="cashline"></div><div id="invList" class="glist"></div><button class="back primary">Back</button></div></div>
 <div id="ending" class="screen hidden"><div class="panel"><h2>End of Chapter 1</h2><p>“He said he'd be right behind us.”</p><div id="endStats" class="small"></div><p class="small">Chapter 2 · High Water — coming soon.</p><button id="btnEndTitle" class="primary">Back to title</button></div></div>
 <script type="module" src="./src/main.js"></script>

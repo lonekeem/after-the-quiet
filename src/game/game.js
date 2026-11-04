@@ -25,6 +25,11 @@ export function autoQuality() {
   if (!coarse) return cores >= 6 ? 'high' : 'med'; return mem >= 6 && cores >= 8 ? 'med' : 'low';
 }
 export const LOOKS = CAST; let ZSEED = 1;
+// Strong language: lines carry {explicit|clean} pairs. on = uncensored, bleep = voiced explicit with a bleep + masked subtitle, clean = alternate words.
+export function langLine(raw, mode) { const re = /\{([^|}]*)\|([^}]*)\}/g; const voice = raw.replace(re, mode === 'clean' ? '$2' : '$1');
+  const sub = mode === 'bleep' ? raw.replace(re, (m, a) => a.replace(/[A-Za-z]/g, (ch, i) => (i === 0 || !/[A-Za-z]/.test(a[i - 1] || '') ? ch : '*'))) : voice;
+  const bleeps = []; if (mode === 'bleep') { let pos = 0, out = 0; raw.replace(re, (m, a, b, off) => { const st = off - pos + out; bleeps.push([st, st + a.trimEnd().length]); out = st + a.length; pos = off + m.length; return m; });
+    const len = voice.length || 1; bleeps.forEach(b => { b[0] /= len; b[1] /= len; }); } return { sub, voice, bleeps }; }
 export function playerLook() { try { const l = JSON.parse(localStorage.getItem('atq3.look') || 'null'); if (l && l.hair) return Object.assign({}, DEFAULT_LOOK, l); } catch (e) { } return DEFAULT_LOOK; }
 
 export class Game {
@@ -54,9 +59,7 @@ export class Game {
     [['#dGas', 'gas'], ['#dBrake', 'brake'], ['#dL', 'l'], ['#dR', 'r']].forEach(([id, k]) => { const e = $(id); if (!e) return; const on = (v) => (ev) => { ev.preventDefault(); this.drv = this.drv || {}; this.drv[k] = v; e.classList.toggle('on', v); };
       e.addEventListener('pointerdown', on(true)); ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => e.addEventListener(t, on(false))); });
     // player
-    const P = this.player = new Char(this.lib, playerLook(), 0.9); scene.add(P.root);
-    this.pack = backpack(); this.pack.visible = false; P.attach('DEF-spine.003', this.pack); this.pack.position.set(0, 0.12, -0.2); this.pack.rotation.set(0.1, 0, 0);
-    this.hand = new THREE.Group(); P.attach('DEF-hand.R', this.hand); this.hand.rotation.set(Math.PI / 2, 0, 0); this.hand.position.set(0, 0.08, 0.02);
+    this.pack = backpack(); this.hand = new THREE.Group(); this.makePlayer();
     // flashlight
     const fl = this.flash = new THREE.SpotLight('#fff4dc', 28, 26, 0.42, 0.5, 1.6); fl.castShadow = Q.shadows && Q.name === 'high'; fl.shadow.mapSize.set(512, 512); scene.add(fl, fl.target);
     // FP viewmodel
@@ -77,7 +80,13 @@ export class Game {
   resize() { const w = innerWidth, h = innerHeight; this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); if (this.composer) this.composer.setSize(w, h); }
 
   // ---------- run state ----------
-  start(step) { this.save.step = step || 0; this.loadStep(this.save.step); this.paused = false; if (!this.running) { this.running = true; this.last = performance.now(); requestAnimationFrame((t) => this.frame(t)); } }
+  makePlayer() { const L = playerLook(), old = this.player; this._lookKey = JSON.stringify(L);
+    const P = this.player = new Char(this.lib, L, 0.9); this.scene.add(P.root);
+    if (old) { P.root.position.copy(old.root.position); P.root.rotation.y = old.root.rotation.y; this.scene.remove(old.root); }
+    P.attach('DEF-spine.003', this.pack); this.pack.position.set(0, 0.12, -0.2); this.pack.rotation.set(0.1, 0, 0);
+    P.attach('DEF-hand.R', this.hand); this.hand.rotation.set(Math.PI / 2, 0, 0); this.hand.position.set(0, 0.08, 0.02);
+    this.pack.visible = !!(P.wantsPack || (this.save && this.save.items.includes('backpack'))); return P; }
+  start(step) { if (this._lookKey !== JSON.stringify(playerLook())) this.makePlayer(); this.save.step = step || 0; this.loadStep(this.save.step); this.paused = false; if (!this.running) { this.running = true; this.last = performance.now(); requestAnimationFrame((t) => this.frame(t)); } }
   clearActors() { this.zombies.forEach(z => this.scene.remove(z.root)); this.zombies = []; for (const k in this.npcs) this.scene.remove(this.npcs[k].root); this.npcs = {};
     this.pickups.forEach(p => this.scene.remove(p.mesh)); this.pickups = []; this.props.forEach(p => this.scene.remove(p)); this.props = []; this.decalN = 0; this.decals.forEach(d => d.visible = false);
     if (this.truck) this.truck.driving = false; document.body.classList.remove('driving'); $('#drive')?.classList.add('hidden'); this.drv = {}; this.boss = null; $('#boss').classList.add('hidden'); this.dlgQ = []; this.dlgCur = null; $('#dlg').classList.remove('on'); }
@@ -87,7 +96,7 @@ export class Game {
     this.state = { roll: 0, atk: 0, atkHit: 0, combo: 0, comboT: 0, vy: 0, y: 0, crouch: false, run: false, aim: false, reload: 0, fireCd: 0, stun: 0 };
     P.root.visible = true; P.model.visible = true; for (const k in P.bones) P.bones[k].scale.set(1, 1, 1);
     const cp = st.cp; P.root.position.set(cp[0], 0, cp[1]); P.root.rotation.y = cp[2] || 0; this.cam.yaw = (cp[2] || 0) + Math.PI; this.cam.pitch = -0.1;
-    this.pack.visible = this.save.items.includes('backpack'); this.equip(this.save.cur || 'fists', true);
+    this.pack.visible = this.save.items.includes('backpack') || !!this.player.wantsPack; this.equip(this.save.cur || 'fists', true);
     LOOT.forEach(l => { if (!this.save.loot.includes(l.id) && (l.minStep || 0) <= i + 1) this.addPickup(l); });
     this.world.frontDoor.rotation.y = i >= 3 ? -1.6 : 0; this.setDoor(i >= 3);
     this.setTruck(i);
@@ -134,10 +143,10 @@ export class Game {
     l.onTake && l.onTake(this); writeSave(this.LS, s); }
 
   // ---------- NPCs & zombies ----------
-  npc(key, look, x, z, rot = 0, anim = 'Idle_Loop', scale = 0.98) { const c = new Char(this.lib, LOOKS[look] || (look && look.hair ? look : randomLook((Math.random() * 1e6) | 0)), scale); c.root.position.set(x, 0, z); c.root.rotation.y = rot; c.play(anim); this.scene.add(c.root); this.npcs[key] = c; c.key = key; return c; }
+  npc(key, look, x, z, rot = 0, anim = 'Idle_Loop', scale = 0.98) { const c = new Char(this.lib, LOOKS[look] || (look && look.hair ? look : randomLook((Math.random() * 1e6) | 0)), scale); c.root.position.set(x, 0, z); if (c.wantsPack) { const bp = backpack(); c.attach('DEF-spine.003', bp); bp.position.set(0, 0.12, -0.2); bp.rotation.x = .1; } c.root.rotation.y = rot; c.play(anim); this.scene.add(c.root); this.npcs[key] = c; c.key = key; return c; }
   victim(x, z, look, eaters = 3) { const v = this.npc('v' + Math.random(), look, x, z, rnd(0, 6), 'Death01'); v.play('Death01', { once: true }); v.mixer.update(5); v.mat.userData.u.uBlood.value = this.settings.gore ? 1 : 0.2; v.bleed = true;
-    this.decal(x, z, 2.2); this.decal(x + .6, z - .4, 1.4);
-    for (let i = 0; i < eaters; i++) { const a = i / eaters * 6.28 + rnd(-.3, .3); const zz = this.spawnZ(x + Math.cos(a) * 0.95, z + Math.sin(a) * 0.95, { eat: v }); zz.root.rotation.y = Math.atan2(x - zz.root.position.x, z - zz.root.position.z); }
+    v.pool = this.decal(x, z, 0.9); this.decal(x + .6, z - .4, 0.8); v.struggle = 1; v.jolt = 0; v.screamT = rnd(.5, 2); v.isVictim = true;
+    for (let i = 0; i < eaters; i++) { const a = i / eaters * 6.28 + rnd(-.3, .3); const zz = this.spawnZ(x + Math.cos(a) * 0.95, z + Math.sin(a) * 0.95, { eat: v }); zz.eatOff = i; zz.root.rotation.y = Math.atan2(x - zz.root.position.x, z - zz.root.position.z); }
     return v; }
   spawnZ(x, z, o = {}) { const zl = Object.assign(randomLook((ZSEED++ * 7919 + (Math.random() * 1e5 | 0)) | 0, true), { grime: 1, blood: this.settings.gore ? rnd(.5, 1) : 0.15 }); if (Math.random() < .3) zl.hair = 'balding'; if (o.boss) { zl.hair = 'bald'; zl.beard = 'full'; zl.build = 1.3; }
     const sc = (o.scale || rnd(.94, 1.06)); const c = new Char(this.lib, zl, sc); c.id = Math.random() * 10; c.root.position.set(x, 0, z); c.root.rotation.y = rnd(0, 6); this.scene.add(c.root);
@@ -155,14 +164,15 @@ export class Game {
   floatText(t, c = '#fff') { const e = document.createElement('div'); e.textContent = t; e.style.cssText = `position:absolute;left:50%;top:58%;transform:translateX(-50%);color:${c};font:800 15px system-ui;text-shadow:0 1px 3px #000;z-index:6;pointer-events:none;transition:all 1.2s ease-out`; $('#stage').appendChild(e); requestAnimationFrame(() => { e.style.top = '50%'; e.style.opacity = '0'; }); setTimeout(() => e.remove(), 1300); }
   say(lines, cb) { this.dlgQ = (this.dlgQ || []).concat(lines.map(l => ({ who: l[0], text: l[1] }))); if (cb) this.dlgQ.push({ cb }); if (!this.dlgCur) this.nextLine(); }
   nextLine() { const d = $('#dlg'); const it = this.dlgQ.shift(); if (!it) { this.dlgCur = null; d.classList.remove('on'); this.audio.stopVoice && this.audio.stopVoice(); return; } if (it.cb) { it.cb(this); this.nextLine(); return; }
+    if (it.raw == null) { it.raw = it.text; const L = langLine(it.raw, this.settings.lang || 'on'); it.text = L.sub; it.vtext = L.voice; it.bleeps = L.bleeps; }
     this.dlgCur = it; const names = { keem: 'Keem', marcus: 'Dad', nia: 'Nia', walt: 'Mr. Walt', ruth: 'Ruth', dube: 'Mr. Dube', radio: 'Radio', note: 'Dad\'s note', gus: 'Big Gus' };
-    $('#who').textContent = names[it.who] || it.who; const cur = it; this.audio.voice && this.audio.voice(it.who, it.text).then(dd => { if (dd && this.dlgCur === cur) cur.dur = Math.max(cur.dur || 0, dd + .5); });
+    $('#who').textContent = names[it.who] || it.who; const cur = it; this.audio.voice && this.audio.voice(it.who, it.vtext, it.bleeps).then(dd => { if (dd && this.dlgCur === cur) cur.dur = Math.max(cur.dur || 0, dd + .5); });
     
     $('#line').textContent = it.text; d.classList.add('on'); it.t = 0; it.dur = (1.6 + it.text.length * 0.045) / (this.settings.text || 1); }
   skipLine() { if (this.dlgCur) this.nextLine(); }
 
   // ---------- FX ----------
-  initFX() { const s = this.scene; const N = 500;
+  initFX() { const s = this.scene; const N = 900;
     this.pGeo = new THREE.SphereGeometry(1, 5, 4); this.pMat = new THREE.MeshStandardMaterial({ color: '#5a0505', roughness: .25, metalness: 0 });
     this.parts = new THREE.InstancedMesh(this.pGeo, this.pMat, N); this.parts.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.parts.frustumCulled = false; s.add(this.parts);
     this.pd = []; for (let i = 0; i < N; i++) this.pd.push({ p: V3(0, -99, 0), v: V3(), life: 0, s: 0 }); this.pI = 0;
@@ -173,10 +183,10 @@ export class Game {
     this.tracer = new THREE.Line(new THREE.BufferGeometry().setFromPoints([V3(), V3()]), new THREE.LineBasicMaterial({ color: '#ffe0a0', transparent: true, opacity: .8 })); this.tracer.frustumCulled = false; this.tracer.visible = false; s.add(this.tracer);
     this.booms = []; this.gibs = []; this.grenadesLive = [];
     this.fireSprite = fm; }
-  blood(pos, dir, n = 14, speed = 3, size = 1) { const gore = this.settings.gore; if (!gore) n = Math.ceil(n / 3);
-    for (let i = 0; i < n; i++) { const d = this.pd[this.pI = (this.pI + 1) % this.pd.length]; d.p.copy(pos); d.v.set(dir.x * speed + rnd(-1.5, 1.5), rnd(0.5, 3) + dir.y * speed, dir.z * speed + rnd(-1.5, 1.5)); d.life = rnd(.6, 1.4); d.s = rnd(.018, .05) * size * (gore ? 1 : .6); d.dec = gore && Math.random() < .08; }
+  blood(pos, dir, n = 14, speed = 3, size = 1) { const gore = this.settings.gore; if (!gore) n = Math.ceil(n / 3); else { n = Math.ceil(n * 1.6); speed *= 1.25; }
+    for (let i = 0; i < n; i++) { const d = this.pd[this.pI = (this.pI + 1) % this.pd.length]; d.p.copy(pos); d.v.set(dir.x * speed + rnd(-1.5, 1.5), rnd(0.5, 3) + dir.y * speed, dir.z * speed + rnd(-1.5, 1.5)); d.life = rnd(.6, 1.4); d.s = rnd(.018, .05) * size * (gore ? 1 : .6); d.dec = gore && Math.random() < .12; }
     this.pMat.color.set(gore ? '#5a0505' : '#3a3a34'); }
-  decal(x, z, s = 1) { if (!this.settings.gore) return; const d = this.decals[this.decalN++ % this.decals.length]; d.visible = true; d.position.set(x, 0.035 + (this.decalN % 10) * 0.0008, z); d.scale.setScalar(s * rnd(.8, 1.3)); d.rotation.z = rnd(0, 6); }
+  decal(x, z, s = 1) { if (!this.settings.gore) return; const d = this.decals[this.decalN++ % this.decals.length]; d.visible = true; d.position.set(x, 0.035 + (this.decalN % 10) * 0.0008, z); d.scale.setScalar(s * rnd(.8, 1.3)); d.rotation.z = rnd(0, 6); return d; }
   screenSplat() { if (!this.settings.gore) return; let e = $('#splat'); if (!e) { e = document.createElement('div'); e.id = 'splat'; e.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:3;transition:opacity 1.6s;opacity:0'; $('#stage').appendChild(e); }
     const b = []; for (let i = 0; i < 7; i++) { const x = rnd(0, 100), y = rnd(0, 100), r = rnd(4, 14); b.push(`radial-gradient(circle at ${x}% ${y}%, rgba(110,0,0,.85) 0, rgba(80,0,0,.7) ${r * .6}%, transparent ${r}%)`); }
     e.style.transition = 'none'; e.style.background = b.join(','); e.style.opacity = '1'; requestAnimationFrame(() => { e.style.transition = 'opacity 2.2s'; e.style.opacity = '0'; }); }
@@ -205,13 +215,19 @@ export class Game {
     z.mat.userData.u.uBlood.value = Math.min(1.3, z.mat.userData.u.uBlood.value + (this.settings.gore ? .15 : 0)); this.audio.splat();
     if (z.hp <= 0) { this.killZ(z, dir, o); return; }
     if (!z.boss || dmg > 60) { z.stun = z.boss ? 0.25 : 0.45; z.play(o.head ? 'Hit_Head' : 'Hit_Chest', { once: true, force: true, cb: () => { z.curName = ''; } }); z.vel.addScaledVector(dir, z.boss ? 1 : 3); } }
-  killZ(z, dir, o = {}) { if (Math.random() < (z.boss ? 1 : .15)) this.audio.shout && this.audio.shout('keem_kill'); z.dead = true; z.deadT = 0; z.st = 'dead'; this.save.kills++; const gore = this.settings.gore;
+  killZ(z, dir, o = {}) { if (!dir || !dir.clone) dir = V3(0, 0, 1); if (Math.random() < (z.boss ? 1 : .15)) this.audio.shout && this.audio.shout('keem_kill'); z.dead = true; z.deadT = 0; z.st = 'dead'; this.save.kills++; const gore = this.settings.gore;
     const xp = z.boss ? 400 : (o.head ? 18 : 12); this.addXP(xp); if (z.boss) this.addCash(500);
     else if (Math.random() < .35) this.addCash(rnd(5, 18)); if (!z.boss && Math.random() < .18) { const w = WEAPONS[this.save.cur]; const a = w.ammo || 'light'; this.save.ammo[a] = (this.save.ammo[a] || 0) + (a === 'shell' ? 3 : 8); this.floatText('+ammo', '#d8e8a0'); }
     z.play('Death01', { once: true, force: true, speed: o.boom ? 1.6 : 1 }); z.vel.addScaledVector(dir, o.boom ? 9 : 2.5); if (o.boom) z.vel.y = 6;
     const pos = z.root.position.clone(); pos.y = 1.55 * z.scale; this.decal(z.root.position.x + dir.x, z.root.position.z + dir.z, 1.4);
-    if (gore && (o.head || (o.boom && Math.random() < .5) || (o.pellets && Math.random() < .4))) { z.noHead = true; this.blood(pos, V3(0, 1, 0), 40, 3, 1.3); this.gib(pos, 6); this.audio.splat(); }
-    if (gore && (o.sever || o.boom) && Math.random() < .8) { const side = Math.random() < .5 ? 'L' : 'R'; z.noArm = 'DEF-forearm.' + side; const limb = new THREE.Mesh(new THREE.CapsuleGeometry(.05, .35, 3, 6), z.mat); const ap = V3(); z.worldOf(z.noArm, ap); this.gib(ap, 3, '#5a1010', limb); this.blood(ap, dir, 20, 3); }
+    const fin = o.finisher || (this.state.combo >= 3 && Math.random() < .6) || z.boss;
+    if (gore) { this.decal(z.root.position.x + dir.x * .5, z.root.position.z + dir.z * .5, 2.2); this.blood(pos.clone().setY(1.1 * z.scale), dir.clone().setY(.6), 22, 4.5, 1.2); }
+    if (gore && (o.head || fin || (o.boom && Math.random() < .6) || (o.pellets && Math.random() < .5))) { z.noHead = true; this.blood(pos, V3(0, 1, 0), 70, 5, 1.5); this.blood(pos, dir.clone().setY(.4), 30, 6, 1.1); this.gib(pos, 12); this.gib(pos, 4, '#d8cfc0'); this.audio.splat(); setTimeout(() => this.audio.splat(), 120); }
+    z.noLimbs = z.noLimbs || [];
+    if (gore && (o.sever || o.boom || fin || (o.pellets && Math.random() < .5)) && Math.random() < .9) { const pool = ['DEF-forearm.L', 'DEF-forearm.R', 'DEF-upper_arm.L', 'DEF-upper_arm.R'];
+      if (o.boom || fin) pool.push('DEF-shin.L', 'DEF-shin.R', 'DEF-thigh.L', 'DEF-thigh.R'); const nCut = o.boom ? 3 : fin ? 2 : 1 + (Math.random() < .35 ? 1 : 0);
+      for (let c = 0; c < nCut && pool.length; c++) { const bn = pool.splice(Math.floor(Math.random() * pool.length), 1)[0]; if (z.noLimbs.includes(bn)) continue; z.noLimbs.push(bn); const leg = bn.includes('thigh') || bn.includes('shin');
+        const limb = new THREE.Mesh(new THREE.CapsuleGeometry(leg ? .07 : .05, leg ? .45 : .35, 3, 6), z.mat); const ap = V3(); z.worldOf(bn, ap); this.gib(ap, 4, '#5a1010', limb); this.blood(ap, dir.clone().add(V3(rnd(-.5, .5), .5, rnd(-.5, .5))), 28, 4.5, 1.2); this.decal(ap.x, ap.z, 1); } }
     if (o.finisher || (this.state.combo >= 3 && Math.random() < .6) || z.boss) { this.slowmo(z.boss ? 1.6 : 0.6); this.shake(.5); this.toast(z.boss ? 'BIG GUS IS DOWN' : (o.head ? 'HEADSHOT' : 'FINISHER'), 1); if (perk(this.save, 10)) this.hp = Math.min(this.maxHp, this.hp + 10); }
     this.audio.thud(); }
   meleeHit() { const P = this.player, ws = this.ws, fwd = V3(Math.sin(P.root.rotation.y), 0, Math.cos(P.root.rotation.y)); let hit = 0;
@@ -292,7 +308,7 @@ export class Game {
     if (T.driving) this.updateTruck(dt); else if (!this.cut) this.updatePlayer(dt);
     else { P.play(this.cut.anim || 'Idle_Loop'); }
     P.mixer.update(dt);
-    this.updateZ(dt); for (const k in this.npcs) { const n = this.npcs[k]; n.update && n.update(dt); n.mixer.update(dt); if (n.bleed && Math.random() < dt * 3) { const p = n.root.position.clone(); p.y = .3; this.blood(p, V3(0, .6, 0), 3, 1.2); } }
+    this.updateZ(dt); for (const k in this.npcs) { const n = this.npcs[k]; n.update && n.update(dt); n.mixer.update(dt); this.victimStruggle(n, dt); if (n.bleed && Math.random() < dt * 3) { const p = n.root.position.clone(); p.y = .3; this.blood(p, V3(0, .6, 0), 3, 1.2); } }
     // pickups
     this.pickups.forEach(p => { p.m.rotation.y += dt * 1.6; p.m.position.y = Math.sin(this.t * 3) * .05; if (!p.l.story && !p.l.manual) { const d = Math.hypot(p.mesh.position.x - P.root.position.x, p.mesh.position.z - P.root.position.z); if (d < 1.0 && !T.driving) this.takePickup(p); } });
     this.updateFX(dt);
@@ -342,6 +358,8 @@ export class Game {
         z.mixer.update(dt); this.zBones(z); if (z.deadT > 25 && Z.length > 26) { this.scene.remove(z.root); Z.splice(i--, 1); } continue; }
       const toP = V3(pp.x - zp.x, 0, pp.z - zp.z); const d = toP.length();
       if (z.st === 'feast') { z.mixer.update(dt); if (Math.random() < dt * 8 && this.settings.gore) { const b = P.root.position.clone(); b.y = .3; this.blood(b, V3(rnd(-1, 1), .5, rnd(-1, 1)), 4, 2); } continue; }
+      if (z.st === 'eat') { const det = this.state.crouch ? 4 : 7.5; if ((d < det && !this.cut) || z.hp < z.maxHp) { z.st = 'chase'; z.lk = 0; this.audio.groan(.14); if (Math.random() < .5) this.audio.zAttack && this.audio.zAttack(); }
+        z.mixer.update(dt); this.feedPose(z, dt, d, toP); continue; }
       if (z.st === 'eat' || z.st === 'idle') { const det = this.state.crouch ? 4 : (z.st === 'eat' ? 7 : 12); if (d < det && !this.cut || z.hp < z.maxHp) { z.st = 'chase'; this.audio.groan(.12); } z.mixer.update(dt); if (z.st === 'eat' && Math.random() < dt * .3) this.audio.groan(.05); if (z.st === 'eat' && d < 16 && (z.eatT = (z.eatT ?? rnd(0, 2)) - dt) <= 0) { z.eatT = rnd(2.2, 3.4); this.audio.eat && this.audio.eat(Math.max(.05, .55 * (1 - d / 16))); } continue; }
       if (z.boss) { this.updateBoss(z, d, toP, dt); z.mixer.update(dt); this.zBones(z); continue; }
       if (z.stun > 0) { z.stun -= dt; zp.addScaledVector(z.vel, dt); z.vel.multiplyScalar(.85); z.mixer.update(dt); this.zBones(z); continue; }
@@ -354,10 +372,35 @@ export class Game {
       if (z.hitAt > 0) { z.hitAt -= dt; if (z.hitAt <= 0 && d < 1.7 && !this.truck.driving) this.hurt(this.settings.qteEasy ? 6 : 11, zp); }
       if (Math.random() < dt * .08) this.audio.groan(.06);
       z.mixer.update(dt); this.zBones(z); } }
+  // v1.4 feeding: kneel (Fixing_Kneeling) + procedural head-dip / tear / shake, bite-synced spurts, growing pool, look-up toward Keem
+  feedPose(z, dt, d, toP) { const v = z.eat, gore = this.settings.gore, B = (n) => z.bone(n); const near = !this.cut && d < 14;
+    z.lk = lerp(z.lk || 0, near ? clamp(1.4 - d / 10, 0, 1) : 0, Math.min(1, dt * 3));
+    z.bt = (z.bt ?? rnd(0, 1.6)) - dt; if (z.bt <= 0 && z.lk < .55) { z.bt = rnd(1.1, 2.2); z.bite = .95; z.bitten = false; }
+    let dip = 0, shake = 0, pull = 0; if (z.bite > 0) { z.bite -= dt; const k = 1 - z.bite / .95; dip = k < .4 ? k / .4 : Math.max(0, 1 - (k - .4) / .6);
+      if (k > .4 && k < .8) { shake = Math.sin(k * 55 + z.id) * .32 * (1 - (k - .4) / .4); pull = Math.sin((k - .4) / .4 * Math.PI) * .6; }
+      if (k > .42 && !z.bitten) { z.bitten = true; const vol = Math.max(0, .55 * (1 - d / 22)); if (vol > .02) { (Math.random() < .55 ? this.audio.tear : this.audio.chew).call(this.audio, vol); }
+        if (v && v.root) { v.jolt = 1; const hp = V3(); z.worldOf('DEF-head', hp); const vp = v.root.position; const sp = V3((hp.x + vp.x) / 2, .35, (hp.z + vp.z) / 2);
+          if (gore) { this.blood(sp, V3(rnd(-.4, .4), 1, rnd(-.4, .4)), 9, 2.4, 1.1); if (Math.random() < .35) this.gib(sp, 1, '#4a0808'); if (Math.random() < .4) this.decal(vp.x + rnd(-.9, .9), vp.z + rnd(-.9, .9), rnd(.3, .6)); }
+          if (v.pool) { const s0 = v.pool.scale.x; v.pool.scale.setScalar(Math.min(3.6, s0 + .07)); } } } }
+    else if (Math.random() < dt * .25 && d < 18) this.audio.chew(Math.max(.03, .3 * (1 - d / 18)));
+    const lk = z.lk; let rel = 0; if (lk > .01) { rel = Math.atan2(toP.x, toP.z) - z.root.rotation.y; rel = Math.atan2(Math.sin(rel), Math.cos(rel)); rel = clamp(rel, -1.3, 1.3); if (lk > .7) z.root.rotation.y = angLerp(z.root.rotation.y, z.root.rotation.y + rel, dt * .8); }
+    const sp2 = B('DEF-spine.002'), sp3 = B('DEF-spine.003'), nk = B('DEF-neck'), hd = B('DEF-head');
+    if (sp2) sp2.rotateX((.35 + dip * .35 - pull * .1) * (1 - lk * .7)); if (sp3) sp3.rotateX((.2 + dip * .25) * (1 - lk * .8));
+    if (nk) { nk.rotateX((dip * .45 - pull * .25) * (1 - lk) - lk * .35); nk.rotateY(rel * .45 * lk); }
+    if (hd) { hd.rotateX((dip * .3 - pull * .35) * (1 - lk) - lk * .25); hd.rotateY(rel * .45 * lk + shake); hd.rotateZ(shake * .5); }
+    ['L', 'R'].forEach((s, i) => { const ua = B('DEF-upper_arm.' + s), fa = B('DEF-forearm.' + s); if (ua) ua.rotateX(-(.5 + dip * .35 + pull * .3) * (1 - lk * .5)); if (fa) fa.rotateX(-(.7 + pull * .4)); });
+    if (z.noHead && hd) hd.scale.setScalar(.001); }
+  victimStruggle(n, dt) { if (!n.isVictim) return; const eaters = this.zombies.filter(z => !z.dead && z.st === 'eat' && z.eat === n).length;
+    n.struggle = Math.max(eaters ? .15 : 0, n.struggle - dt * .035); n.jolt = Math.max(0, (n.jolt || 0) - dt * 2.5); const s = n.struggle * (.55 + n.jolt * .8), t = this.t * 1 + (n.id || 0), B = (k) => n.bone(k); if (s < .01) return;
+    ['L', 'R'].forEach((k, i) => { const sg = i ? 1 : -1; const ua = B('DEF-upper_arm.' + k), fa = B('DEF-forearm.' + k), th = B('DEF-thigh.' + k), sh = B('DEF-shin.' + k);
+      if (ua) { ua.rotateX(-(.9 + .7 * Math.sin(t * 6.3 + i * 2)) * s); ua.rotateZ(sg * .4 * Math.sin(t * 4.1 + i) * s); } if (fa) fa.rotateX(-(.6 + .6 * Math.sin(t * 8 + i)) * s);
+      if (th) th.rotateX(Math.sin(t * 9.5 + i * 3.1) * .55 * s); if (sh) sh.rotateX(Math.max(0, Math.sin(t * 9.5 + i * 3.1 + 1)) * .9 * s); });
+    const hd = B('DEF-head'), sp = B('DEF-spine.003'); if (hd) hd.rotateY(Math.sin(t * 5.2) * .45 * s); if (sp) sp.rotateX(-Math.abs(Math.sin(t * 3)) * .3 * s);
+    n.screamT -= dt; if (n.screamT <= 0 && n.struggle > .35) { n.screamT = rnd(1.8, 3.5); const dd = n.root.position.distanceTo(this.player.root.position); if (dd < 30) (this.audio.victimScream || this.audio.scream).call(this.audio, Math.max(.03, .2 * (1 - dd / 30))); } }
   zBones(z) { const b = z.bones; if (!z.dead && !z.oneShot) { // zombie posture: arms reaching, head lolled
       ['DEF-upper_arm.L', 'DEF-upper_arm.R'].forEach((n, k) => { const bn = b[n]; if (bn) { bn.rotateX(z.runner ? -0.5 : -1.05); bn.rotateZ((k ? -1 : 1) * 0.12); } });
       if (b['DEF-head']) b['DEF-head'].rotateZ(Math.sin(this.t * 1.3 + z.id) * .25 + .2); if (b['DEF-spine.002']) b['DEF-spine.002'].rotateX(.18); }
-    if (z.noHead && b['DEF-head']) b['DEF-head'].scale.setScalar(0.001); if (z.noArm && b[z.noArm]) b[z.noArm].scale.setScalar(0.001); }
+    if (z.noHead && b['DEF-head']) b['DEF-head'].scale.setScalar(0.001); if (z.noArm && b[z.noArm]) b[z.noArm].scale.setScalar(0.001); if (z.noLimbs) for (const n of z.noLimbs) { const bn = z.bone(n); if (bn) bn.scale.setScalar(0.001); } }
   updateBoss(z, d, toP, dt) { const zp = z.root.position; z.t = (z.t || 0) + dt; $('#bossb i').style.width = Math.max(0, z.hp / z.maxHp * 100) + '%';
     if (z.stun > 0) { z.stun -= dt; return; }
     if (z.mode === 'slam') { z.mt -= dt; z.ring.scale.setScalar(1 + (0.9 - z.mt) * 3); if (z.mt <= 0) { z.mode = null; this.scene.remove(z.ring); this.shake(.7); this.audio.thud(); this.audio.boom(); if (d < 3.4) this.hurt(28, zp); z.cd = 2; } return; }

@@ -1,4 +1,4 @@
-# After the Quiet — v1.3.2 Story Mode
+# After the Quiet — v1.4.0 Story Mode
 A free-roam third-person horror action shooter by **Lone Keem Studios** (Three.js + Vite + Capacitor).
 You play **Keem**, a kid with a backpack, fighting out of **Riverside, Maine** on the night it falls.
 
@@ -20,3 +20,11 @@ Keyboard/mouse: WASD, mouse look (click to lock), LMB attack, RMB aim, Shift run
 
 Quality presets Low/Med/High with auto-detect (High adds GTAO + bloom). See STORY.md and CREDITS.md.
 The old cinematic movie version is preserved at tag `cinematic-final`.
+
+
+## v1.4.0
+- Character customizer (title screen + Armory): 20+ outfits incl. original "The Boss", hair, faces, skin, backpacks; saved to `atq3.look`.
+- Drivable player truck (Kenney Car Kit, CC0) with on-screen drive controls.
+- Strong language with a Settings toggle (on / bleep / clean); voice lines regenerated (Kokoro stock voices).
+- Heavier gore: bigger sprays, multi-limb dismemberment, gorier finishers.
+- Feeding scenes: kneeling eaters with head dips and tearing, struggling victims, bite-synced spurts, growing pools, chew/tear SFX, eaters look up at Keem.
