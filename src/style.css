@@ -177,3 +177,8 @@ body.driving #tbtns { bottom: 150px; }
 .clist button.lock{opacity:.6}.clist .sw{display:inline-block;width:22px;height:22px;border-radius:50%;border:2px solid #0006;vertical-align:middle}
 .clist .swb{text-align:center}.crow{display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap}
 @media (max-height:500px){#cPrev{height:62vh;width:min(34vw,240px)}.clist{max-height:50vh}}
+
+#rotate{display:none;position:fixed;inset:0;z-index:99999;background:#050b08;color:#d8e6dc;flex-direction:column;align-items:center;justify-content:center;gap:10px;font:600 20px system-ui;text-align:center}
+#rotate .rot-ico{font-size:56px;animation:rot 1.6s ease-in-out infinite}
+@keyframes rot{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+@media (orientation:portrait) and (pointer:coarse){body[data-dev=touch] #rotate{display:flex}}

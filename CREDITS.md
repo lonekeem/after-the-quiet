@@ -1,4 +1,4 @@
-# Credits & Licenses — After the Quiet v1.8.0 (Story Mode)
+# Credits & Licenses — After the Quiet v1.8.1 (Story Mode)
 Lone Keem Studios · created by Keem
 
 | Asset | Source | License |
