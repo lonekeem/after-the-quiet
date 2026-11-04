@@ -156,3 +156,12 @@ body.snap .layer{transition:none!important}
 .glist{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-bottom:12px;text-align:left}
 .gi{background:rgba(20,32,24,.85);border:1px solid #2f4a36;border-radius:10px;padding:10px;font-size:13px}.gi b{font-size:15px;color:#e8efe4}.gi .st{color:#9fb39f;margin:4px 0}
 .gi button{padding:5px 10px;margin:4px 4px 0 0;min-width:0;font-size:12px}.gi.eq{border-color:#7fd49a}
+
+/* v1.4 drive controls */
+#drive { position: fixed; inset: auto 0 0 0; height: 46vh; pointer-events: none; z-index: 31; }
+#drive .dl, #drive .dr { position: absolute; bottom: calc(18px + env(safe-area-inset-bottom)); display: flex; gap: 14px; pointer-events: auto; }
+#drive .dl { left: calc(22px + env(safe-area-inset-left)); } #drive .dr { right: calc(22px + env(safe-area-inset-right)); align-items: flex-end; }
+#drive .dbtn { width: 84px; height: 84px; font-size: 18px; font-weight: 800; touch-action: none; }
+#drive .gas { width: 96px; height: 120px; background: rgba(40,140,70,.45); } #drive .dbtn.on { background: rgba(255,255,255,.35); }
+body.driving #stickZone, body.driving #lbtns, body.driving #tbtns > :not(#tUse), body.driving #btnGren { display: none !important; }
+body.driving #tbtns { bottom: 150px; }

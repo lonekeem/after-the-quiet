@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { signTex, grassBladeTex, rnd, canvasTex } from './util.js';
 
 // Riverside, Maine — procedural night town built from CC0 Poly Haven PBR textures.
-export function buildWorld(scene, Q, texLoader, base) {
+export function buildWorld(scene, Q, texLoader, base, CM = {}) {
   const colliders = [], walls = [], updaters = [], lights = [];
   const T = (n, rep = 1, srgb = true) => { const t = texLoader.load(base + 'tex/' + n + '.jpg'); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep, rep); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = Q.aniso; return t; };
   const pbr = (n, rep, o = {}) => { const m = new THREE.MeshStandardMaterial(Object.assign({ map: T(n + '_diff', rep), roughness: 1 }, o));
@@ -102,7 +102,30 @@ export function buildWorld(scene, Q, texLoader, base) {
 
   // cars
   const rust = pbr('rust_coarse_01', 1, { roughness: .8, metalness: .5 });
-  function car(x, z, rot, col, opt = {}) { const g = new THREE.Group(); const paint = new THREE.MeshStandardMaterial({ color: col, metalness: .5, roughness: opt.burnt ? 1 : .45, map: rust.map, normalMap: rust.normalMap });
+  // v1.4: real CC0 Kenney Car Kit models (tinted, rusted, burnt or wrecked variants); boxes only as a fallback
+  const KINDS = ['sedan', 'suv', 'truck', 'police', 'van', 'taxi', 'hatchback-sports', 'suv-luxury', 'ambulance']; let kn = 0; const mcache = {};
+  const lenOf = {}; const tmpB = new THREE.Box3();
+  function carMat(src, key, f) { const k = src.uuid + key; if (!mcache[k]) { const m = src.clone(); f(m); mcache[k] = m; } return mcache[k]; }
+  function car(x, z, rot, col, opt = {}) { const kind = opt.kind || (opt.truck ? 'truck' : KINDS[kn++ % KINDS.length]); const src = CM[kind]; if (!src) return boxCar(x, z, rot, col, opt);
+    const g = new THREE.Group(); const m = src.clone(true); if (!lenOf[kind]) { tmpB.setFromObject(src); lenOf[kind] = tmpB.max.z - tmpB.min.z; }
+    const L = opt.truck ? 5.2 : kind === 'van' || kind === 'ambulance' ? 5 : kind === 'hatchback-sports' ? 4 : 4.5; m.scale.set(1.27, 1.27, L / lenOf[kind]); g.add(m);
+    const v = opt.burnt ? 'burnt' : opt.rust ? 'rust' : 'ok'; const tint = new THREE.Color(col).lerp(new THREE.Color('#ffffff'), .35);
+    m.traverse(o => { if (!o.isMesh) return; o.castShadow = true; o.receiveShadow = true;
+      o.material = carMat(o.material, v + (kind === 'police' || kind === 'taxi' || kind === 'ambulance' ? '' : col), mm => { mm.roughness = .5; mm.metalness = .25;
+        if (kind !== 'police' && kind !== 'taxi' && kind !== 'ambulance') mm.color.copy(tint); if (v === 'burnt') { mm.color.set('#2c2824'); mm.roughness = 1; mm.metalness = 0; }
+        if (v === 'rust') { mm.color.lerp(new THREE.Color('#7a4a2a'), .45); mm.roughness = .9; } if (opt.dirt) mm.color.multiplyScalar(.75); }); });
+    if (opt.wreck || opt.burnt) { const wn = ['wheel-front-left', 'wheel-back-right'][(x * 7 + z) & 1]; const w = m.getObjectByName(wn); if (w) w.visible = false; g.rotation.z = (wn.includes('left') ? 1 : -1) * .07; g.rotation.x = .03;
+      if (CM['debris-tire']) { const t = CM['debris-tire'].clone(true); t.scale.setScalar(1.27); t.position.set(1.6, .2, (z % 2) - .5); t.rotation.set(0, .8, 1.4); g.add(t); }
+      if (opt.wreck && CM['debris-door']) { const d = CM['debris-door'].clone(true); d.scale.setScalar(1.27); d.position.set(-1.5, 0, .4); d.rotation.set(0, .4, -1.45); g.add(d); }
+      if (opt.wreck && CM['debris-bumper']) { const d = CM['debris-bumper'].clone(true); d.scale.setScalar(1.27); d.position.set(.2, 0, L / 2 + .7); d.rotation.y = .5; g.add(d); } }
+    // head + tail lights (lit only on the truck / a running car)
+    const hl = new THREE.MeshStandardMaterial({ color: '#555', emissive: opt.lights ? '#fff3d0' : '#000', emissiveIntensity: 2.2 }), tl = new THREE.MeshStandardMaterial({ color: '#3a0808', emissive: opt.lights ? '#ff2010' : '#200000', emissiveIntensity: 1.2 });
+    [-.6, .6].forEach(hx => { const h = new THREE.Mesh(new THREE.BoxGeometry(.3, .13, .04), hl); h.position.set(hx, .78, L / 2 + .02); g.add(h); const t = new THREE.Mesh(new THREE.BoxGeometry(.28, .1, .04), tl); t.position.set(hx, .85, -L / 2 - .02); g.add(t); });
+    g.position.set(x, 0, z); g.rotation.y = rot; scene.add(g);
+    if (!opt.nocol) { const along = Math.abs(Math.sin(rot)) > .7; const hw = along ? L / 2 : 1, hd = along ? 1 : L / 2; const cc = { x0: x - hw, x1: x + hw, z0: z - hd, z1: z + hd, car: g }; colliders.push(cc); g.userData.col = cc; }
+    if (opt.burnt) fire(x, 1.3, z, 0.8);
+    return g; }
+  function boxCar(x, z, rot, col, opt = {}) { const g = new THREE.Group(); const paint = new THREE.MeshStandardMaterial({ color: col, metalness: .5, roughness: opt.burnt ? 1 : .45, map: rust.map, normalMap: rust.normalMap });
     if (opt.burnt) paint.color.set('#2a2622');
     const L = opt.truck ? 5.4 : 4.4; const b = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.75, L), paint); b.position.y = 0.75; g.add(b);
     const c = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.65, opt.truck ? 1.9 : 2.2), new THREE.MeshStandardMaterial({ color: opt.burnt ? '#151312' : '#0e1214', metalness: .6, roughness: .15, envMapIntensity: 1.5 })); c.position.set(0, 1.45, opt.truck ? 0.9 : -0.1); g.add(c);
@@ -113,7 +136,8 @@ export function buildWorld(scene, Q, texLoader, base) {
     if (!opt.nocol) { const along = Math.abs(Math.sin(rot)) > .7; const hw = along ? L / 2 : 1, hd = along ? 1 : L / 2; const cc = { x0: x - hw, x1: x + hw, z0: z - hd, z1: z + hd, car: g }; colliders.push(cc); g.userData.col = cc; }
     if (opt.burnt) fire(x, 1.3, z, 0.8);
     return g; }
-  const cars = [[-4.2, 28, .1, '#5a6a72'], [4.4, 12, 3.1, '#7a6a4a'], [-3, -8, 1.4, '#3d4a3a', { burnt: 1 }], [4, -22, 3.3, '#6a2a22'], [-4.5, -44, .05, '#8a8a82'], [2, -72, 2.2, '#445566', { burnt: 1 }], [-3.5, -84, .4, '#5a5048'], [24, 50, 0, '#384a3a'], [-24, 30, 1.57, '#6a6458'], [9, 33, 1.57, '#2c3a4a'], [-9, -30, 0, '#d8d8d0', { lights: 1 }]];
+  const cars = [[-4.2, 28, .1, '#5a6a72'], [4.4, 12, 3.1, '#7a6a4a'], [-3, -8, 1.4, '#3d4a3a', { burnt: 1 }], [4, -22, 3.3, '#6a2a22'], [-4.5, -44, .05, '#8a8a82', { wreck: 1, kind: 'police' }], [2, -72, 2.2, '#445566', { burnt: 1 }], [-3.5, -84, .4, '#5a5048', { rust: 1, wreck: 1 }], [24, 50, 0, '#384a3a', { rust: 1 }], [-24, 30, 1.57, '#6a6458', { dirt: 1 }], [9, 33, 1.57, '#2c3a4a'], [-9, -30, 0, '#d8d8d0', { lights: 1, kind: 'sedan' }],
+    [5, 52, 2.9, '#c8c0a8', { kind: 'van', dirt: 1 }], [-4.6, 60, .2, '#2a4a8a', { kind: 'hatchback-sports', wreck: 1 }], [4.6, -56, 3.0, '#e8e8e0', { kind: 'ambulance', wreck: 1 }], [-5, -64, -.3, '#3a3a3a', { kind: 'suv-luxury', rust: 1 }]];
   cars.forEach(c => car(c[0], c[1], c[2], c[3], c[4] || {}));
   // barricade before the bridge
   const jb = new THREE.MeshStandardMaterial({ color: '#8c8a82', roughness: .9 });

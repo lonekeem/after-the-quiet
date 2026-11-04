@@ -7,6 +7,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { buildWorld } from './world.js';
+import { CAST, randomLook, DEFAULT_LOOK } from './looks.js';
 import { CharLib, Char, backpack, weaponMesh, makeDog } from './chars.js';
 import { WEAPONS, WEAPON_ORDER, stat, perk, xpFor, PERKS, writeSave } from './data.js';
 import { V3, clamp, lerp, rnd, angLerp, bloodTex } from './util.js';
@@ -23,14 +24,8 @@ export function autoQuality() {
   const coarse = matchMedia && matchMedia('(pointer:coarse)').matches; const mem = navigator.deviceMemory || 4, cores = navigator.hardwareConcurrency || 4;
   if (!coarse) return cores >= 6 ? 'high' : 'med'; return mem >= 6 && cores >= 8 ? 'med' : 'low';
 }
-const KEEM = { skin: '#4a2e1f', shirt: '#2f4a3a', pants: '#2a3142', shoes: '#d8d8d0', hair: '#0b0806', sleeve: 0.5 };
-export const LOOKS = {
-  keem: KEEM, marcus: { skin: '#3d2618', shirt: '#5a3a2a', pants: '#2e2e30', shoes: '#2a1e14', hair: '#0a0806', sleeve: 0.42 },
-  nia: { skin: '#4a2e1f', shirt: '#b46a8a', pants: '#3a3a5a', shoes: '#eee', hair: '#120a06', sleeve: 0.5 },
-  walt: { skin: '#c99b80', shirt: '#6a6a5a', pants: '#3a3428', hair: '#aaa69e', sleeve: 0.9 }, ruth: { skin: '#e0b096', shirt: '#7a2e3a', pants: '#2a2a2a', hair: '#7a5a3a', sleeve: 0.55 },
-  dube: { skin: '#5a3a28', shirt: '#2a4a6a', pants: '#3a3a3a', hair: '#111', sleeve: 0.45 },
-};
-const ZLOOKS = [['#7e8a72', '#3a3a30', '#2a2a26'], ['#8a8c7a', '#5a2a22', '#24282a'], ['#6e7a66', '#2e3a48', '#3a3226'], ['#8c8678', '#6a6a5e', '#2a2622'], ['#7a8070', '#2a3a2a', '#1e1e1e']];
+export const LOOKS = CAST; let ZSEED = 1;
+export function playerLook() { try { const l = JSON.parse(localStorage.getItem('atq3.look') || 'null'); if (l && l.hair) return Object.assign({}, DEFAULT_LOOK, l); } catch (e) { } return DEFAULT_LOOK; }
 
 export class Game {
   constructor(opts) { Object.assign(this, opts); this.t = 0; this.paused = true; this.running = false; this.timeScale = 1; this.hitstop = 0; this.trauma = 0; }
@@ -50,11 +45,16 @@ export class Game {
     scene.add(new THREE.HemisphereLight('#3a4a5a', '#151a12', 0.55));
     const moon = this.moon = new THREE.DirectionalLight('#9fb4d0', 0.9); moon.position.set(-30, 50, 20); moon.castShadow = Q.shadows; moon.shadow.mapSize.set(Q.shadowMap, Q.shadowMap);
     const sc = moon.shadow.camera; sc.left = sc.bottom = -26; sc.right = sc.top = 26; sc.near = 1; sc.far = 140; moon.shadow.bias = -0.0005; moon.shadow.normalBias = 0.03; scene.add(moon, moon.target);
-    this.world = buildWorld(scene, Q, tl, base);
+    const CK = ['sedan', 'suv', 'truck', 'police', 'van', 'taxi', 'hatchback-sports', 'suv-luxury', 'ambulance', 'debris-tire', 'debris-door', 'debris-bumper']; const CM = {};
+    await Promise.all(CK.map(k => new GLTFLoader().loadAsync(base + 'models/cars/' + k + '.glb').then(g => { CM[k] = g.scene; }).catch(() => { })));
+    this.world = buildWorld(scene, Q, tl, base, CM);
     this.lib = new CharLib(gltf);
     await new Promise(res => { if (mgr.itemsLoaded >= mgr.itemsTotal) res(); else { mgr.onLoad = res; setTimeout(res, 15000); } });
+    // drive buttons (touch / mouse)
+    [['#dGas', 'gas'], ['#dBrake', 'brake'], ['#dL', 'l'], ['#dR', 'r']].forEach(([id, k]) => { const e = $(id); if (!e) return; const on = (v) => (ev) => { ev.preventDefault(); this.drv = this.drv || {}; this.drv[k] = v; e.classList.toggle('on', v); };
+      e.addEventListener('pointerdown', on(true)); ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => e.addEventListener(t, on(false))); });
     // player
-    const P = this.player = new Char(this.lib, KEEM, 0.9); scene.add(P.root);
+    const P = this.player = new Char(this.lib, playerLook(), 0.9); scene.add(P.root);
     this.pack = backpack(); this.pack.visible = false; P.attach('DEF-spine.003', this.pack); this.pack.position.set(0, 0.12, -0.2); this.pack.rotation.set(0.1, 0, 0);
     this.hand = new THREE.Group(); P.attach('DEF-hand.R', this.hand); this.hand.rotation.set(Math.PI / 2, 0, 0); this.hand.position.set(0, 0.08, 0.02);
     // flashlight
@@ -80,7 +80,7 @@ export class Game {
   start(step) { this.save.step = step || 0; this.loadStep(this.save.step); this.paused = false; if (!this.running) { this.running = true; this.last = performance.now(); requestAnimationFrame((t) => this.frame(t)); } }
   clearActors() { this.zombies.forEach(z => this.scene.remove(z.root)); this.zombies = []; for (const k in this.npcs) this.scene.remove(this.npcs[k].root); this.npcs = {};
     this.pickups.forEach(p => this.scene.remove(p.mesh)); this.pickups = []; this.props.forEach(p => this.scene.remove(p)); this.props = []; this.decalN = 0; this.decals.forEach(d => d.visible = false);
-    if (this.truck) this.truck.driving = false; this.boss = null; $('#boss').classList.add('hidden'); this.dlgQ = []; this.dlgCur = null; $('#dlg').classList.remove('on'); }
+    if (this.truck) this.truck.driving = false; document.body.classList.remove('driving'); $('#drive')?.classList.add('hidden'); this.drv = {}; this.boss = null; $('#boss').classList.add('hidden'); this.dlgQ = []; this.dlgCur = null; $('#dlg').classList.remove('on'); }
   loadStep(i) {
     this.clearActors(); const st = STORY[i]; this.step = i; this.stepData = {}; const P = this.player; this.dead = false; this.dying = null; this.cut = null;
     this.maxHp = 100 + (perk(this.save, 2) ? 20 : 0) + (perk(this.save, 9) ? 20 : 0) + (this.settings.qteEasy ? 50 : 0); this.hp = this.maxHp;
@@ -134,12 +134,12 @@ export class Game {
     l.onTake && l.onTake(this); writeSave(this.LS, s); }
 
   // ---------- NPCs & zombies ----------
-  npc(key, look, x, z, rot = 0, anim = 'Idle_Loop', scale = 0.98) { const c = new Char(this.lib, LOOKS[look] || look, scale); c.root.position.set(x, 0, z); c.root.rotation.y = rot; c.play(anim); this.scene.add(c.root); this.npcs[key] = c; c.key = key; return c; }
+  npc(key, look, x, z, rot = 0, anim = 'Idle_Loop', scale = 0.98) { const c = new Char(this.lib, LOOKS[look] || (look && look.hair ? look : randomLook((Math.random() * 1e6) | 0)), scale); c.root.position.set(x, 0, z); c.root.rotation.y = rot; c.play(anim); this.scene.add(c.root); this.npcs[key] = c; c.key = key; return c; }
   victim(x, z, look, eaters = 3) { const v = this.npc('v' + Math.random(), look, x, z, rnd(0, 6), 'Death01'); v.play('Death01', { once: true }); v.mixer.update(5); v.mat.userData.u.uBlood.value = this.settings.gore ? 1 : 0.2; v.bleed = true;
     this.decal(x, z, 2.2); this.decal(x + .6, z - .4, 1.4);
     for (let i = 0; i < eaters; i++) { const a = i / eaters * 6.28 + rnd(-.3, .3); const zz = this.spawnZ(x + Math.cos(a) * 0.95, z + Math.sin(a) * 0.95, { eat: v }); zz.root.rotation.y = Math.atan2(x - zz.root.position.x, z - zz.root.position.z); }
     return v; }
-  spawnZ(x, z, o = {}) { const L = ZLOOKS[(Math.random() * ZLOOKS.length) | 0]; const zl = { skin: L[0], shirt: L[1], pants: L[2], shoes: '#1a1a18', hair: '#2a2620', sleeve: rnd(.35, .7), grime: 1, blood: this.settings.gore ? rnd(.5, 1) : 0.15, zed: this.settings.gore };
+  spawnZ(x, z, o = {}) { const zl = Object.assign(randomLook((ZSEED++ * 7919 + (Math.random() * 1e5 | 0)) | 0, true), { grime: 1, blood: this.settings.gore ? rnd(.5, 1) : 0.15 }); if (Math.random() < .3) zl.hair = 'balding'; if (o.boss) { zl.hair = 'bald'; zl.beard = 'full'; zl.build = 1.3; }
     const sc = (o.scale || rnd(.94, 1.06)); const c = new Char(this.lib, zl, sc); c.id = Math.random() * 10; c.root.position.set(x, 0, z); c.root.rotation.y = rnd(0, 6); this.scene.add(c.root);
     const runner = o.runner ?? Math.random() < (this.stepData.runners || 0.15);
     Object.assign(c, { z: true, hp: o.hp || (runner ? 50 : 70), maxHp: o.hp || (runner ? 50 : 70), runner, speed: runner ? rnd(3.6, 4.4) : rnd(1.1, 1.6), st: o.eat ? 'eat' : (o.idle ? 'idle' : 'chase'), eat: o.eat, cd: rnd(0, 1), stun: 0, dead: false, boss: !!o.boss, aggro: o.aggro ?? 30, vel: V3() });
@@ -270,8 +270,8 @@ export class Game {
     (this.stepData.uses || []).forEach(u => { if (u.done) return; const d = Math.hypot(u.x - P.x, u.z - P.z); if (d < (u.r || 1.7) && d < bd + .5) { bd = d; best = { fn: (g) => { if (!u.repeat) u.done = true; u.fn(g); }, label: u.label }; } });
     if (!this.truck.driving && this.stepData.canDrive && Math.hypot(this.truck.g.position.x - P.x, this.truck.g.position.z - P.z) < 3.4) best = { fn: (g) => g.enterTruck(), label: 'Drive the truck' };
     return best; }
-  enterTruck() { this.truck.driving = true; this.player.root.visible = false; this.updateTruckCol(); this.audio.engine(true, 0); this.stepData.onDrive && this.stepData.onDrive(this); }
-  exitTruck() { const T = this.truck; T.driving = false; this.audio.engine(false); const p = T.g.position; this.player.root.position.set(p.x + Math.cos(T.head) * 2, 0, p.z - Math.sin(T.head) * 2); this.player.root.visible = true; this.updateTruckCol(); }
+  enterTruck() { this.truck.driving = true; this.truck.ch = null; document.body.classList.add('driving'); $('#drive')?.classList.remove('hidden'); this.player.root.visible = false; this.updateTruckCol(); this.audio.engine(true, 0); this.stepData.onDrive && this.stepData.onDrive(this); }
+  exitTruck() { const T = this.truck; T.driving = false; document.body.classList.remove('driving'); $('#drive')?.classList.add('hidden'); this.drv = {}; this.audio.engine(false); const p = T.g.position; this.player.root.position.set(p.x + Math.cos(T.head) * 2, 0, p.z - Math.sin(T.head) * 2); this.player.root.visible = true; this.updateTruckCol(); }
 
   // ---------- frame ----------
   frame(now) { if (!this.running) return; requestAnimationFrame((t) => this.frame(t)); let rdt = Math.min(0.05, (now - this.last) / 1000); this.last = now;
@@ -323,12 +323,18 @@ export class Game {
       const ox = Math.min(nx - (c.x0 - r), (c.x1 + r) - nx), oz = Math.min(nz - (c.z0 - r), (c.z1 + r) - nz);
       if (ox < oz) nx = nx - (c.x0 + c.x1) / 2 < 0 ? c.x0 - r : c.x1 + r; else nz = nz - (c.z0 + c.z1) / 2 < 0 ? c.z0 - r : c.z1 + r; } }
     const hitWall = Math.abs(nx - p.x - dx) + Math.abs(nz - p.z - dz) > 1e-4; p.x = nx; p.z = nz; return hitWall; }
-  updateTruck(dt) { const T = this.truck, I = this.input; const thr = clamp(-I.move.y + (I.atk ? 1 : 0), -1, 1), str = clamp(I.move.x, -1, 1);
-    T.v += thr * (thr * T.v < 0 ? 22 : 11) * dt; T.v *= (1 - dt * (thr ? .25 : 1.2)); T.v = clamp(T.v, -7, 19); T.head -= str * dt * clamp(T.v / 6, -1, 1) * 1.7;
+  // v1.4 arcade handling: smoothed speed-sensitive steering, high grip, auto-straighten, gentle bumps
+  updateTruck(dt) { const T = this.truck, I = this.input, D = this.drv || (this.drv = {}); let gas = D.gas ? 1 : 0, brk = D.brake ? 1 : 0, st = (D.r ? 1 : 0) - (D.l ? 1 : 0);
+    if (!D.gas && !D.brake) { gas = Math.max(0, -I.move.y) + (I.atk ? 1 : 0); brk = Math.max(0, I.move.y); } if (!st) st = clamp(I.move.x, -1, 1);
+    const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(x => x) : null; if (gp) { const rt = gp.buttons[7]?.value || 0, lt = gp.buttons[6]?.value || 0; if (rt > .05) gas = rt; if (lt > .05) brk = lt; if (Math.abs(gp.axes[0]) > .15) st = gp.axes[0]; }
+    gas = clamp(gas, 0, 1); brk = clamp(brk, 0, 1); T.st = T.st || 0; T.st += (st - T.st) * Math.min(1, dt * (st ? 5 : 8));
+    if (gas) T.v += gas * 9 * dt * (T.v < 0 ? 2 : 1); if (brk) T.v -= brk * (T.v > 0.2 ? 18 : 6) * dt; if (!gas && !brk) T.v *= (1 - dt * .7); if (Math.abs(T.v) < .05 && !gas && !brk) T.v = 0;
+    T.v = clamp(T.v, -6, 17); const sp = Math.abs(T.v); T.head -= T.st * dt * 1.9 * Math.min(1, sp / 3) / (1 + sp / 12) * Math.sign(T.v || 1);
     T.g.rotation.y = T.head; const p = T.g.position; const fx = Math.sin(T.head) * T.v * dt, fz = Math.cos(T.head) * T.v * dt;
-    if (this.moveCollide(p, fx, fz, 1.3) && Math.abs(T.v) > 4) { this.shake(.4); this.audio.crash(); T.v *= -0.3; } else if (this.moveCollide(p, 0, 0, 1.3)) T.v *= .9;
-    this.audio.engine(true, Math.abs(T.v) / 19);
-    this.alive().forEach(z => { const d = z.root.position.distanceTo(p); if (d < 2.1) { if (Math.abs(T.v) > 3.5) { const dir = z.root.position.clone().sub(p).setY(0).normalize(); this.damageZ(z, 200, dir, { boom: true }); this.shake(.25); this.hitstop = .04; this.audio.thud(); T.v *= .93; } else { z.st = 'chase'; } } });
+    if (this.moveCollide(p, fx, fz, 1.3)) { if (sp > 8) { this.shake(.2); this.audio.crash(); } T.v *= -0.15; }
+    T.spin = (T.spin || 0) + T.v * dt / .38; ['wheel-front-left', 'wheel-front-right', 'wheel-back-left', 'wheel-back-right'].forEach(n => { const w = T.g.getObjectByName(n); if (w) { w.rotation.x = T.spin; if (n.includes('front')) w.rotation.y = -T.st * .45; } });
+    this.audio.engine(true, sp / 17);
+    this.alive().forEach(z => { const d = z.root.position.distanceTo(p); if (d < 2.1) { if (sp > 3.5) { const dir = z.root.position.clone().sub(p).setY(0).normalize(); this.damageZ(z, 200, dir, { boom: true }); this.shake(.2); this.hitstop = .03; this.audio.thud(); T.v *= .95; } else { z.st = 'chase'; } } });
     this.player.root.position.copy(p); this.updateTruckCol(); }
   updateZ(dt) { const P = this.player, pp = this.truck.driving ? this.truck.g.position : P.root.position; const Z = this.zombies;
     for (let i = 0; i < Z.length; i++) { const z = Z[i]; const zp = z.root.position;
@@ -381,7 +387,7 @@ export class Game {
     let target, desired; const fov = aim ? 62 / (ws.zoom || 1.35) : 62; cam.fov = lerp(cam.fov, fov, Math.min(1, rdt * 12)); cam.updateProjectionMatrix();
     if (this.cut && this.cut.cam) { cam.position.lerp(this.cut.cam, Math.min(1, rdt * 3)); const lk = this.cut.look; this._lk = this._lk ? this._lk.lerp(lk, Math.min(1, rdt * 3)) : lk.clone(); cam.lookAt(this._lk); }
     else if (this.dying) { const p = P.root.position; const want = V3(p.x + Math.sin(this.t * .3) * 2.4, 1.1, p.z + Math.cos(this.t * .3) * 2.4); cam.position.lerp(want, rdt * 2); cam.lookAt(p.x, .4, p.z); }
-    else if (T && T.driving) { const p = T.g.position; desired = V3(p.x - Math.sin(T.head) * 8, 3.6, p.z - Math.cos(T.head) * 8); cam.position.lerp(desired, Math.min(1, rdt * 5)); cam.lookAt(p.x + Math.sin(T.head) * 4, 1.2, p.z + Math.cos(T.head) * 4); C.yaw = T.head + Math.PI; }
+    else if (T && T.driving) { const p = T.g.position; T.ch = T.ch == null ? T.head : angLerp(T.ch, T.head, Math.min(1, rdt * 3)); const dd = 7.5 + Math.abs(T.v) * .12; desired = V3(p.x - Math.sin(T.ch) * dd, 3.3, p.z - Math.cos(T.ch) * dd); cam.position.lerp(desired, Math.min(1, rdt * 4)); cam.lookAt(p.x + Math.sin(T.ch) * 4, 1.2, p.z + Math.cos(T.ch) * 4); C.yaw = T.ch + Math.PI; }
     else if (C.fp) { const hp = V3(); P.worldOf('DEF-head', hp); hp.y += .05; cam.position.copy(P.root.position).setY(P.root.position.y + (this.state.crouch ? 1.0 : 1.48)); const f = V3(-Math.sin(C.yaw), 0, -Math.cos(C.yaw)); cam.position.addScaledVector(f, .12);
       cam.rotation.set(0, 0, 0, 'YXZ'); cam.rotation.order = 'YXZ'; cam.rotation.y = C.yaw; cam.rotation.x = C.pitch; }
     else { target = P.root.position.clone(); target.y += this.state && this.state.crouch ? 1.05 : 1.5; const dist = aim ? 1.6 : 2.7, sh = aim ? .62 : .5;
@@ -408,7 +414,7 @@ export class Game {
     $('#ammoTxt').textContent = w.type === 'gun' ? `${w.name}  ·  Ammo : ${s.mags[s.cur] || 0} / ${s.ammo[w.ammo] || 0}${this.state.reload > 0 ? '  (reloading)' : ''}` : w.name;
     $('#grenN').textContent = s.grenades; $('#tAtk').textContent = w.type === 'gun' ? 'FIRE' : 'HIT'; $('#pages').textContent = s.pages.length ? `Comic pages ${s.pages.length}/8` : '';
     $('#lowhp').style.opacity = this.dying ? 1 : clamp(1 - this.hp / this.maxHp * 2.2, 0, .9); const cb = $('#combo'); if (this.state.combo >= 2) { cb.textContent = `x${this.state.combo} COMBO`; cb.classList.add('on'); } else cb.classList.remove('on');
-    const n = this.nearUse(); $('#prompt').textContent = n && !this.cut ? `✋ ${n.label}` : (this.truck.driving ? 'Drive: stick / WASD · FIRE = gas' : '');
+    const n = this.nearUse(); $('#prompt').textContent = n && !this.cut ? `✋ ${n.label}` : (this.truck.driving ? 'GAS / BRAKE + ◀ ▶ · W/S + A/D · RT/LT' : '');
     if (this.boss) $('#boss').classList.remove('hidden');
     // waypoint
     const wpE = $('#wp'); const tgt = this.wpTarget; if (tgt && !this.cut) { const v = V3(tgt[0], tgt[1] || 1.2, tgt[2]); const dist = v.distanceTo(this.player.root.position); const p = v.clone().project(this.camera); let x = (p.x * .5 + .5) * innerWidth, y = (-p.y * .5 + .5) * innerHeight; const behind = p.z > 1;

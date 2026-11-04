@@ -66,7 +66,7 @@ export const STORY = [
     enter(g) { const D = g.stepData; const dad = g.npc('marcus', 'marcus', 20, -61, -PI / 2, 'Idle_Talking_Loop'); const nia = g.npc('nia', 'nia', 20.3, -62.6, -PI / 2, 'Idle_Loop', .62);
       g.cut = { anim: 'Idle_Loop', cam: V(15, 1.8, -58), look: V(20, 1, -61.5), flash: true };
       g.say([['marcus', 'You blew up Hank\'s.'], ['keem', 'Hank\'s was… already kinda on fire, emotionally.'], ['marcus', 'My hand\'s cut up. You drive. You\'ve played enough of those games.'], ['nia', 'He crashes in ALL of them.'], ['keem', 'That\'s called STYLE.'], ['marcus', 'Bridge. Riverside Bridge. The Guard is on the far side. GO.']], () => {
-        g.cut = null; D.canDrive = true; g.objective('Get in the truck and drive to Riverside Bridge', 'E / ✋ near the truck. Steer with the stick, FIRE = gas. Ram them.'); g.wpTarget = [22, 1.4, -64];
+        g.cut = null; D.canDrive = true; g.objective('Get in the truck and drive to Riverside Bridge', 'E / ✋ near the truck. GAS/BRAKE + ◀ ▶ (W/S A/D, pad RT/LT). Ram them.'); g.wpTarget = [22, 1.4, -64];
         D.onDrive = (g) => { dad.root.visible = nia.root.visible = false; g.wpTarget = [0, 1, -96]; g.objective('Drive to Riverside Bridge', 'Plow through. Don\'t stop.'); D.hordeAll = true; D.runners = .3; g.horde(16, [[0, -66], [-2, -72], [3, -78], [-3, -84], [2, -90], [0, -80]]); g.audio.beat(2);
           g.say([['nia', 'Left! LEFT! Your OTHER left!'], ['keem', 'I KNOW WHICH LEFT!']]); }; }); },
     update(g) { const T = g.truck; if (T.driving && T.g.position.z < -91) { T.v = 0; g.shake(1); g.audio.crash(); g.exitTruck(); g.player.root.position.set(1, 0, -93.5); goto(g, 5, 150); } } },

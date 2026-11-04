@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { bodyLook, dressChar } from './looks.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 // Body material: one CC0 Quaternius mannequin, "dressed" in the shader by bind-pose regions
@@ -8,21 +9,29 @@ export function bodyMat(o) {
   const U = m.userData.u = {
     uSkin: { value: new THREE.Color(o.skin) }, uShirt: { value: new THREE.Color(o.shirt) }, uPants: { value: new THREE.Color(o.pants) },
     uShoes: { value: new THREE.Color(o.shoes || '#1b1b1b') }, uHair: { value: new THREE.Color(o.hair || '#0d0a08') },
-    uSleeve: { value: o.sleeve ?? 0.62 }, uGrime: { value: o.grime || 0 }, uBlood: { value: o.blood || 0 }, uZed: { value: o.zed ? 1 : 0 }, uSeed: { value: Math.random() * 10 },
+    uSleeve: { value: o.sleeve ?? 0.62 }, uJk: { value: o.jk || 0 }, uJacket: { value: new THREE.Color(o.jacket || o.shirt) }, uJSleeve: { value: new THREE.Color(o.jsleeve || o.jacket || o.shirt) }, uLong: { value: o.long || 0 }, uCamo: { value: o.camo || 0 }, uBoots: { value: o.boots || 0 }, uGlove: { value: o.gloves || 0 }, uPlaid: { value: o.plaid || 0 }, uStripe: { value: o.stripe || 0 }, uGloss: { value: o.gloss || 0 }, uPuff: { value: o.puff || 0 }, uNoHead: { value: o.nohead ? 1 : 0 }, uGrime: { value: o.grime || 0 }, uBlood: { value: o.blood || 0 }, uZed: { value: o.zed ? 1 : 0 }, uSeed: { value: Math.random() * 10 },
   };
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = 'varying vec3 vBP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvBP = position;');
-    sh.fragmentShader = 'varying vec3 vBP;\nuniform vec3 uSkin,uShirt,uPants,uShoes,uHair;uniform float uSleeve,uGrime,uBlood,uZed,uSeed;\n' +
+    sh.fragmentShader = 'varying vec3 vBP;\nuniform vec3 uSkin,uShirt,uPants,uShoes,uHair;uniform vec3 uJacket,uJSleeve;uniform float uNoHead,uJk,uLong,uCamo,uBoots,uGlove,uPlaid,uStripe,uGloss,uPuff;uniform float uSleeve,uGrime,uBlood,uZed,uSeed;\n' +
       sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-      float h = vBP.y / 1.83; float ax = abs(vBP.x);
-      vec3 c = uPants;
+      float h = vBP.y / 1.83; float ax = abs(vBP.x); if (uNoHead > 0.5 && vBP.y > 1.47 && ax < 0.13) discard;
+      vec3 c = uPants; float jk = 0.0; float cl = 1.0;
       if (h > 0.52) c = uShirt;
-      if (ax > uSleeve) c = uSkin;
-      if (h > 0.82 && ax < 0.16) c = uSkin;
-      if (h > 0.935 || (h > 0.88 && vBP.z < -0.04 && ax < 0.16)) c = uHair;
-      if (h < 0.055) c = uShoes;
-      if (h > 0.47 && h < 0.53 && ax < 0.2) c = uShoes * 1.4; // belt
+      if (uJk > 0.5 && h > 0.52) { bool open = uJk < 1.5 && ax < 0.05 && vBP.z > 0.0 && h < 0.8; if (!open) { c = (ax > 0.17) ? uJSleeve : uJacket; jk = 1.0; } }
+      if (uJk > 2.5) { c = uJacket; jk = 1.0; }
+      if (uLong > 0.0 && h <= 0.52 && h > 0.52 - uLong * 0.28 && !(uJk < 1.5 && vBP.z > 0.03 && ax < 0.06)) { c = uJacket; jk = 1.0; }
+      if (ax > uSleeve && !(uJk > 0.5 && ax < 0.62)) { c = uSkin; cl = 0.0; }
+      if (uGlove > 0.5 && ax > 0.62) { c = vec3(0.06); cl = 0.0; }
+      if (h > 0.82 && ax < 0.16) { c = uSkin; cl = 0.0; }
+      if (h < 0.055 + uBoots * 0.07) { c = uShoes; cl = 0.0; }
+      if (uJk < 2.5 && h > 0.47 && h < 0.53 && ax < 0.2 && jk < 0.5) c = uShoes * 1.4 + 0.02; // belt
+      if (uCamo > 0.5 && cl > 0.5 && jk < 0.5 || (uCamo > 0.5 && uJk > 1.5 && jk > 0.5)) { float q = sin(vBP.x*17.+sin(vBP.y*13.)*2.)+sin(vBP.y*19.+vBP.z*15.)+sin(vBP.z*21.+vBP.x*9.);
+        c = q > 1.0 ? c*0.45 : q > 0.1 ? c*vec3(0.85,0.75,0.55) : q < -1.2 ? c*vec3(1.25,1.2,0.95) : c; }
+      if (uPlaid > 0.5 && jk > 0.5) { float a = step(0.7, fract(vBP.y*22.)) + step(0.7, fract((vBP.x+vBP.z)*22.)); c *= 1.0 - 0.35*min(a,1.0) - 0.25*step(1.5,a); }
+      if (uStripe > 0.5 && cl > 0.5 && ((h < 0.52 && h > 0.06 && ax > 0.12) || (fract(h*6.0) < 0.06 && uJk > 0.5 && jk > 0.5 && h < 0.7))) c = vec3(0.85,0.85,0.7);
+      if (uPuff > 0.5 && jk > 0.5) c *= 0.85 + 0.15*step(0.5, fract(vBP.y*14.));
       float n1 = sin(vBP.x*31.+uSeed)*sin(vBP.y*23.+uSeed*2.)*sin(vBP.z*37.+1.3);
       float n2 = sin(vBP.x*9.+uSeed*3.)*sin(vBP.y*7.)*sin(vBP.z*11.+uSeed);
       c *= mix(1.0, 0.55 + 0.6*(0.5+0.5*n1), uGrime);
@@ -32,7 +41,7 @@ export function bodyMat(o) {
       bl = max(bl, mouth); bl = max(bl, uZed * step(0.62, h) * step(h, 0.8) * step(0.03, vBP.z) * smoothstep(0.3,0.7,n1) * 0.9);
       c = mix(c, vec3(0.22,0.0,0.0), clamp(bl,0.,1.));
       diffuseColor.rgb = c;`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.25, step(0.5, diffuseColor.r - diffuseColor.g) * uBlood);');
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.32, uGloss * step(0.52, vBP.y/1.83) * step(0.0, uJk - 0.5));\nroughnessFactor = mix(roughnessFactor, 0.25, step(0.5, diffuseColor.r - diffuseColor.g) * uBlood);');
   };
   m.customProgramCacheKey = () => 'body';
   return m;
@@ -43,8 +52,8 @@ export class CharLib {
     // strip root translation from in-place clips (keep feet planted), skip _RM
     for (const k in this.clips) { const c = this.clips[k]; c.tracks = c.tracks.filter(t => !(t.name.startsWith('root.') && t.name.endsWith('.position'))); }
   }
-  make(look) { const obj = SkeletonUtils.clone(this.gltf.scene); const mat = bodyMat(look); const bones = {};
-    obj.traverse(o => { if (o.isSkinnedMesh) { o.material = mat; o.castShadow = true; o.receiveShadow = false; o.frustumCulled = false; } if (o.isBone) bones[o.name] = o; });
+  make(look) { const obj = SkeletonUtils.clone(this.gltf.scene); const mat = bodyMat(look.hair ? Object.assign(bodyLook(look), { grime: Math.max(look.grime || 0, bodyLook(look).grime), blood: look.blood, zed: look.zed, nohead: 1 }) : look); const bones = {};
+    obj.traverse(o => { if (o.isSkinnedMesh) { o.material = mat; o.castShadow = true; o.receiveShadow = false; o.frustumCulled = false; } if (o.isBone) { bones[o.name] = o; bones[o.name.replace(/[.]/g, '')] = o; } });
     return { obj, mat, bones };
   }
 }
@@ -53,6 +62,7 @@ export class Char {
   constructor(lib, look, scale = 1) {
     const { obj, mat, bones } = lib.make(look); this.lib = lib; this.mat = mat; this.bones = bones; this.look = look;
     this.root = new THREE.Group(); this.root.add(obj); obj.scale.setScalar(scale); this.scale = scale; this.model = obj;
+    if (look.hair) dressChar(this, look);
     this.mixer = new THREE.AnimationMixer(obj); this.actions = {}; this.cur = null; this.curName = ''; this.oneShot = null;
     this.mixer.addEventListener('finished', (e) => { if (this.oneShot && e.action === this.oneShot.a) { const cb = this.oneShot.cb; this.oneShot = null; cb && cb(); } });
   }
@@ -63,8 +73,9 @@ export class Char {
     if (once) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; this.oneShot = { a, cb }; } else a.setLoop(THREE.LoopRepeat);
     if (this.cur && this.cur !== a) a.crossFadeFrom(this.cur, fade, false); a.play(); this.cur = a; this.curName = name;
   }
-  attach(boneName, mesh) { const b = this.bones[boneName]; if (b) b.add(mesh); return mesh; }
-  worldOf(boneName, out) { const b = this.bones[boneName]; return b ? b.getWorldPosition(out) : this.root.getWorldPosition(out); }
+  bone(n) { return this.bones[n] || this.bones[n.replace(/[.]/g, '')]; }
+  attach(boneName, mesh) { const b = this.bone(boneName); if (b) b.add(mesh); return mesh; }
+  worldOf(boneName, out) { const b = this.bone(boneName); return b ? b.getWorldPosition(out) : this.root.getWorldPosition(out); }
 }
 
 // Simple props built from primitives
