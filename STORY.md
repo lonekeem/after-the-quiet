@@ -49,7 +49,7 @@ Tone: grim, frightening, grounded. Moments of tenderness are the point. The viol
 
 **Act IV — Cliffhanger**
 16. Drive/run to the Harbor Bridge, which has sandbags and army lights. Dad stays back to hold the gate as the horde arrives. "Get your sister across. I'll be right behind you."
-17. Across the bridge, the lights die. The radio crackles: a voice says Kemoy's name. Black screen. Nia: "He was right behind us. That's what I told myself for a long, long time."
+17. Across the bridge, the lights die. The radio crackles: a voice says Kemoy's name. Black screen. Grown-up Nia, by the fire with Biscuit: "Dad said he would be right behind us. Kemoy and I told ourselves that, for a long, long time."
 **END OF CHAPTER 1**
 
 ## Future Chapters (notes)

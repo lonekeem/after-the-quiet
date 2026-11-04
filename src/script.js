@@ -351,8 +351,8 @@ export const SCENES = [
    { sfx: 'static' },
    { s: ['radio', '...anyone on this channel... Kemoy... Kemoy Hart, if you can hear me...'] },
    { s: ['kemoy', 'Dad?'] } ] },
- { id: 'end', goal: 'Remember', img: 's36_old_kemoy', kb: 'in', fx: ['embers'], mood: 'sad', beats: [
-   { n: 'He was right behind us. That is what I told myself, for a long, long time.' },
+ { id: 'end', goal: 'Remember', img: 's36_old_nia', kb: 'in', fx: ['embers'], mood: 'sad', beats: [
+   { n: 'Dad said he would be right behind us. Kemoy and I told ourselves that, for a long, long time.' },
    { card: ['END OF CHAPTER ONE', 'Chapter Two · High Water · coming soon'] } ] },
 ];
 export const CHAPTER_STARTS = SCENES.map((s, i) => [s.act, i]).filter(x => x[0]);
