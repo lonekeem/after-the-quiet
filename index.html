@@ -7,6 +7,14 @@
 <title>After the Quiet — Lone Keem Studios</title>
 <link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./favicon-32.png"><link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <link rel="stylesheet" href="./src/style.css">
+<script>
+(function(){try{if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(x){x.unregister()})});if(window.caches&&caches.keys)caches.keys().then(function(k){k.forEach(function(n){caches.delete(n)})});}catch(e){}
+function show(msg){var d=document.getElementById('bootErr');if(!d){d=document.createElement('div');d.id='bootErr';d.style.cssText='position:fixed;inset:0;z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#050b08;color:#bfe9cc;font:16px Georgia,serif;text-align:center;padding:24px';document.body.appendChild(d);}d.innerHTML='<b style="font-size:22px;color:#7fd49a">After the Quiet</b><div>'+msg+'</div><button onclick="location.reload()" style="font:inherit;padding:10px 18px;background:#0d2a18;color:#dfe;border:1px solid #7fd49a;border-radius:8px">Reload</button>';}
+window.__atqShowErr=show;
+window.addEventListener('error',function(e){if(!window.__atqBooted)show('Something went wrong while loading.<br><small>'+(e.message||'script error')+'</small>');});
+window.addEventListener('unhandledrejection',function(e){if(!window.__atqBooted)show('Something went wrong while loading.<br><small>'+((e.reason&&e.reason.message)||e.reason)+'</small>');});
+setTimeout(function(){if(!window.__atqBooted)show('The game did not start. Your browser may be too old, or a stale copy is cached.<br>Try Reload, or update your browser.');},6000);})();
+</script>
 </head>
 <body>
 <div id="stage">

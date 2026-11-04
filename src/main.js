@@ -3,8 +3,11 @@ import { SCENES, CAST, ITEMS, CHAPTER_STARTS, hash } from './script.js';
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const DEF = { vol: 0.9, auto: false, music: 0.6, text: 1, subs: true, gore: true, qteEasy: false, still: false, hints: true };
-const S = Object.assign({}, DEF, JSON.parse(localStorage.getItem('atq2.settings') || '{}'));
-const saveS = () => localStorage.setItem('atq2.settings', JSON.stringify(S));
+// localStorage can throw (Safari private mode, blocked storage): fall back to memory
+const LS = (() => { try { const k = '__t'; localStorage.setItem(k, 1); localStorage.removeItem(k); return localStorage; } catch { const m = {}; return { getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: k => { delete m[k]; } }; } })();
+let _saved = {}; try { _saved = JSON.parse(LS.getItem('atq2.settings') || '{}') || {}; } catch {}
+const S = Object.assign({}, DEF, _saved);
+const saveS = () => LS.setItem('atq2.settings', JSON.stringify(S));
 const audio = new AudioSys(S);
 const G = window.__atq = { state: 'boot', scene: -1, inv: [], flags: {}, device: 'kbd' };
 // ---------- input ----------
@@ -66,7 +69,7 @@ let goal = '';
 function setGoal(t) { goal = t || ''; obj(goal); }
 const hglyph = (k) => G.device === 'touch' ? 'Tap' : G.device === 'pad' ? ({ ok: 'Ⓐ', cont: 'Ⓨ', move: 'D-pad' })[k] : ({ ok: 'Enter / Click', cont: 'C', move: 'Arrow keys' })[k];
 async function tutorial(kind) {
-  if (!S.hints || localStorage.getItem('atq2.tut.' + kind)) return; localStorage.setItem('atq2.tut.' + kind, 1);
+  if (!S.hints || LS.getItem('atq2.tut.' + kind)) return; LS.setItem('atq2.tut.' + kind, 1);
   const msg = kind === 'hot' ? `<b>Look around</b><br>Glowing circles are things you can interact with.<br>${G.device === 'touch' ? 'Tap one' : G.device === 'pad' ? 'D-pad to select · Ⓐ to use' : 'Click one, or Arrow keys + Enter'}.<br><small>The line at the top-left always tells you what to do.</small>`
     : `<b>Quick-time events</b><br>When the red button appears, ${G.device === 'touch' ? 'tap it' : 'press the key shown'}.<br>MASH = press fast · WAIT FOR IT = press when the marker is in the green<br>DON'T MOVE = press nothing. The ring shows time left.<br><small>Fail? You retry from the checkpoint. Easier QTEs in Settings.</small>`;
   const t = document.createElement('div'); t.id = 'tut'; t.innerHTML = msg + `<div class="tk">${G.device === 'touch' ? 'Tap' : G.device === 'pad' ? 'Ⓐ' : 'Enter'} to continue</div>`; document.body.appendChild(t);
@@ -155,8 +158,8 @@ async function card(a, b, ms = 4200) { const c = $('#card'); c.querySelector('.c
 async function blackCut(text) { const f = $('#fade'); f.style.transition = 'none'; f.style.opacity = 1; audio.drone(false); audio.boom(); f.innerHTML = `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:italic clamp(22px,3.4vw,40px) Georgia;color:#dfe;letter-spacing:.1em;opacity:0;transition:opacity 2s" id="dtext">${text}</div>`;
   await sleep(1400); $('#dtext').style.opacity = 1; await sleep(3400); $('#dtext').style.opacity = 0; await sleep(1600); f.innerHTML = ''; f.style.transition = ''; audio.setMood('day'); }
 // ---------- scene runner ----------
-function save(i) { localStorage.setItem('atq2.save', JSON.stringify({ scene: i, inv: G.inv, flags: G.flags, t: Date.now() })); }
-function load() { try { return JSON.parse(localStorage.getItem('atq2.save')); } catch { return null; } }
+function save(i) { LS.setItem('atq2.save', JSON.stringify({ scene: i, inv: G.inv, flags: G.flags, t: Date.now() })); }
+function load() { try { return JSON.parse(LS.getItem('atq2.save')); } catch { return null; } }
 let cpScene = 0, cpInv = [], cpFlags = {};
 async function runScene(i) {
   const sc = SCENES[i]; if (sc.ifFlag && !G.flags[sc.ifFlag]) return; G.scene = i; setGoal(sc.goal || (sc.trailer ? '' : 'Watch. Listen.')); G.sceneId = sc.id; G.state = 'play';
@@ -199,7 +202,7 @@ async function play(from) {
     }
     skipOff?.(); cont(null);
   }
-  localStorage.removeItem('atq2.save'); localStorage.setItem('atq2.done', '1'); G.state = 'title'; toTitle();
+  LS.removeItem('atq2.save'); LS.setItem('atq2.done', '1'); G.state = 'title'; toTitle();
 }
 // ---------- menus ----------
 function showScreen(id) { $$('.screen').forEach(s => s.classList.add('hidden')); if (id) $(id).classList.remove('hidden'); menuNav(id); }
@@ -215,7 +218,7 @@ function menuNav(id) { navOff?.(); navOff = null; if (!id) return; const root = 
 let back = '#title';
 function toTitle() { G.state = 'title'; audio.setMood('menu'); $('#btnContinue').classList.toggle('hidden', !load()); showScreen('#title'); back = '#title'; }
 $$('.back').forEach(b => b.onclick = () => { if (G.state === 'pausedSettings') { G.state = 'paused'; showScreen('#pause'); return; } if (G.state === 'inv') { G.state = 'play'; showScreen(null); return; } showScreen(back); });
-$('#btnWarn').onclick = async () => { audio.init(); showScreen(null); $('#studio').classList.remove('hidden'); audio.sting(); fadeIn();
+$('#btnWarn').onclick = async () => { try { audio.init(); audio.sting(); } catch (e) { console.warn('audio', e); } showScreen(null); $('#studio').classList.remove('hidden'); fadeIn();
   await Promise.race([sleep(4200), waitFor(['ok', 'any'])]); $('#studio').classList.add('hidden'); toTitle(); };
 $('#btnNew').onclick = () => { G.inv = []; G.flags = {}; play(0); };
 $('#btnContinue').onclick = () => { const s = load(); if (!s) return; G.inv = s.inv || []; G.flags = s.flags || {}; play(s.scene); };
@@ -249,5 +252,6 @@ if ('ontouchstart' in window) setDevice('touch');
 const qs = new URLSearchParams(location.search);
 if (qs.has('scene') || qs.has('id')) { $('#warning').classList.add('hidden'); const i = qs.get('id') ? SCENES.findIndex(s => s.id === qs.get('id')) : +qs.get('scene'); G.inv = ['compass', 'sketchbook', 'flashlight', 'bat']; play(i); }
 else { fadeIn(); }
+window.__atqBooted = true;
 window.__atq.go = i => { setAbort('quit'); setTimeout(() => play(i), 100); };
 document.querySelector('#title .tbg').style.backgroundImage = "url(./img/title_bg.webp)";
