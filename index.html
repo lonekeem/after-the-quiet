@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#06120b">
+<title>After the Quiet — Lone Keem Studios</title>
+<link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vignette"></div>
+<div id="fade"></div>
+
+<div id="hud" class="hidden">
+  <div id="objective"></div>
+  <div id="health"><div id="healthbar"></div></div>
+  <div id="prompt"></div>
+  <div id="crosshair"></div>
+  <div id="damage"></div>
+</div>
+<div id="subs"></div>
+<div id="chaptercard" class="hidden"></div>
+
+<div id="touch" class="hidden">
+  <div id="stick"><div id="knob"></div></div>
+  <div id="tbtns">
+    <button data-b="use">USE</button>
+    <button data-b="hit">HIT</button>
+    <button data-b="run">RUN</button>
+    <button data-b="light">LIGHT</button>
+  </div>
+  <button id="tpause" data-b="pause">II</button>
+</div>
+
+<div id="studio" class="hidden"><div class="sp">LONE KEEM STUDIOS</div><div class="sl"></div><div class="ss">presents</div><div class="skip">tap / press any key to skip</div></div>
+<div id="warning" class="screen">
+  <div class="panel">
+    <h2>Content Warning</h2>
+    <p>This game contains <b>horror</b>, <b>violence</b>, frightening scenes, blood (can be turned off), and themes of <b>death and loss</b>, including the loss of a parent.</p>
+    <p>Recommended for players 13+ (Teen / Mature style).</p>
+    <p class="small">Headphones recommended. Gore can be toggled in Settings.</p>
+    <button id="btnWarn" class="primary">I Understand</button>
+  </div>
+</div>
+
+<div id="title" class="screen hidden">
+  <div class="logo">
+    <div class="studio">LONE KEEM STUDIOS PRESENTS</div>
+    <h1>AFTER THE QUIET</h1>
+    <div class="tag">Lone Keem, Maine</div>
+  </div>
+  <div class="menu">
+    <button id="btnContinue" class="hidden">Continue</button>
+    <button id="btnChapters" class="primary">Chapters</button>
+    <button id="btnSettings">Settings</button>
+    <button id="btnControls">Controls</button>
+    <button id="btnCredits">Credits</button>
+  </div>
+  <div class="foot">Working title · v0.1 · Chapter 1</div>
+</div>
+
+<div id="chapters" class="screen hidden">
+  <div class="panel wide">
+    <h2>Chapters</h2>
+    <div id="chapterList"></div>
+    <button class="back">Back</button>
+  </div>
+</div>
+
+<div id="settings" class="screen hidden">
+  <div class="panel">
+    <h2>Settings</h2>
+    <label>Master volume <input type="range" id="sVol" min="0" max="1" step="0.05"></label>
+    <label>Narration volume <input type="range" id="sVoice" min="0" max="1" step="0.05"></label>
+    <label>Music &amp; ambience <input type="range" id="sMusic" min="0" max="1" step="0.05"></label>
+    <label>Look sensitivity <input type="range" id="sSens" min="0.2" max="3" step="0.1"></label>
+    <label class="chk"><input type="checkbox" id="sSubs"> Subtitles</label>
+    <label class="chk"><input type="checkbox" id="sGore"> Blood &amp; gore</label>
+    <label class="chk"><input type="checkbox" id="sInvert"> Invert look Y</label>
+    <button class="back primary">Done</button>
+  </div>
+</div>
+
+<div id="controls" class="screen hidden">
+  <div class="panel wide">
+    <h2>Controls</h2>
+    <table>
+      <tr><th></th><th>Keyboard &amp; Mouse</th><th>Gamepad</th><th>Touch</th></tr>
+      <tr><td>Move</td><td>WASD / Arrows</td><td>Left stick</td><td>Left joystick</td></tr>
+      <tr><td>Look</td><td>Mouse (click to lock)</td><td>Right stick</td><td>Drag right side</td></tr>
+      <tr><td>Interact / Skip line</td><td>E / Space</td><td>A / Cross</td><td>USE</td></tr>
+      <tr><td>Swing</td><td>Left click / F</td><td>X / Square / RT</td><td>HIT</td></tr>
+      <tr><td>Run</td><td>Shift</td><td>LB / L3</td><td>RUN</td></tr>
+      <tr><td>Flashlight</td><td>L</td><td>Y / Triangle</td><td>LIGHT</td></tr>
+      <tr><td>Pause</td><td>Esc / P</td><td>Start / Options</td><td>II</td></tr>
+    </table>
+    <button class="back primary">Back</button>
+  </div>
+</div>
+
+<div id="credits" class="screen hidden">
+  <div class="panel">
+    <h2>Credits</h2>
+    <p><b>Lone Keem Studios</b><br>Created by Keem</p>
+    <p>Engine: three.js (MIT). Narration: original synthetic voice made with Piper TTS (MIT) using the open "ryan" voice, processed in-house.</p>
+    <p>All 3D models, sound effects and music are generated procedurally in code. Full license list in CREDITS.md.</p>
+    <button class="back primary">Back</button>
+  </div>
+</div>
+
+<div id="pause" class="screen hidden">
+  <div class="panel">
+    <h2>Paused</h2>
+    <button id="btnResume" class="primary">Resume</button>
+    <button id="btnRestartCp">Restart from checkpoint</button>
+    <button id="btnPauseSettings">Settings</button>
+    <button id="btnQuit">Quit to title</button>
+  </div>
+</div>
+
+<div id="dead" class="screen hidden">
+  <div class="panel"><h2>You didn't make it</h2><button id="btnRetry" class="primary">Try again</button></div>
+</div>
+
+<div id="loading" class="screen hidden"><div class="tag">Loading…</div></div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
