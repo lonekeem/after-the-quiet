@@ -66,13 +66,16 @@ setTimeout(function(){if(!window.__atqBooted)show('The game did not start. Your 
     <button id="btnControls">Controls</button>
     <button id="btnCredits">Credits</button>
   </div>
-  <div class="foot">v1.3.1 · Story Mode · Chapter 1 · The Day Before</div>
+  <div class="foot">v1.3.2 · Story Mode · Chapter 1 · The Day Before</div>
 </div>
 <div id="settings" class="screen hidden">
   <div class="panel">
     <h2>Settings</h2>
     <label>Master volume <input type="range" id="sVol" min="0" max="1" step="0.05"></label>
     <label>Music &amp; ambience <input type="range" id="sMusic" min="0" max="1" step="0.05"></label>
+    <label>Sound effects <input type="range" id="sSfx" min="0" max="1" step="0.05"></label>
+    <label>Voice volume <input type="range" id="sVoiceVol" min="0" max="1" step="0.05"></label>
+    <label class="chk"><input type="checkbox" id="sVoices"> Voiced lines &amp; shouts (subtitles stay on)</label>
     <label>Text speed <input type="range" id="sText" min="0.5" max="2" step="0.1"></label>
     <label class="chk"><input type="checkbox" id="sAuto"> Auto-advance text</label>
     <label class="chk"><input type="checkbox" id="sGore"> Blood &amp; gore (off = softened)</label>

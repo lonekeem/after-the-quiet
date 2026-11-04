@@ -14,7 +14,7 @@ export const STORY = [
       // the street scene outside the boarded window
       g.victim(3.5, 43.6, 'walt', 3);
       const dube = g.npc('dube', 'dube', -4, 30, 0, 'Sprint_Loop'); D.dube = dube; D.chaser = g.spawnZ(-4, 24, { runner: true, idle: true }); D.chaser.play('Sprint_Loop');
-      [0, 1.4, 3.1, 5].forEach(t => setTimeout(() => g.audio.scream(0.1 + Math.random() * .05), t * 1000)); setTimeout(() => g.audio.glass(), 2400); setTimeout(() => g.audio.dog(), 3500);
+      [0, 1.4, 3.1, 5].forEach((t, i) => setTimeout(() => (i === 1 && g.audio.victimScream ? g.audio.victimScream(.12) : g.audio.scream(0.1 + Math.random() * .05)), t * 1000)); setTimeout(() => g.audio.glass(), 2400); setTimeout(() => g.audio.dog(), 3500);
       const own = (k) => g.save.owned.includes(k);
       if (!g.save.items.includes('backpack')) g.addPickup({ kind: 'backpack', story: true, label: 'Grab your backpack', pos: [19.5, 0.85, 40.2] });
       if (!own('bat')) g.addPickup({ kind: 'weapon', item: 'bat', story: true, label: 'Take Dad\'s bat', pos: [13.0, 0.3, 44.3] });
@@ -73,7 +73,7 @@ export const STORY = [
 
   { id: 'boss', cp: [0.5, -93.5, PI], obj: 'Defeat Big Gus', hint: 'Roll away from his slam (red ring) and his charge. Headshots hurt him most.', mood: 'tense', beat: 2,
     enter(g) { const D = g.stepData; const dad = g.npc('marcus', 'marcus', 3.5, -92.5, PI, 'Idle_Loop'); const nia = g.npc('nia', 'nia', 4.2, -91.6, PI, 'Idle_Loop', .62);
-      const b = g.spawnZ(-0.2, -103.5, { boss: true, hp: 900, scale: 1.5, runner: false }); b.speed = 1.7; b.cd = 2; b.aggro = 99; b.mat.userData.u.uShirt.value.set('#e8e2d2'); b.mat.userData.u.uBlood.value = g.settings.gore ? 1.3 : .2; g.boss = b; $q('#bossn').textContent = 'BIG GUS — the barber';
+      const b = g.spawnZ(-0.2, -103.5, { boss: true, hp: 900, scale: 1.5, runner: false }); b.speed = 1.7; b.cd = 2; g.audio.roar && setTimeout(() => { g.audio.roar(); g.audio.shout('keem_boss', true); }, 1200); b.aggro = 99; b.mat.userData.u.uShirt.value.set('#e8e2d2'); b.mat.userData.u.uBlood.value = g.settings.gore ? 1.3 : .2; g.boss = b; $q('#bossn').textContent = 'BIG GUS — the barber';
       g.horde(4, [[-4, -104], [4, -104]]); D.hordeAll = true; g.wpTarget = null;
       g.say([['keem', 'Is that… Gus? From the barbershop?'], ['marcus', 'Gus was always big. That is NOT normal big.'], ['keem', 'He gave me the worst fade of my LIFE. This is personal.']]); },
     update(g) { if (g.boss && g.boss.dead && !g.stepData.won) { g.stepData.won = true; setTimeout(() => { g.say([['keem', 'Lineup\'s crooked, Gus.'], ['nia', 'That was SO gross. Do it again.'], ['marcus', 'Bridge. Now.']]); goto(g, 6, 400); }, 1800); } } },

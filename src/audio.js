@@ -1,4 +1,4 @@
-// Procedural audio: every sound and music cue here is synthesized at runtime (no external sample files).
+// Procedural audio synthesized at runtime, plus (v1.3.2) a sample layer at the bottom of this file.
 export class AudioSys {
   constructor(settings) { this.s = settings; this.ctx = null; }
   init() {
@@ -128,3 +128,74 @@ export class AudioSys {
   click() { if (!this.ctx) return; this.tone(1800, 0.04, 'square', 0.05, this.sfx, 0.001); }
   splat() { if (!this.ctx) return; this.noise(0.25, 350, 0.5, 'lowpass', 2); this.noise(0.12, 900, 0.2, 'bandpass', 4); }
 }
+
+// ---------- v1.3.2 sample layer ----------
+// Recorded/rendered samples in public/sfx (Kenney CC0, procedurally synthesized, and Kokoro TTS voices — see CREDITS.md).
+// Every method falls back to the synthesized version above if its sample has not loaded yet.
+export const vhash = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); };
+const BASE = (import.meta.env && import.meta.env.BASE_URL || '/') + 'sfx/';
+const FAM = { gun_pistol: 3, gun_rifle: 3, gun_shotgun: 3, gun_revolver: 3, gun_smg: 3, gun_sniper: 3, thunder: 3, z_growl: 6, z_moan: 4, z_attack: 3, z_eat: 3, scream: 4,
+  step_concrete: 5, step_grass: 5, step_wood: 5, punch: 5, bat: 5, flesh: 5, metal: 5, shell: 5, plank: 5, glass: 5, cloth: 2 };
+const ONE = ['explosion', 'rain_loop', 'truck_loop', 'boss_roar', 'reload_out', 'reload_in', 'door_open', 'creak', 'knife', 'coins', 'chop'];
+const P = AudioSys.prototype, O = {};
+['init', 'applyVolumes', 'setMood', 'ambientTick', 'shot', 'hit', 'swing', 'hurt', 'groan', 'thud', 'crash', 'explode', 'pickup', 'engine', 'scream', 'click', 'splat', 'glass'].forEach(k => O[k] = P[k]);
+P.init = function () { const first = !this.ctx; O.init.call(this); if (!first || !this.ctx) return;
+  this.bufs = {}; this.loading = {}; this.voiceBus = this.ctx.createGain(); this.voiceBus.connect(this.master); this.amb = this.ctx.createGain(); this.amb.connect(this.music);
+  this.lastBark = 0; this.applyVolumes();
+  const names = ONE.slice(); for (const f in FAM) for (let i = 0; i < FAM[f]; i++) names.push(f + i);
+  fetch(BASE + 'manifest.json').then(r => r.json()).then(m => { this.man = m; }).catch(() => {});
+  let i = 0; const next = () => { if (i < names.length) this.load(names[i++]).finally(next); }; for (let k = 0; k < 4; k++) next();
+};
+P.applyVolumes = function () { O.applyVolumes.call(this); if (!this.ctx) return; this.sfx.gain.value = this.s.sfxVol ?? 1; if (this.voiceBus) this.voiceBus.gain.value = this.s.voices === false ? 0 : (this.s.voiceVol ?? 1); };
+P.load = function (name) { if (this.bufs[name]) return Promise.resolve(this.bufs[name]); if (this.loading[name]) return this.loading[name];
+  return this.loading[name] = fetch(BASE + name + '.mp3').then(r => { if (!r.ok || /html/.test(r.headers.get('content-type') || '')) throw 0; return r.arrayBuffer(); })
+    .then(a => new Promise((res, rej) => { const q = this.ctx.decodeAudioData(a, res, rej); if (q && q.catch) q.catch(rej); })).then(b => (this.bufs[name] = b)).catch(() => null); };
+// play a sample; returns the source node, or null if not loaded (caller then uses the synth fallback)
+P.play = function (name, o = {}) { if (!this.ctx) return null; let n = name; if (FAM[name]) n = name + Math.floor(Math.random() * FAM[name]);
+  const b = this.bufs[n]; if (!b) { this.load(n); return null; }
+  const s = this.ctx.createBufferSource(), g = this.ctx.createGain(); s.buffer = b; s.loop = !!o.loop; s.playbackRate.value = (o.rate || 1) * (1 + (o.jit ?? .06) * (Math.random() * 2 - 1));
+  g.gain.value = o.vol ?? 1; s.connect(g); let out = g;
+  if (o.pan && this.ctx.createStereoPanner) { const p = this.ctx.createStereoPanner(); p.pan.value = o.pan; g.connect(p); out = p; }
+  out.connect(o.bus || this.sfx); if (o.verb) g.connect(this.verb); s.start(this.ctx.currentTime + (o.delay || 0)); s.g = g; return s; };
+P.shot = function (kind = 'pistol') { const k = FAM['gun_' + kind] ? kind : 'pistol';
+  if (!this.play('gun_' + k, { vol: kind === 'smg' || kind === 'rifle' ? .75 : 1, verb: true, jit: .04 })) return O.shot.call(this, kind);
+  if (kind !== 'shotgun') this.play('shell', { vol: .35, delay: .35 + Math.random() * .2 }); };
+P.hit = function () { if (!this.play(Math.random() < .5 ? 'punch' : 'bat', { vol: .9 })) O.hit.call(this); this.play('flesh', { vol: .5 }); };
+P.swing = function () { if (!this.play('cloth', { vol: .5, rate: 1.4 })) O.swing.call(this); };
+P.hurt = function () { O.hurt.call(this); this.play('punch', { vol: .6, rate: .8 }); if (Math.random() < .4) this.shout('keem_hurt'); };
+P.groan = function (vol = .1) { const k = vol >= .2 ? 'z_attack' : Math.random() < .5 ? 'z_moan' : 'z_growl'; if (!this.play(k, { vol: Math.min(1, vol * 5), verb: true, rate: .92, jit: .12 })) O.groan.call(this, vol); };
+P.zAttack = function (vol = .5) { this.play('z_attack', { vol, jit: .12 }); };
+P.roar = function () { if (!this.play('boss_roar', { vol: 1, verb: true })) O.groan.call(this, .3); };
+P.thud = function () { O.thud.call(this); this.play('plank', { vol: .7, rate: .8 }); };
+P.crash = function () { if (!this.play('metal', { vol: 1, rate: .8 })) return O.crash.call(this); this.play('glass', { vol: .8 }); O.thud.call(this); };
+P.glass = function () { if (!this.play('glass', { vol: .9 })) O.glass.call(this); };
+P.explode = function () { if (!this.play('explosion', { vol: 1, verb: true, jit: 0 })) return O.explode.call(this); this.boom(); };
+P.splat = function () { if (!this.play('flesh', { vol: .8, rate: .85 })) O.splat.call(this); };
+P.click = function () { if (!this.play('reload_in', { vol: .7 })) O.click.call(this); };
+P.reload = function () { this.play('reload_out', { vol: .7 }); this.play('cloth', { vol: .3, delay: .2 }); this.play('reload_in', { vol: .8, delay: .55 }); if (Math.random() < .35) this.shout('keem_reload'); };
+P.step = function (surf = 'grass', vol = .35) { this.play('step_' + surf, { vol, jit: .1 }); };
+P.knife = function () { this.play('knife', { vol: .8 }); };
+P.door = function () { this.play('door_open', { vol: .8 }); };
+P.pickup = function () { O.pickup.call(this); this.play('coins', { vol: .35 }); if (Math.random() < .2) this.shout('keem_pickup'); };
+P.scream = function (vol = .12) { if (!this.play('scream', { vol: Math.min(1, vol * 6), verb: true })) O.scream.call(this, vol); };
+P.victimScream = function (vol = .12) { this.scream(vol); if (Math.random() < .7) setTimeout(() => this.shout(Math.random() < .5 ? 'npcf_help' : 'npcm_help', true), 900); };
+P.eat = function (vol = .3) { this.play('z_eat', { vol, jit: .1 }); };
+P.thunder = function (vol = .7) { if (!this.play('thunder', { vol, verb: true, jit: .1, delay: Math.random() * 1.5 })) this.boom(); };
+P.rain = function (on, vol = .16) { if (!this.ctx) return; const t = this.ctx.currentTime;
+  if (on && !this.rainSrc) { this.rainSrc = this.play('rain_loop', { loop: true, vol: 0, bus: this.amb, jit: 0 }); if (!this.rainSrc) { setTimeout(() => this.rain(on, vol), 800); return; } }
+  if (this.rainSrc) this.rainSrc.g.gain.setTargetAtTime(on ? vol : 0, t, 1.2); };
+P.engine = function (on, rpm = 0) { if (!this.ctx) return; const t = this.ctx.currentTime;
+  if (on && !this.truckSrc) this.truckSrc = this.play('truck_loop', { loop: true, vol: 0, jit: 0 });
+  if (!this.truckSrc) return O.engine.call(this, on, rpm);
+  this.truckSrc.g.gain.setTargetAtTime(on ? .45 + rpm * .35 : 0, t, .15); this.truckSrc.playbackRate.setTargetAtTime(.8 + rpm * .9, t, .2);
+  if (!on) { const s = this.truckSrc; this.truckSrc = null; setTimeout(() => { try { s.stop(); } catch {} }, 600); } };
+P.ambientTick = function () { O.ambientTick.call(this); if (!this.ctx || this.ctx.state !== 'running') return;
+  if ((this.mode === 'night' || this.mode === 'tense') && Math.random() < .035) this.thunder(.5 + Math.random() * .4); };
+// ---- voices ----
+P.voice = function (who, text) { this.stopVoice(); if (!this.ctx || this.s.voices === false || who === 'note') return Promise.resolve(0);
+  const n = 'v/' + vhash(who + '|' + text); const tok = this.vTok = (this.vTok || 0) + 1;
+  return this.load(n).then(b => { if (!b || tok !== this.vTok) return 0; this.vSrc = this.play(n, { bus: this.voiceBus, jit: 0 }); this.lastBark = performance.now(); this.vEnd = this.ctx.currentTime + b.duration; return b.duration; }); };
+P.stopVoice = function () { this.vTok = (this.vTok || 0) + 1; if (this.vSrc) { try { this.vSrc.stop(); } catch {} this.vSrc = null; } };
+P.shout = function (key, force) { if (!this.ctx || this.s.voices === false) return; const now = performance.now(); if (!force && now - this.lastBark < 4000) return;
+  if (!force && this.ctx.currentTime < (this.vEnd || 0)) return; this.lastBark = now;
+  const n = (this.man && this.man.barks[key]) || 2; const name = 'v/' + key + Math.floor(Math.random() * n); const s = this.play(name, { bus: this.voiceBus, jit: .02, vol: key.startsWith('npc') ? .7 : 1 }); if (!s) this.load(name); };
