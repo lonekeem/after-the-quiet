@@ -1,4 +1,4 @@
-# After the Quiet — v1.8.2 Story Mode
+# After the Quiet — v1.8.3 Story Mode
 A free-roam third-person horror action shooter by **Lone Keem Studios** (Three.js + Vite + Capacitor).
 You play **Keem**, a kid with a backpack, fighting out of **Riverside, Maine** on the night it falls.
 
@@ -21,6 +21,9 @@ Keyboard/mouse: WASD, mouse look (click to lock), LMB attack, RMB aim, Shift run
 Quality presets Low/Med/High with auto-detect (High adds GTAO + bloom). See STORY.md and CREDITS.md.
 The old cinematic movie version is preserved at tag `cinematic-final`.
 
+
+## v1.8.3
+- Nia restored to her pre-v1.6.1 little-sister scale (0.62); v1.6.1 had accidentally set her to 0.95.
 
 ## v1.8.2
 - Restored the v1.7.1 wording and voice clips for Dad and the rest of the non-Keem cast; Keem keeps the realism rewrite.
