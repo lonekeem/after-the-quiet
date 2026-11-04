@@ -8,6 +8,7 @@ def enc(path, a, sr=SR, filt=None, q='56k'):
   tmp = '/tmp/_a.wav'; a = np.asarray(a, dtype=np.float32); m = np.max(np.abs(a)) or 1; sf.write(tmp, a / m * 0.89, sr)
   cmd = ['ffmpeg', '-loglevel', 'error', '-y', '-i', tmp] + (['-af', filt] if filt else []) + ['-ac', '1', '-ar', '44100', '-b:a', q, path]; subprocess.run(cmd, check=True)
 def kenney(name, src, filt=None):
+  if os.path.exists(f'{OUT}/{name}.mp3'): return
   f = glob.glob(f'/tmp/kenney/**/{src}', recursive=True)[0]; subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', f] + (['-af', filt] if filt else []) + ['-ac', '1', '-b:a', '64k', f'{OUT}/{name}.mp3'], check=True)
 t = lambda d: np.arange(int(SR * d)) / SR
 def lp(x, a):  # one-pole lowpass, a in (0,1)
@@ -92,7 +93,7 @@ KO = Kokoro('/workspace/kokoro/kokoro.onnx', '/workspace/kokoro/voices.bin')
 P = lambda r: f'asetrate=24000*{r},aresample=24000,atempo={1/r:.3f}'
 ROOM = 'highpass=f=85,equalizer=f=220:t=q:w=1:g=1.5,equalizer=f=3200:t=q:w=1.2:g=2,aecho=0.85:0.6:23|41:0.10|0.06'
 V = {  # who: voice, base speed, pitch ratio, extra filter
- 'keem': ('am_liam', 1.1, 1.06, ''), 'marcus': ('am_michael', .94, 1.0, ''), 'nia': ('af_jessica', 1.0, 1.0, ''),
+ 'keem': ('am_liam', 1.1, 1.06, ''), 'marcus': ('am_michael', .94, 1.0, ''), 'nia': ('af_heart', 1.0, 1.12, ''),
  'dube': ('bm_george', .9, 1.0, ''), 'walt': ('am_fenrir', .9, .98, ''), 'ruth': ('af_bella', .97, 1.0, ''), 'gus': ('am_onyx', .9, .92, ''),
  'sgt': ('am_eric', .98, 1.0, 'highpass=f=300,lowpass=f=3600,acrusher=bits=11:mix=0.15'), 'brick': ('am_onyx', .92, .9, ''),
  'ronnie': ('am_adam', .9, .9, ''), 'deacon': ('bm_daniel', .95, .97, ''), 'reyes': ('af_sarah', 1.0, 1.0, ''), 'tuck': ('am_echo', 1.05, 1.0, ''), 'santa': ('am_onyx', .85, .85, ''), 'king': ('bm_lewis', .92, .95, ''),
@@ -159,8 +160,8 @@ BARKS = {
  'keem_scared': ('keem', ['Oh man... oh man.', 'Is he... deadass eating him?', "Don't look. Don't look.", "That's Mister Walt... nah."]),
  'marcus_shout': ('marcus', ['Keem! Over here!', 'Behind you, son!', 'Keep moving!', 'Good shot!']),
  'marcus_chat': ('marcus', ['Stay close, son.', 'Eyes up. Watch the treeline.', 'Easy... easy.', "You're doin' good, Keem.", "Breathe. We're gettin' out of here."]),
- 'nia_shout': ('nia', ['Keem, move!', 'Boy, BEHIND you!', 'Hurry up!']),
- 'nia_chat': ('nia', ["Keem, I swear to God.", 'Biscuit is fine. Stop asking.', 'Can we not die today? Thanks.', "Uh, Keem? One's right there. Right there.", "I'm not crying. You're crying."]),
+ 'nia_shout': ('nia', ['Keem, move!', 'Keem, BEHIND you!', 'Hurry up!']),
+ 'nia_chat': ('nia', ["Keem, I'm scared.", 'Biscuit is okay. Stop asking!', 'Can we go home now?', "Uh, Keem? There's one right there!", "I'm not crying. YOU'RE crying."]),
  'npc_chat': ('npcm', ['Is anybody out there?', 'Lock your doors!', "They're comin' from the river!", 'Oh God... oh God.', 'Somebody call nine one one!']),
  'npcf_chat': ('npcf', ['Has anyone seen my husband?', 'Get inside! Get inside!', "Don't let them hear you!", "Oh my God, they're everywhere."]),
  'npcf_scream': ('npcf', ['Aaaah! No! Nooo!', 'Help meee! Please!', 'Get it off! Get it off me!']),
