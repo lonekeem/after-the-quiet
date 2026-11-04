@@ -1,0 +1,27 @@
+// v1.5 Chapter 2 flow: steps 7-12 load, progress, and reach the Chapter 2 ending; screenshots to /tmp/shots/ch2_*.png
+import { chromium } from 'playwright';
+const b = await chromium.launch({ args: ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
+const ctx = await b.newContext({ viewport:{width:960,height:540} }); await ctx.addInitScript(()=>localStorage.setItem('atq3.settings',JSON.stringify({qual:'low',gore:true})));
+const p = await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message)); const out=[];
+const G = (f, a) => p.evaluate(f, a); const W = (ms) => p.waitForTimeout(ms);
+const skip = () => G(() => { window.__skip = setInterval(() => { const g = window.__atq.game; if (g.dlgCur) g.skipLine(); }, 300); });
+const st = () => G(() => window.__atq.game.step + '/' + (document.querySelector('#objt')?.textContent || ''));
+const shot = async (n, cam) => { if (cam) await G(cam); await W(1500); await p.screenshot({ path: `/tmp/shots/ch2_${n}.png`, timeout: 120000 }); };
+await p.goto('http://localhost:4181/?step=7&god'); await W(10000); await skip(); out.push('7:' + await st());
+await shot('shore');
+await G(() => window.__atq.game.player.root.position.set(0, 0, -155)); await W(2500); out.push('->' + await st());
+await shot('checkpoint');
+await G(() => window.__atq.game.alive().forEach(z => z.hp = 0) || window.__atq.game.alive().forEach(z => window.__atq.game.damageZ(z, 9999, new (z.root.position.constructor)(0, 0, 1)))); await W(2500);
+await G(() => { const g = window.__atq.game; g.stepData.uses[0].fn(g); }); await W(9000); out.push('->' + await st());
+await G(() => { const g = window.__atq.game; g.player.root.position.set(0, 0, -200); }); await W(1500); await shot('town');
+await G(() => { const g = window.__atq.game; for (let i = 0; i < 3; i++) g.stepData.uses[0].fn(g); g.player.root.position.set(0, 0, -252.5); }); await W(4000); out.push('->' + await st());
+await G(() => { window.__atq.game.stepData.t = 32; }); await W(4000); await shot('gate_horde'); out.push('dad:' + await G(() => !!window.__atq.game.stepData.dad));
+await G(() => { window.__atq.game.stepData.t = 59.5; }); await W(6000); out.push('->' + await st() + ' gate:' + await G(() => window.__atq.game.world.ch2.gateCol.skip));
+await G(() => window.__atq.game.player.root.position.set(0, 0, -270)); await W(3000); await shot('boss');
+await G(() => { const g = window.__atq.game; g.damageZ(g.boss, 99999, new (g.boss.root.position.constructor)(0, 0, 1)); }); await W(5000); out.push('->' + await st());
+await G(() => { const g = window.__atq.game; g.player.root.position.set(0, 0, -292); }); await W(1500);
+await G(() => { const g = window.__atq.game; g.stepData.uses[0].fn(g); }); await W(2500); await shot('scoreboard');
+await W(12000); out.push('end:' + await G(() => !document.querySelector('#ending').classList.contains('hidden') + ' ' + document.querySelector('#endH').textContent));
+await p.screenshot({ path: '/tmp/shots/ch2_ending.png' });
+await G(() => { document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden')); document.querySelector('#btnChapters').click(); }); await W(800); await p.screenshot({ path: '/tmp/shots/ch2_chapter_select.png' });
+console.log(out.join(' | '), 'errs', JSON.stringify(errs.slice(0, 5))); await b.close();

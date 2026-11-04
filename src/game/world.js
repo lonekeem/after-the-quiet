@@ -183,8 +183,50 @@ export function buildWorld(scene, Q, texLoader, base, CM = {}) {
   const trunkG = new THREE.CylinderGeometry(0.12, 0.28, 1, 7); trunkG.translate(0, 0.5, 0);
   const coneG = new THREE.ConeGeometry(1, 1, 9, 3, true); coneG.translate(0, 0.5, 0); { const p = coneG.attributes.position; for (let i = 0; i < p.count; i++) { const y = p.getY(i); if (y < 0.9) { p.setX(i, p.getX(i) * rnd(.8, 1.15)); p.setZ(i, p.getZ(i) * rnd(.8, 1.15)); p.setY(i, y + rnd(-.08, .08)); } } coneG.computeVertexNormals(); }
   const needle = new THREE.MeshStandardMaterial({ color: '#1f2e22', roughness: 1, side: THREE.DoubleSide });
+  // ===== CHAPTER 2 · HAVERFORD (south bank) =====
+  const gS = new THREE.Mesh(new THREE.PlaneGeometry(420, 130), groundMat); gS.rotation.x = -Math.PI / 2; gS.position.set(0, -0.005, -270); gS.receiveShadow = true; scene.add(gS);
+  road(0, -228, 11, 100); road(0, -200, 96, 9);
+  // National Guard checkpoint
+  const sand = new THREE.MeshStandardMaterial({ color: '#6e6450', roughness: 1 }), olive = new THREE.MeshStandardMaterial({ color: '#4a5236', roughness: .9 });
+  [[-11, -3.2], [3.2, 11]].forEach(([a, b]) => wallBox(b - a, 1.1, 1, sand, (a + b) / 2, .55, -158));
+  [[-15, -152, 6, 5], [15, -154, 6, 6]].forEach(([x, z, w, d]) => { wallBox(w, 2.2, d, olive, x, 1.1, z); gable(x, z, w, d, 2.2, false, olive); });
+  car(-9, -164, 1.6, '#4a5a3a', { truck: 1, rust: 1 }); car(9, -166, -1.2, '#4a5a3a', { kind: 'suv', wreck: 1 });
+  sign(['NATIONAL GUARD CHECKPOINT', 'HAVERFORD · CIVILIANS STOP HERE'], 6, 2.2, -157.4, 0, 3.6, 1, '#2a3a1a');
+  sign(['WELCOME TO HAVERFORD', '"The Friendliest Little Town on the Kennebec"'], -8.5, 2.2, -140, 0, 3.8, 1.3);
+  const flood = new THREE.PointLight('#e8f0ff', 14, 30, 2); flood.position.set(-12, 5, -160); if (Q.lamps > 3) { scene.add(flood); lights.push(flood); }
+  fire(13, 0, -163, .8);
+  // town
+  const town = [[-14, -176, 7, 8, 1, '#7a6a5a'], [14, -178, 7, 9, -1, '#5a6a7a'], [-14, -188, 8, 8, 1, '#8a4a3a'], [14, -214, 8, 9, -1, '#c8a060'], [-14, -216, 7, 8, 1, '#6a7a5a'], [14, -230, 7, 8, -1, '#7a5a6a'], [-14, -232, 7, 9, 1, '#5a5a5a'], [-30, -190, 8, 8, 1, '#4a5a6a'], [30, -192, 8, 8, -1, '#7a7060'], [-30, -210, 8, 7, 1, '#6a5040'], [30, -210, 8, 8, -1, '#8a8a7a']];
+  town.forEach(t => house(t[0], t[1], t[2], t[3], t[4], t[5], Math.random() < .3));
+  sign(['HAVERFORD HARDWARE'], -10.3, 2.6, -188, Math.PI / 2, 3.2, .6, '#6a1a10');
+  sign(['DOUGHNUT DEPOT', 'open 24/7 (lol)'], 9.9, 2.6, -214, -Math.PI / 2, 3.2, .8, '#c84a8a');
+  sign(['SUDS-N-DUDS LAUNDROMAT'], -25.9, 2.6, -190, Math.PI / 2, 3.2, .6, '#1a4a6a');
+  sign(['WATER ST'], 6, 2.6, -195.4, 0, 1.6, .4, '#1d4a2a');
+  // high water: flooded cross street
+  const fw = new THREE.MeshStandardMaterial({ color: '#16211f', roughness: .05, metalness: .4, transparent: true, opacity: .85 });
+  [[-34, -200, 22, 10], [34, -201, 20, 10], [-8, -244, 10, 7]].forEach(([x, z, w, d]) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, d), fw); p.rotation.x = -Math.PI / 2; p.position.set(x, .06, z); scene.add(p); });
+  [[-6, -186, .4, '#7a2a2a', { wreck: 1 }], [5, -205, 2.8, '#2a2a2a', { kind: 'police', wreck: 1 }], [-4.5, -222, -.2, '#d8d0c0', { kind: 'van', dirt: 1 }], [24, -200, 1.4, '#3a5a8a', { burnt: 1 }]].forEach(c => car(...c));
+  fire(-24, 0, -203, .9);
+  // Haverford High: fence + gate + stadium
+  const fenceM = new THREE.MeshStandardMaterial({ color: '#7a7f84', metalness: .6, roughness: .5, transparent: true, opacity: .55 });
+  wallBox(36, 2.6, .12, fenceM, -21, 1.3, -256); wallBox(36, 2.6, .12, fenceM, 21, 1.3, -256);
+  wallBox(.12, 2.6, 44, fenceM, -39, 1.3, -278); wallBox(.12, 2.6, 44, fenceM, 39, 1.3, -278); wallBox(78, 2.6, .12, fenceM, 0, 1.3, -298);
+  const gateMesh = new THREE.Mesh(new THREE.BoxGeometry(6, 2.8, .2), new THREE.MeshStandardMaterial({ color: '#3a4048', metalness: .7, roughness: .4 })); gateMesh.position.set(0, 1.4, -256); scene.add(gateMesh);
+  const gateCol = { x0: -3, x1: 3, z0: -256.3, z1: -255.7 }; colliders.push(gateCol);
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(.6, .8, .2), new THREE.MeshStandardMaterial({ color: '#888', emissive: '#f22', emissiveIntensity: .6 })); panel.position.set(4, 1.2, -255.7); scene.add(panel);
+  sign(['HAVERFORD HIGH', 'HOME OF THE FIGHTING BEAVERS'], -7, 3.1, -255.8, 0, 4, 1.1, '#5a1a1a');
+  const turf = new THREE.Mesh(new THREE.PlaneGeometry(50, 30), new THREE.MeshStandardMaterial({ color: '#3a5a2a', roughness: 1 })); turf.rotation.x = -Math.PI / 2; turf.position.set(0, .04, -278); turf.receiveShadow = true; scene.add(turf);
+  const lineM = new THREE.MeshBasicMaterial({ color: '#c8c8b8' }); for (let x = -20; x <= 20; x += 5) { const l = new THREE.Mesh(new THREE.PlaneGeometry(.15, 28), lineM); l.rotation.x = -Math.PI / 2; l.position.set(x, .05, -278); scene.add(l); }
+  const blM = new THREE.MeshStandardMaterial({ color: '#8a8d90', metalness: .5, roughness: .5 });
+  for (let i = 0; i < 4; i++) { wallBox(26, .5, 1.2, blM, -2, .3 + i * .6, -294 + i * 1.2, i === 0); }
+  wallBox(8, 3, .4, new THREE.MeshStandardMaterial({ color: '#111' }), 0, 5, -297, false);
+  const board = sign(['HOME 0 · GUESTS 66', 'EVAC 0600 →'], 0, 5, -296.7, 0, 7.6, 2.6, '#101010');
+  wallBox(30, 6, 10, plankMat('#8a5a4a'), -24, 3, -268);
+  [[-26, -264], [26, -292]].forEach(([x, z]) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(.15, .2, 12, 8), swMat); p.position.set(x, 6, z); scene.add(p); const h = new THREE.Mesh(new THREE.BoxGeometry(2, 1, .3), new THREE.MeshStandardMaterial({ color: '#222', emissive: '#fff', emissiveIntensity: 2 })); h.position.set(x, 12, z); scene.add(h); });
+  const sl = new THREE.PointLight('#dfe8ff', 20, 50, 1.6); sl.position.set(0, 11, -278); if (Q.lamps > 3) { scene.add(sl); lights.push(sl); }
+  const ch2 = { gateMesh, gateCol, panel, board };
   const treeSpots = []; let tries = 0;
-  while (treeSpots.length < Q.trees && tries++ < 20000) { const x = rnd(-90, 90), z = rnd(-180, 90); if (Math.abs(x) < 10 && z > -150) continue; if (z < -106 && z > -134) continue;
+  while (treeSpots.length < Q.trees * 1.3 && tries++ < 20000) { const x = rnd(-90, 90), z = rnd(-300, 90); if (Math.abs(x) < 10 && z > -150) continue; if (z < -134 && Math.abs(x) < 44) continue; if (z < -106 && z > -134) continue;
     if (colliders.some(c => x > c.x0 - 2 && x < c.x1 + 2 && z > c.z0 - 2 && z < c.z1 + 2)) continue; if (Math.abs(z - 4) < 7 && Math.abs(x) < 46) continue; if (x > 4 && x < 34 && z > -66 && z < -36) continue; treeSpots.push([x, z, rnd(9, 18)]); }
   const trunks = new THREE.InstancedMesh(trunkG, bark, treeSpots.length), layers = 4, cones = new THREE.InstancedMesh(coneG, needle, treeSpots.length * layers);
   const M = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3(); const col = new THREE.Color();
@@ -211,9 +253,9 @@ export function buildWorld(scene, Q, texLoader, base, CM = {}) {
       p[k + 1] = y; p[k + 3] = p[k] + .03; p[k + 4] = y - .5; p[k + 5] = p[k + 2]; } g.attributes.position.needsUpdate = true; }); }
 
   // bounds
-  box(-300, -48, -300, 300); box(48, 300, -300, 300); box(-300, 300, 66, 300); box(-300, 300, -300, -160);
+  box(-300, -48, -300, 300); box(48, 300, -300, 300); box(-300, 300, 66, 300); box(-300, 300, -400, -299);
 
-  return { colliders, walls, updaters, lights, fire, car, sign, frontDoor, doorCol, doorBoards, tanker, tankCol, KH, mud, update(dt, t, cam) { updaters.forEach(u => u(dt, t, cam)); } };
+  return { ch2, signTex, colliders, walls, updaters, lights, fire, car, sign, frontDoor, doorCol, doorBoards, tanker, tankCol, KH, mud, update(dt, t, cam) { updaters.forEach(u => u(dt, t, cam)); } };
 }
 function mergeTwo(a, b) { const g = new THREE.BufferGeometry(); ['position', 'normal', 'uv'].forEach(k => { const A = a.attributes[k].array, B = b.attributes[k].array, o = new Float32Array(A.length + B.length); o.set(A); o.set(B, A.length); g.setAttribute(k, new THREE.BufferAttribute(o, a.attributes[k].itemSize)); });
   const ia = a.index.array, ib = b.index.array, n = a.attributes.position.count, idx = new Uint16Array(ia.length + ib.length); idx.set(ia); for (let i = 0; i < ib.length; i++) idx[ia.length + i] = ib[i] + n; g.setIndex(new THREE.BufferAttribute(idx, 1)); return g; }

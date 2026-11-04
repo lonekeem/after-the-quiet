@@ -10,9 +10,10 @@ export const WEAPONS = {
   smg:     { name: 'SMG', type: 'gun', ammo: 'light', dmg: 20, rate: 0.075, mag: 30, reload: 1.6, spread: 0.035, range: 45, auto: true, price: 1100, desc: 'Sprays the horde.' },
   shotgun: { name: 'Pump Shotgun', type: 'gun', ammo: 'shell', dmg: 22, pellets: 8, rate: 0.85, mag: 6, reload: 2.4, spread: 0.075, range: 22, price: 1300, desc: 'Close range shredder. Pops limbs.' },
   rifle:   { name: 'Patrol Rifle', type: 'gun', ammo: 'rifle', dmg: 38, rate: 0.11, mag: 30, reload: 2.0, spread: 0.016, range: 90, auto: true, price: 1800, desc: 'Sheriff\'s AR. Full auto.' },
+  saw:     { name: 'Guard SAW', type: 'gun', ammo: 'rifle', dmg: 30, rate: 0.085, mag: 75, reload: 3.4, spread: 0.03, range: 85, auto: true, price: 3200, ch: 2, desc: 'Belt-fed National Guard machine gun. Unlocks in Chapter 2.' },
   sniper:  { name: 'Hunting Sniper', type: 'gun', ammo: 'rifle', dmg: 160, rate: 1.2, mag: 5, reload: 2.6, spread: 0.001, range: 160, zoom: 3, price: 2600, desc: 'One shot, one head.' },
 };
-export const WEAPON_ORDER = ['fists', 'pan', 'bat', 'machete', 'axe', 'pistol', 'revolver', 'smg', 'shotgun', 'rifle', 'sniper'];
+export const WEAPON_ORDER = ['fists', 'pan', 'bat', 'machete', 'axe', 'pistol', 'revolver', 'smg', 'shotgun', 'rifle', 'saw', 'sniper'];
 export const UPGRADES = {
   dmg: { name: 'Damage', per: 0.15, max: 4 },
   mag: { name: 'Magazine', per: 0.25, max: 3, gun: true },
@@ -31,7 +32,7 @@ export function perk(save, i) { return save.level >= i; }
 const KEY = 'atq3_save';
 export function defaultSave() {
   return { v: 3, step: 0, cash: 0, xp: 0, level: 1, owned: ['fists'], up: {}, ammo: { light: 0, shell: 0, rifle: 0 }, mags: {}, grenades: 0, meds: 1,
-    pages: [], items: [], loot: [], cur: 'fists', kills: 0, done: false };
+    pages: [], items: [], loot: [], cur: 'fists', kills: 0, done: false, ch: 1, done2: false };
 }
 export function loadSave(LS) { try { const s = JSON.parse(LS.getItem(KEY) || 'null'); if (s && s.v === 3) return Object.assign(defaultSave(), s); } catch (e) {} return null; }
 export function writeSave(LS, s) { try { LS.setItem(KEY, JSON.stringify(s)); } catch (e) {} }

@@ -94,6 +94,7 @@ ROOM = 'highpass=f=85,equalizer=f=220:t=q:w=1:g=1.5,equalizer=f=3200:t=q:w=1.2:g
 V = {  # who: voice, base speed, pitch ratio, extra filter
  'keem': ('am_puck', 1.0, 1.05, ''), 'marcus': ('am_michael', .94, 1.0, ''), 'nia': ('af_heart', 1.0, 1.12, ''),
  'dube': ('bm_george', .9, 1.0, ''), 'walt': ('am_fenrir', .9, .98, ''), 'ruth': ('af_bella', .97, 1.0, ''), 'gus': ('am_onyx', .9, .92, ''),
+ 'sgt': ('am_eric', .98, 1.0, 'highpass=f=300,lowpass=f=3600,acrusher=bits=11:mix=0.15'), 'brick': ('am_onyx', .92, .9, ''),
  'radio': ('am_michael', 1.0, 1.0, 'highpass=f=350,lowpass=f=3400,acrusher=bits=10:mix=0.2'),
  'npcf': ('af_heart', 1.06, 1.02, ''), 'npcm': ('am_fenrir', 1.06, 1.0, '')}
 def f0_std(a, sr):  # crude autocorrelation pitch tracker -> semitone std of voiced frames

@@ -136,7 +136,7 @@ export class Game {
   takePickup(p) { const l = p.l, s = this.save; this.scene.remove(p.mesh); this.pickups.splice(this.pickups.indexOf(p), 1); if (l.id && !l.story) s.loot.push(l.id); this.audio.pickup();
     if (l.kind === 'cash') this.addCash(l.n); else if (l.kind === 'ammo') { s.ammo[l.item] = (s.ammo[l.item] || 0) + l.n; this.floatText(`+${l.n} ${l.item} ammo`, '#d8e8a0'); }
     else if (l.kind === 'med') { s.meds++; this.floatText('+1 Med kit', '#fff'); } else if (l.kind === 'grenade') { s.grenades += l.n || 1; this.floatText('+Pipe grenade', '#fff'); }
-    else if (l.kind === 'page') { s.pages.push(l.id); this.toast(`Comic page found (${s.pages.length}/8): "${l.text}"`, 3); this.addXP(25); }
+    else if (l.kind === 'page') { s.pages.push(l.id); this.toast(`Comic page found (${s.pages.length}/14): "${l.text}"`, 3); this.addXP(25); }
     else if (l.kind === 'weapon') { this.give(l.item); if (l.ammo) s.ammo[WEAPONS[l.item].ammo] = (s.ammo[WEAPONS[l.item].ammo] || 0) + l.ammo; }
     else if (l.kind === 'backpack') { s.items.push('backpack'); this.pack.visible = true; this.toast('Backpack on. More room for loot.'); }
     else if (l.kind === 'item') { s.items.push(l.item); this.toast(l.label || l.item); }
@@ -160,12 +160,14 @@ export class Game {
 
   // ---------- UI helpers ----------
   objective(t, h) { $('#objt').textContent = t || ''; $('#objh').textContent = this.settings.hints ? (h || '') : ''; $('#obj').style.display = t ? '' : 'none'; }
+  openGate(o) { const c = this.world.ch2; if (!c) return; c.gateCol.skip = o; c.gateMesh.position.x = o ? 5.8 : 0; }
+  ch2Reset(g, i) { this.openGate(i >= 11); if ((this.save.ch || 1) < 2) this.save.ch = 2; }
   toast(t, s = 1.8) { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(this._tt); this._tt = setTimeout(() => e.classList.remove('on'), s * 1000); }
   floatText(t, c = '#fff') { const e = document.createElement('div'); e.textContent = t; e.style.cssText = `position:absolute;left:50%;top:58%;transform:translateX(-50%);color:${c};font:800 15px system-ui;text-shadow:0 1px 3px #000;z-index:6;pointer-events:none;transition:all 1.2s ease-out`; $('#stage').appendChild(e); requestAnimationFrame(() => { e.style.top = '50%'; e.style.opacity = '0'; }); setTimeout(() => e.remove(), 1300); }
   say(lines, cb) { this.dlgQ = (this.dlgQ || []).concat(lines.map(l => ({ who: l[0], text: l[1] }))); if (cb) this.dlgQ.push({ cb }); if (!this.dlgCur) this.nextLine(); }
   nextLine() { const d = $('#dlg'); const it = this.dlgQ.shift(); if (!it) { this.dlgCur = null; d.classList.remove('on'); this.audio.stopVoice && this.audio.stopVoice(); return; } if (it.cb) { it.cb(this); this.nextLine(); return; }
     if (it.raw == null) { it.raw = it.text; const L = langLine(it.raw, this.settings.lang || 'on'); it.text = L.sub; it.vtext = L.voice; it.bleeps = L.bleeps; }
-    this.dlgCur = it; const names = { keem: 'Keem', marcus: 'Dad', nia: 'Nia', walt: 'Mr. Walt', ruth: 'Ruth', dube: 'Mr. Dube', radio: 'Radio', note: 'Dad\'s note', gus: 'Big Gus' };
+    this.dlgCur = it; const names = { keem: 'Keem', marcus: 'Dad', nia: 'Nia', walt: 'Mr. Walt', ruth: 'Ruth', dube: 'Mr. Dube', radio: 'Radio', note: 'Dad\'s note', gus: 'Big Gus', sgt: 'Sgt. Okafor (radio)', brick: 'Coach Brickman' };
     $('#who').textContent = names[it.who] || it.who; const cur = it; this.audio.voice && this.audio.voice(it.who, it.vtext, it.bleeps).then(dd => { if (dd && this.dlgCur === cur) cur.dur = Math.max(cur.dur || 0, dd + .5); });
     
     $('#line').textContent = it.text; d.classList.add('on'); it.t = 0; it.dur = (1.6 + it.text.length * 0.045) / (this.settings.text || 1); }
@@ -228,7 +230,7 @@ export class Game {
       if (o.boom || fin) pool.push('DEF-shin.L', 'DEF-shin.R', 'DEF-thigh.L', 'DEF-thigh.R'); const nCut = o.boom ? 3 : fin ? 2 : 1 + (Math.random() < .35 ? 1 : 0);
       for (let c = 0; c < nCut && pool.length; c++) { const bn = pool.splice(Math.floor(Math.random() * pool.length), 1)[0]; if (z.noLimbs.includes(bn)) continue; z.noLimbs.push(bn); const leg = bn.includes('thigh') || bn.includes('shin');
         const limb = new THREE.Mesh(new THREE.CapsuleGeometry(leg ? .07 : .05, leg ? .45 : .35, 3, 6), z.mat); const ap = V3(); z.worldOf(bn, ap); this.gib(ap, 4, '#5a1010', limb); this.blood(ap, dir.clone().add(V3(rnd(-.5, .5), .5, rnd(-.5, .5))), 28, 4.5, 1.2); this.decal(ap.x, ap.z, 1); } }
-    if (o.finisher || (this.state.combo >= 3 && Math.random() < .6) || z.boss) { this.slowmo(z.boss ? 1.6 : 0.6); this.shake(.5); this.toast(z.boss ? 'BIG GUS IS DOWN' : (o.head ? 'HEADSHOT' : 'FINISHER'), 1); if (perk(this.save, 10)) this.hp = Math.min(this.maxHp, this.hp + 10); }
+    if (o.finisher || (this.state.combo >= 3 && Math.random() < .6) || z.boss) { this.slowmo(z.boss ? 1.6 : 0.6); this.shake(.5); this.toast(z.boss ? ($('#bossn').textContent.split(' —')[0] + ' IS DOWN') : (o.head ? 'HEADSHOT' : 'FINISHER'), 1); if (perk(this.save, 10)) this.hp = Math.min(this.maxHp, this.hp + 10); }
     this.audio.at(pos).thud(); if (gore) this.audio.at(pos).squelch(.9); }
   meleeHit() { const P = this.player, ws = this.ws, fwd = V3(Math.sin(P.root.rotation.y), 0, Math.cos(P.root.rotation.y)); let hit = 0;
     this.alive().forEach(z => { const d = z.root.position.clone().sub(P.root.position); const dist = d.length(); d.y = 0; if (dist > ws.range + (z.boss ? .8 : 0)) return; d.normalize(); if (d.dot(fwd) < .35) return;
@@ -473,7 +475,7 @@ export class Game {
   hud() { const s = this.save, w = WEAPONS[s.cur];
     $('#hpb i').style.width = (this.hp / this.maxHp * 100) + '%'; $('#hpTxt').textContent = `Health : ${Math.ceil(this.hp)}  ·  Lv ${s.level}  ·  $${s.cash}  ·  Med ${s.meds}`;
     $('#ammoTxt').textContent = w.type === 'gun' ? `${w.name}  ·  Ammo : ${s.mags[s.cur] || 0} / ${s.ammo[w.ammo] || 0}${this.state.reload > 0 ? '  (reloading)' : ''}` : w.name;
-    $('#grenN').textContent = s.grenades; $('#tAtk').textContent = w.type === 'gun' ? 'FIRE' : 'HIT'; $('#pages').textContent = s.pages.length ? `Comic pages ${s.pages.length}/8` : '';
+    $('#grenN').textContent = s.grenades; $('#tAtk').textContent = w.type === 'gun' ? 'FIRE' : 'HIT'; $('#pages').textContent = s.pages.length ? `Comic pages ${s.pages.length}/14` : '';
     $('#lowhp').style.opacity = this.dying ? 1 : clamp(1 - this.hp / this.maxHp * 2.2, 0, .9); const cb = $('#combo'); if (this.state.combo >= 2) { cb.textContent = `x${this.state.combo} COMBO`; cb.classList.add('on'); } else cb.classList.remove('on');
     const n = this.nearUse(); $('#prompt').textContent = n && !this.cut ? `✋ ${n.label}` : (this.truck.driving ? 'GAS / BRAKE + ◀ ▶ · W/S + A/D · RT/LT' : '');
     if (this.boss) $('#boss').classList.remove('hidden');

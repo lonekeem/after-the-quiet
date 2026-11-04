@@ -12,3 +12,12 @@ Lone Keem Studios presents. Riverside, Maine. One night. Text-only dialogue.
 6. **The Bridge** — The family crosses. Dad stays behind to hold the gate: "Right behind you."
 
 Collectibles: 8 *Captain Riverside* comic pages. Death = bite/feast animation, red YOU DIED, retry from the chapter checkpoint.
+
+## Chapter 2 · High Water (v1.5.0)
+Minutes after the bridge. Keem and Nia reach Haverford, the next town south. The radio calls it a "safe zone." It isn't one.
+- **The Checkpoint:** the National Guard post is overrun, and the soldiers are being eaten. In the command tent, a dying Sgt. Okafor's radio message says the last evac helicopter leaves Haverford High stadium at 0600. The gate runs on a backup panel that needs fuses. Grabbing the Guard's supplies unlocks the **Guard SAW** in the Armory.
+- **High Water (free roam):** the town is flooded. Find 3 fuses at Haverford Hardware, the Doughnut Depot, and the Suds-n-Duds laundromat (spin-cycle massacre included). There is loot to grab and Captain Riverside pages #9–#14 to find.
+- **Hold the Gate (horde):** survive 60 seconds of waves while Nia wires the panel. Dad shows up, "right behind you," two hours late with a doughnut, and starts blasting.
+- **Boss: Coach Brickman:** the gym teacher who failed Keem, now a 1.75× linebacker zombie.
+- **Cliffhanger:** the scoreboard says the evac left early and to go to Portland. Dad's sleeve is wet with blood. "It's nothing, baby. Glass. From the gate."
+New voices (Kokoro stock): Sgt. Okafor (am_eric, radio filter) and Coach Brickman (am_onyx).

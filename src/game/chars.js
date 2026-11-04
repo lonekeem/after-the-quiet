@@ -95,10 +95,11 @@ export function weaponMesh(id) {
   else if (id === 'machete') { add(new THREE.BoxGeometry(0.035, 0.03, 0.14), dark, 0, 0, 0.02); add(new THREE.BoxGeometry(0.06, 0.006, 0.5), steel, 0, 0, 0.33); }
   else if (id === 'axe') { add(new THREE.CylinderGeometry(0.022, 0.022, 0.8, 8), wood, 0, 0, 0.33, Math.PI / 2); add(new THREE.BoxGeometry(0.2, 0.02, 0.14), new THREE.MeshStandardMaterial({ color: '#8a1414', metalness: .5, roughness: .5 }), 0.08, 0, 0.66); }
   else if (id === 'fists') { }
-  else { const L = { pistol: .2, revolver: .26, smg: .36, shotgun: .75, rifle: .7, sniper: .95 }[id] || .3;
+  else { const L = { pistol: .2, revolver: .26, smg: .36, shotgun: .75, rifle: .7, sniper: .95, saw: .85 }[id] || .3;
     add(new THREE.BoxGeometry(0.035, 0.11, 0.05), dark, 0, -0.05, 0); add(new THREE.BoxGeometry(0.045, 0.05, L), id === 'shotgun' ? wood : dark, 0, 0.02, L / 2 - 0.05);
     if (L > 0.3) { add(new THREE.BoxGeometry(0.04, 0.06, 0.22), id === 'sniper' || id === 'shotgun' ? wood : dark, 0, 0.0, -0.15); add(new THREE.BoxGeometry(0.03, 0.1, 0.04), dark, 0, -0.06, L * 0.4); }
-    if (id === 'sniper' || id === 'rifle') add(new THREE.CylinderGeometry(0.022, 0.022, 0.18, 10), dark, 0, 0.075, L * 0.3, Math.PI / 2);
+    if (id === 'sniper' || id === 'rifle' || id === 'saw') add(new THREE.CylinderGeometry(0.022, 0.022, 0.18, 10), dark, 0, 0.075, L * 0.3, Math.PI / 2);
+    if (id === 'saw') { add(new THREE.BoxGeometry(0.09, 0.09, 0.12), new THREE.MeshStandardMaterial({ color: '#3d4630', roughness: .8 }), 0.05, -0.05, 0.12); add(new THREE.CylinderGeometry(0.008, 0.008, 0.12, 6), dark, 0.03, -0.12, L * 0.8); add(new THREE.CylinderGeometry(0.008, 0.008, 0.12, 6), dark, -0.03, -0.12, L * 0.8); }
     const mz = new THREE.Object3D(); mz.position.set(0, 0.02, L - 0.03); mz.name = 'muzzle'; g.add(mz); }
   return g;
 }

@@ -21,7 +21,8 @@ async function ensureGame() { if (game) return game; if (gamePromise) return gam
     await g.load(p => { $('#loading .lb i').style.width = Math.round(p * 100) + '%'; });
     g.onDeath = () => { state = 'dead'; $('#deadMsg').textContent = ['They got you.', 'Keem didn\'t make it.', 'Torn apart in Riverside.', 'Should\'ve rolled.'][(Math.random() * 4) | 0]; showScreen('#dead'); };
     g.onPause = () => { if (state === 'play') pause(); else if (state === 'paused') resume(); };
-    g.onComplete = () => { save.done = true; writeSave(LS, save); state = 'ending'; g.paused = true; $('#endStats').innerHTML = `Kills: ${save.kills} · Level ${save.level} · Cash $${save.cash} · Comic pages ${save.pages.length}/8`; showScreen('#ending'); audio.setMood('sad'); };
+    g.onComplete = (ch = 1) => { save.done = true; if (ch >= 2) save.done2 = true; save.ch = 2; save.step = ch >= 2 ? 12 : 7; writeSave(LS, save); state = 'ending'; g.paused = true; $('#endStats').innerHTML = `Kills: ${save.kills} · Level ${save.level} · Cash $${save.cash} · Comic pages ${save.pages.length}/14`;
+      $('#endH').textContent = ch >= 2 ? 'End of Chapter 2 · High Water' : 'End of Chapter 1 · The Day Before'; $('#endQ').textContent = ch >= 2 ? '“It\'s nothing, baby. Glass. From the gate.”' : '“He said he\'d be right behind us.”'; $('#endNext').textContent = ch >= 2 ? 'Chapter 3 · Portland — coming soon.' : 'Chapter 2 · High Water is unlocked. Your level, cash and weapons carry over.'; $('#btnEndNext').classList.toggle('hidden', ch >= 2); showScreen('#ending'); audio.setMood('sad'); };
     game = g; $('#loading').classList.add('hidden'); return g; })();
   return gamePromise; }
 async function play(step) { showScreen(null); $('#stage').classList.remove('hidden'); state = 'loading'; const g = await ensureGame(); g.save = save; g.settings = S; state = 'play'; audio.init(); $('#hud').classList.remove('hidden'); $('#touch').classList.toggle('hidden', !(matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window)); g.start(step); }
@@ -41,7 +42,7 @@ function renderShop() { $('#shopCash').textContent = `Cash: $${save.cash}  ·  L
   const buy = (n) => { if (save.cash < n) return false; save.cash -= n; return true; };
   if (shopTab === 'guns' || shopTab === 'melee') WEAPON_ORDER.filter(id => (WEAPONS[id].type === 'gun') === (shopTab === 'guns') && id !== 'fists').forEach(id => { const w = WEAPONS[id], s = stat(save, id), own = save.owned.includes(id);
     const st = w.type === 'gun' ? `DMG ${Math.round(s.dmg)}${w.pellets ? '×' + w.pellets : ''} · MAG ${s.mag} · RLD ${s.reload.toFixed(1)}s · ${w.auto ? 'auto' : 'semi'}` : `DMG ${Math.round(s.dmg)} · ${w.sever ? 'can sever limbs' : 'blunt'}${w.bonk ? ' · BONK' : ''}`;
-    const btns = own ? [[save.cur === id ? 'Equipped' : 'Equip', () => { save.cur = id; if (game && state !== 'title') game.equip(id, true); }, save.cur === id]] : [[w.price ? `Buy $${w.price}` : 'Story unlock', () => { if (buy(w.price)) { save.owned.push(id); if (w.type === 'gun') save.mags[id] = s.mag; } }, !w.price || save.cash < w.price]];
+    const lockCh = w.ch && !(save.done || (save.ch || 1) >= w.ch); const btns = lockCh ? [['Chapter ' + w.ch + ' unlock', () => {}, true]] : own ? [[save.cur === id ? 'Equipped' : 'Equip', () => { save.cur = id; if (game && state !== 'title') game.equip(id, true); }, save.cur === id]] : [[w.price ? `Buy $${w.price}` : 'Story unlock', () => { if (buy(w.price)) { save.owned.push(id); if (w.type === 'gun') save.mags[id] = s.mag; } }, !w.price || save.cash < w.price]];
     card(`<b>${w.name}</b><div class="st">${st}</div><div class="small">${w.desc || ''}</div>`, btns, save.cur === id); });
   if (shopTab === 'up') { const owned = WEAPON_ORDER.filter(id => save.owned.includes(id) && id !== 'fists'); if (!owned.length) L.innerHTML = '<p class="small">Find or buy a weapon first.</p>';
     owned.forEach(id => { const w = WEAPONS[id]; const u = save.up[id] = save.up[id] || {}; const keys = w.type === 'gun' ? ['dmg', 'mag', 'rel', 'acc'] : ['dmg'];
@@ -87,19 +88,23 @@ async function openCustom(from) { back = from; state = 'custom'; showScreen('#cu
 // ---------- inventory ----------
 function openInv() { state = 'inv'; renderInv(); showScreen('#inv'); }
 function renderInv() { const s = save; const need = xpFor(s.level);
-  $('#invStats').innerHTML = `Level ${s.level} · XP ${s.xp}/${need} · Cash $${s.cash} · Kills ${s.kills} · Comic pages ${s.pages.length}/8`;
+  $('#invStats').innerHTML = `Level ${s.level} · XP ${s.xp}/${need} · Cash $${s.cash} · Kills ${s.kills} · Comic pages ${s.pages.length}/14`;
   const L = $('#invList'); L.innerHTML = ''; const add = (h, btns = [], eq) => { const d = document.createElement('div'); d.className = 'gi' + (eq ? ' eq' : ''); d.innerHTML = h; btns.forEach(([t, fn]) => { const b = document.createElement('button'); b.textContent = t; b.onclick = () => { fn(); writeSave(LS, save); renderInv(); }; d.appendChild(b); }); L.appendChild(d); };
   WEAPON_ORDER.filter(id => s.owned.includes(id)).forEach(id => { const w = WEAPONS[id]; add(`<b>${w.name}</b><div class="st">${w.type === 'gun' ? `Mag ${s.mags[id] ?? 0} · Reserve ${s.ammo[w.ammo] || 0} ${w.ammo}` : 'Melee'}</div>`, s.cur === id ? [] : [['Equip', () => { s.cur = id; if (game) game.equip(id, true); }]], s.cur === id); });
   add(`<b>Supplies</b><div class="st">Med kits ${s.meds} · Pipe grenades ${s.grenades}<br>9mm/.44 ${s.ammo.light || 0} · Shells ${s.ammo.shell || 0} · Rifle ${s.ammo.rifle || 0}</div>`, s.meds && game && back === '#pause' ? [['Use med kit (+50 HP)', () => game.heal()]] : []);
   add(`<b>Gear</b><div class="st">${s.items.includes('backpack') ? 'Backpack ✔' : 'No backpack yet'}</div>`);
   add(`<b>Perks</b><div class="st">${PERKS.map((p, i) => p ? `${s.level >= i ? '✔' : '🔒'} Lv${i} ${p.name}: ${p.desc}` : '').filter(Boolean).join('<br>')}</div>`);
-  add(`<b>Collectibles</b><div class="st">${s.pages.length ? s.pages.length + ' Captain Riverside comic pages found' : 'Find the 8 Captain Riverside comic pages hidden around town.'}</div>`); }
+  add(`<b>Collectibles</b><div class="st">${s.pages.length ? s.pages.length + ' Captain Riverside comic pages found' : 'Find the 14 Captain Riverside comic pages hidden around town.'}</div>`); }
 
 // ---------- buttons ----------
 $$('.back').forEach(b => b.onclick = () => { if (state === 'custom' && back === '#shop') { openShop(); return; } if (back === '#pause') { state = 'paused'; showScreen('#pause'); return; } state = 'title'; showScreen('#title'); });
 $('#btnWarn').onclick = async () => { try { audio.init(); audio.sting(); } catch (e) {} showScreen(null); $('#studio').classList.remove('hidden'); fadeIn(); ensureGame().catch(e => console.error(e)); $('#loading').classList.add('hidden');
   await Promise.race([sleep(4200), new Promise(r => addEventListener('keydown', r, { once: true }))]); $('#studio').classList.add('hidden'); toTitle(); };
 $('#btnNew').onclick = () => { if (loadSave(LS) && loadSave(LS).step > 0 && !confirm('Start a new game? Your current progress (level, cash, weapons) will be reset.')) return; clearSave(LS); save = defaultSave(); writeSave(LS, save); play(0); };
+$('#btnEndNext').onclick = () => { save = loadSave(LS) || save; play(7); };
+$('#btnChapters').onclick = () => { const s = loadSave(LS) || defaultSave(); const u = s.done || (s.step || 0) >= 7; $('#btnCh2').disabled = !u; $('#btnCh2').textContent = u ? 'Chapter 2 · High Water' : 'Chapter 2 · High Water (finish Chapter 1)'; showScreen('#chapters'); };
+$('#btnCh1').onclick = () => { save = loadSave(LS) || defaultSave(); writeSave(LS, save); play(0); };
+$('#btnCh2').onclick = () => { save = loadSave(LS) || defaultSave(); save.ch = 2; writeSave(LS, save); play(7); };
 $('#btnContinue').onclick = () => { save = loadSave(LS) || defaultSave(); play(save.step); };
 $('#btnCustom').onclick = () => openCustom('#title'); $('#btnShopCustom').onclick = () => openCustom(back === '#pause' ? '#pause' : '#shop');
 $('#btnArmory').onclick = () => { back = '#title'; openShop(); }; $('#btnInvT').onclick = () => { back = '#title'; openInv(); };
