@@ -1,310 +1,252 @@
-import * as THREE from 'three';
 import { AudioSys } from './audio.js';
-import { Input } from './input.js';
-import { buildWorld, makePerson, makeZombie, CAST, box } from './world.js';
-import { NARR, makeChapter1 } from './chapter1.js';
-
-const $ = id => document.getElementById(id);
-const BASE = import.meta.env.BASE_URL;
-// ---------- settings & save ----------
-const DEF = { vol: 0.9, voice: 1, music: 0.7, sens: 1, subs: true, gore: true, invert: false };
-const settings = Object.assign({}, DEF, JSON.parse(localStorage.getItem('atq_settings') || '{}'));
-const saveSettings = () => localStorage.setItem('atq_settings', JSON.stringify(settings));
-const getSave = () => JSON.parse(localStorage.getItem('atq_save') || 'null');
-const setSave = s => localStorage.setItem('atq_save', JSON.stringify(s));
-
-// ---------- renderer ----------
-const canvas = $('c');
-const mobile = matchMedia('(pointer: coarse)').matches;
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: !mobile, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.25 : 1.75));
-renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 260);
-const resize = () => { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); };
-addEventListener('resize', resize); resize();
-scene.fog = new THREE.FogExp2(0xb8c4c0, 0.02);
-const hemi = new THREE.HemisphereLight(0xcfe0e8, 0x3a3a30, 1); scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xfff0d8, 1.5); sun.position.set(-30, 40, 20); scene.add(sun);
-const flash = new THREE.SpotLight(0xfff6e0, 0, 28, 0.45, 0.45, 1.4); camera.add(flash); flash.position.set(0.15, -0.1, 0); flash.target.position.set(0, 0, -5); camera.add(flash.target); scene.add(camera);
-// held bat
-const bat = new THREE.Group(); box(bat, 0, 0, 0, 0.06, 0.06, 0.9, 0x8a6a42); box(bat, 0, 0, 0.42, 0.04, 0.04, 0.2, 0x222); bat.position.set(0.32, -0.32, -0.55); bat.rotation.set(-0.5, 0.2, 0.3); bat.visible = false; camera.add(bat);
-
-const W = buildWorld(scene);
-const audio = new AudioSys(settings);
-const input = new Input(canvas, settings);
-
-// ---------- time of day ----------
-const TOD = {
-  day: { fog: 0xb4c2bc, dens: 0.016, hemi: 1.1, sun: 1.6, sky: 0xb4c2bc, interior: 0, street: false, mood: 'day' },
-  evening: { fog: 0x6e6460, dens: 0.022, hemi: 0.55, sun: 0.45, sky: 0x6e6460, interior: 1, street: true, mood: 'evening' },
-  night: { fog: 0x0b1410, dens: 0.05, hemi: 0.16, sun: 0.06, sky: 0x0b1410, interior: 0.5, street: true, mood: 'night' },
-  menu: { fog: 0x14221b, dens: 0.035, hemi: 0.5, sun: 0.1, sky: 0x0c1612, interior: 0, street: true, mood: 'menu' },
-};
-let tod = 'day';
-function setTOD(name) {
-  tod = name; const t = TOD[name];
-  scene.fog.color.setHex(t.fog); scene.fog.density = t.dens; scene.background = new THREE.Color(t.sky);
-  hemi.intensity = t.hemi; sun.intensity = t.sun; sun.color.setHex(name === 'evening' ? 0xffb080 : name === 'day' ? 0xfff0d8 : 0x8aa0c8);
-  W.lights.interior.forEach(l => l.intensity = t.interior * 7);
-  W.lights.street.forEach(m => m.material = m.material.clone(), 0);
-  W.lights.street.forEach(m => { m.material.emissive.setHex(t.street ? 0xffcc88 : 0); });
-  W.lights.windows.forEach((m, i) => { m.material = m.material.clone(); m.material.emissive.setHex(t.street && i % 3 !== 2 ? 0x6a5530 : 0); });
-  audio.setMood(t.mood);
+import { SCENES, CAST, ITEMS, CHAPTER_STARTS, hash } from './script.js';
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const DEF = { vol: 0.9, voice: 1, music: 0.6, text: 1, subs: true, gore: true, qteEasy: false, still: false, hints: true };
+const S = Object.assign({}, DEF, JSON.parse(localStorage.getItem('atq2.settings') || '{}'));
+const saveS = () => localStorage.setItem('atq2.settings', JSON.stringify(S));
+const audio = new AudioSys(S);
+const VOICED = new Set(['narrator', 'marcus', 'dana', 'walt', 'ruth', 'tv', 'radio', 'pell', 'mailman', 'fisher', 'regular', 'gus', 'barber']);
+const G = window.__atq = { state: 'boot', scene: -1, inv: [], flags: {}, device: 'kbd' };
+// ---------- input ----------
+let listeners = [];
+function emit(a, key) { listeners.slice().forEach(l => l(a, key)); }
+function on(fn) { listeners.push(fn); return () => listeners = listeners.filter(x => x !== fn); }
+function waitFor(acts) { let off; const p = new Promise(r => off = on((a, k) => { if (G.state === 'play' && acts.includes(a)) { off(); r(a); } })); p.cancel = () => off(); return p; }
+function setDevice(d) { if (G.device !== d) { G.device = d; document.body.dataset.dev = d; refreshPrompts(); } }
+const KEYMAP = { ' ': 'ok', Enter: 'ok', e: 'ok', E: 'ok', ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', Tab: 'next', Escape: 'pause', p: 'pause', i: 'inv', c: 'cont', '1': 'c1', '2': 'c2', '3': 'c3' };
+addEventListener('keydown', e => { setDevice('kbd'); audio.init(); const k = e.key.length === 1 ? e.key.toUpperCase() : e.key.toUpperCase();
+  if (e.key === 'Tab') e.preventDefault(); emit('key', k === ' ' ? 'SPACE' : k); const a = KEYMAP[e.key]; if (a) emit(a); else if (G.state === 'play') emit('any'); });
+addEventListener('pointerdown', e => { setDevice(e.pointerType === 'touch' ? 'touch' : 'kbd'); audio.init(); });
+const PADMAP = { 0: 'A', 1: 'B', 2: 'X', 3: 'Y', 9: 'START', 12: 'up', 13: 'down', 14: 'left', 15: 'right' };
+let padPrev = {};
+function pollPad() { const pads = navigator.getGamepads ? navigator.getGamepads() : []; for (const p of pads) { if (!p) continue;
+  p.buttons.forEach((b, i) => { const was = padPrev[i]; padPrev[i] = b.pressed; if (b.pressed && !was && PADMAP[i]) { setDevice('pad'); audio.init(); const n = PADMAP[i];
+    emit('key', n); if (n === 'A') emit('ok'); else if (n === 'B') emit('cont'); else if (n === 'Y') emit('inv'); else if (n === 'START') emit('pause'); else emit(n); } });
+  const ax = p.axes[1] || 0; if (Math.abs(ax) > .6 && !padPrev.ax) { padPrev.ax = 1; setDevice('pad'); emit(ax > 0 ? 'down' : 'up'); } else if (Math.abs(ax) < .3) padPrev.ax = 0; break; } }
+const glyph = { ok: { kbd: 'SPACE', pad: 'Ⓐ', touch: 'TAP' }, cont: { kbd: 'C', pad: 'Ⓑ', touch: 'TAP' } };
+function refreshPrompts() { const c = $('#cont'); if (c.dataset.mode) c.textContent = c.dataset.mode === 'skip' ? `${glyph.ok[G.device]} skip intro` : c.dataset.mode === 'cont' ? `${glyph.cont[G.device]}  Continue ▸` : `${glyph.ok[G.device]} ▸`; }
+// ---------- visuals ----------
+let layerIdx = 0, curImg = '';
+const imgURL = n => `./img/${n}.webp`;
+function preload(n) { const i = new Image(); i.src = imgURL(n); return i.decode?.().catch(() => {}) || Promise.resolve(); }
+async function showShot(img, kb = 'in', fx = [], gore = false) {
+  await Promise.race([preload(img), sleep(2500)]);
+  const L = [$('#L0'), $('#L1')]; const next = L[layerIdx ^ 1], cur = L[layerIdx];
+  if (img !== curImg) { next.style.backgroundImage = `url(${imgURL(img)})`; next.className = 'layer'; void next.offsetWidth; next.className = `layer on kb-${kb}`; cur.classList.remove('on'); layerIdx ^= 1; curImg = img; }
+  L[layerIdx].classList.toggle('gore-soft', gore && !S.gore);
+  setFx(fx);
 }
-setTOD('menu');
-
-// ---------- player ----------
-const P = { x: 0, z: 0, y: 1.32, yaw: 0, pitch: 0, hp: 100, lastHurt: 0, speed: 0, bob: 0, control: false, hasBat: false, light: false, hasLight: false, swingT: 0 };
-const trail = [];
-function placePlayer(x, z, yaw = 0) { P.x = x; P.z = z; P.yaw = yaw; P.pitch = 0; trail.length = 0; for (let i = 0; i < 30; i++) trail.push({ x, z }); }
-function collide(o, r = 0.3) {
-  for (const c of W.colliders) {
-    if (o.x > c.minX - r && o.x < c.maxX + r && o.z > c.minZ - r && o.z < c.maxZ + r) {
-      const dl = o.x - (c.minX - r), dr = (c.maxX + r) - o.x, dt = o.z - (c.minZ - r), db = (c.maxZ + r) - o.z, m = Math.min(dl, dr, dt, db);
-      if (m === dl) o.x = c.minX - r; else if (m === dr) o.x = c.maxX + r; else if (m === dt) o.z = c.minZ - r; else o.z = c.maxZ + r;
-    }
+let fxSet = [];
+function setFx(fx) { fxSet = fx; $('#fog').classList.toggle('on', fx.includes('fog')); $('#flash').classList.toggle('flicker', fx.includes('flicker')); initParticles(); }
+const wc = $('#weather'), wx = wc.getContext('2d'); let parts = [];
+function initParticles() { parts = []; const n = fxSet.includes('rain') ? 260 : fxSet.includes('snow') ? 160 : 0; for (let i = 0; i < n; i++) parts.push({ t: fxSet.includes('rain') ? 'r' : 's', x: Math.random(), y: Math.random(), v: .5 + Math.random() });
+  if (fxSet.includes('embers')) for (let i = 0; i < 60; i++) parts.push({ t: 'e', x: Math.random(), y: Math.random(), v: .3 + Math.random() });
+  if (fxSet.includes('dust')) for (let i = 0; i < 50; i++) parts.push({ t: 'd', x: Math.random(), y: Math.random(), v: .2 + Math.random() * .4 }); }
+const gc = $('#grain'), gx = gc.getContext('2d'); gc.width = 192; gc.height = 108; const gimg = gx.createImageData(192, 108);
+let lastT = 0;
+function frame(t) { const dt = Math.min(.05, (t - lastT) / 1000); lastT = t; pollPad();
+  if (wc.width !== innerWidth) { wc.width = innerWidth; wc.height = innerHeight; }
+  const W = wc.width, H = wc.height; wx.clearRect(0, 0, W, H);
+  for (const p of parts) {
+    if (p.t === 'r') { p.y += dt * 1.8 * p.v; p.x -= dt * .15; wx.strokeStyle = 'rgba(190,210,220,.35)'; wx.lineWidth = 1; wx.beginPath(); wx.moveTo(p.x * W, p.y * H); wx.lineTo(p.x * W - 4, p.y * H + 18 * p.v); wx.stroke(); }
+    else if (p.t === 's') { p.y += dt * .08 * p.v; p.x += Math.sin(t / 900 + p.v * 9) * dt * .02; wx.fillStyle = 'rgba(240,245,255,.7)'; wx.beginPath(); wx.arc(p.x * W, p.y * H, 1.2 + p.v * 1.5, 0, 7); wx.fill(); }
+    else if (p.t === 'e') { p.y -= dt * .06 * p.v; p.x += Math.sin(t / 700 + p.v * 20) * dt * .02; wx.fillStyle = `rgba(255,${120 + p.v * 60 | 0},40,${.4 + .5 * Math.abs(Math.sin(t / 300 + p.v * 9))})`; wx.fillRect(p.x * W, p.y * H, 2.2, 2.2); }
+    else { p.y += Math.sin(t / 2000 + p.v * 30) * dt * .01; p.x += dt * .01 * p.v; wx.fillStyle = 'rgba(255,240,210,.25)'; wx.fillRect(p.x * W, p.y * H, 1.5, 1.5); }
+    if (p.y > 1.05) { p.y = -.05; p.x = Math.random() * 1.1; } if (p.y < -.05) { p.y = 1.05; p.x = Math.random(); } if (p.x > 1.05) p.x = -.05; if (p.x < -.05) p.x = 1.05;
   }
+  const d = gimg.data; for (let i = 0; i < d.length; i += 4) { const v = Math.random() * 255; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; } gx.putImageData(gimg, 0, 0);
+  requestAnimationFrame(frame); }
+requestAnimationFrame(frame);
+let px = 0, py = 0; const applyPar = () => { if (!S.still) $('#par').style.transform = `translate(${px * -1.4}%,${py * -1.4}%)`; };
+addEventListener('pointermove', e => { px = e.clientX / innerWidth - .5; py = e.clientY / innerHeight - .5; applyPar(); });
+addEventListener('deviceorientation', e => { if (e.gamma == null) return; px = Math.max(-.5, Math.min(.5, e.gamma / 60)); py = Math.max(-.5, Math.min(.5, (e.beta - 45) / 60)); applyPar(); });
+// ---------- ui helpers ----------
+function toast(html, ms = 2200) { const t = $('#toast'); t.innerHTML = html; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), ms); }
+let goal = '';
+function setGoal(t) { goal = t || ''; obj(goal); }
+const hglyph = (k) => G.device === 'touch' ? 'Tap' : G.device === 'pad' ? ({ ok: 'Ⓐ', cont: 'Ⓨ', move: 'D-pad' })[k] : ({ ok: 'Enter / Click', cont: 'C', move: 'Arrow keys' })[k];
+async function tutorial(kind) {
+  if (!S.hints || localStorage.getItem('atq2.tut.' + kind)) return; localStorage.setItem('atq2.tut.' + kind, 1);
+  const msg = kind === 'hot' ? `<b>Look around</b><br>Glowing circles are things you can interact with.<br>${G.device === 'touch' ? 'Tap one' : G.device === 'pad' ? 'D-pad to select · Ⓐ to use' : 'Click one, or Arrow keys + Enter'}.<br><small>The line at the top-left always tells you what to do.</small>`
+    : `<b>Quick-time events</b><br>When the red button appears, ${G.device === 'touch' ? 'tap it' : 'press the key shown'}.<br>MASH = press fast · WAIT FOR IT = press when the marker is in the green<br>DON'T MOVE = press nothing. The ring shows time left.<br><small>Fail? You retry from the checkpoint. Easier QTEs in Settings.</small>`;
+  const t = document.createElement('div'); t.id = 'tut'; t.innerHTML = msg + `<div class="tk">${G.device === 'touch' ? 'Tap' : G.device === 'pad' ? 'Ⓐ' : 'Enter'} to continue</div>`; document.body.appendChild(t);
+  await Promise.race([waitFor(['ok', 'next', 'cont']), new Promise(r => t.onpointerdown = r), sleep(15000)]); t.remove();
 }
-
-// ---------- NPCs ----------
-const npcs = {};
-for (const k of ['marcus', 'dana', 'nia', 'theo', 'walt', 'ruth']) { const n = makePerson(CAST[k]); n.visible = false; n.mode = 'idle'; scene.add(n); npcs[k] = n; }
-const kemoyModel = makePerson(CAST.kemoy); scene.add(kemoyModel); kemoyModel.visible = false;
-function npc(name, x, z, face = 0) { const n = npcs[name]; n.visible = true; n.position.set(x, 0, z); n.rotation.y = face; n.mode = 'idle'; n.goal = null; return n; }
-function follow(name, slot) { const n = npcs[name]; n.visible = true; n.mode = 'follow'; n.slot = slot; }
-function goTo(name, x, z) { const n = npcs[name]; n.visible = true; n.mode = 'goto'; n.goal = { x, z }; return new Promise(res => n.onArrive = res); }
-function hideNpc(...names) { names.forEach(n => { npcs[n].visible = false; npcs[n].mode = 'idle'; }); }
-function updateNpcs(dt) {
-  for (const n of Object.values(npcs)) {
-    if (!n.visible) continue; let tx, tz, spd = 0;
-    if (n.mode === 'follow') { const p = trail[Math.min(trail.length - 1, n.slot * 3 + 2)]; tx = p.x; tz = p.z; }
-    else if (n.mode === 'goto') { tx = n.goal.x; tz = n.goal.z; }
-    if (tx !== undefined) {
-      const dx = tx - n.position.x, dz = tz - n.position.z, d = Math.hypot(dx, dz);
-      if (d > (n.mode === 'goto' ? 0.15 : 0.6)) { spd = Math.min(d * 2, P.running && n.mode === 'follow' ? 5.6 : 3.2); n.position.x += dx / d * spd * dt; n.position.z += dz / d * spd * dt; n.rotation.y = Math.atan2(dx, dz); }
-      else if (n.mode === 'goto') { n.mode = 'idle'; n.onArrive?.(); }
-    }
-    if (n.mode === 'idle' && n.lookAtPlayer !== false) { const a = Math.atan2(P.x - n.position.x, P.z - n.position.z); const d = Math.hypot(P.x - n.position.x, P.z - n.position.z); if (d < 5) n.rotation.y += (a - n.rotation.y + Math.PI * 3) % (Math.PI * 2) - Math.PI > 0 ? Math.min(dt * 3, ((a - n.rotation.y + Math.PI * 3) % (Math.PI * 2) - Math.PI)) : Math.max(-dt * 3, ((a - n.rotation.y + Math.PI * 3) % (Math.PI * 2) - Math.PI)); }
-    n.animate(dt, spd);
+function obj(text) { text = text || goal; const o = $('#obj'); o.textContent = text ? '◆ ' + text : ''; o.classList.toggle('on', !!text); }
+function cont(mode) { const c = $('#cont'); c.dataset.mode = mode || ''; c.classList.toggle('hidden', !mode); refreshPrompts(); }
+$('#cont').onclick = () => emit($('#cont').dataset.mode === 'cont' ? 'cont' : 'ok');
+$('#stage').addEventListener('click', e => { if (e.target.closest('button,.hot,#qbtn')) return; emit('ok'); });
+let abortScene = null; // set to reject current scene on retry/quit
+class Abort extends Error {}
+let abortRes = null, abortP = new Promise(r => abortRes = r);
+function setAbort(w) { abortScene = w; audio.stopVoice(); abortRes(); abortP = new Promise(r => abortRes = r); emit('tick'); }
+function guard() { if (abortScene) throw new Abort(); }
+async function say(who, text, { auto = false } = {}) {
+  guard(); const sub = $('#subs'), c = CAST[who];
+  $('#who').textContent = who === 'narrator' ? '' : c?.name || who; $('#line').textContent = text;
+  $('#who').style.color = c?.color || ''; sub.classList.toggle('narr', who === 'narrator');
+  const pt = $('#portrait'); if (c?.img) { pt.style.backgroundImage = `url(${imgURL(c.img)})`; pt.style.display = ''; } else { pt.style.display = 'none'; }
+  sub.classList.toggle('on', S.subs || !VOICED.has(who)); cont(auto ? null : 'next');
+  const read = sleep(Math.max(3400, text.length * 78) / S.text);
+  const skip = auto ? abortP.then(() => 'ok') : Promise.race([waitFor(['ok']), abortP.then(() => 'ok')]);
+  let r = VOICED.has(who) ? await Promise.race([audio.playVoice(`./audio/v/${hash(who + '|' + text)}.mp3`).then(ok => ok ? 'end' : 'fail'), skip]) : 'fail';
+  if (r === 'fail') r = await Promise.race([read, skip]);
+  if (r === 'ok') audio.stopVoice(); else await sleep(who === 'narrator' ? 1900 : 750);
+    sub.classList.remove('on'); cont(null); await sleep(450); guard();
+}
+async function choice(opts) {
+  guard(); const box = $('#choices'); box.innerHTML = ''; let sel = 0;
+  const btns = opts.map((o, i) => { const b = document.createElement('button'); b.innerHTML = `<b>${G.device === 'pad' ? '' : i + 1}</b>${o.t}`; box.appendChild(b); return b; });
+  const mark = () => btns.forEach((b, i) => b.classList.toggle('sel', i === sel && G.device !== 'touch')); mark();
+  const pick = await new Promise(res => { btns.forEach((b, i) => b.onclick = e => { e.stopPropagation(); res(i); });
+    const off = on(a => { if (G.state !== 'play' && !abortScene) return; if (a === 'up') sel = (sel + opts.length - 1) % opts.length; if (a === 'down') sel = (sel + 1) % opts.length; mark();
+      if (a === 'ok') res(sel); const m = /^c(\d)$/.exec(a); if (m && +m[1] <= opts.length) res(+m[1] - 1); if (abortScene) res(-1); });
+    btns._off = off; });
+  btns._off(); box.innerHTML = ''; guard(); const o = opts[pick]; if (o.flag) G.flags[o.flag] = true;
+  for (const [w, t] of o.r || []) await say(w, t);
+}
+async function hotspots(list, need, optional) {
+  guard(); await tutorial('hot'); const box = $('#hots'); box.innerHTML = '';
+  if (!goal) obj(need ? 'Find: ' + list.filter(h => need.includes(h.item) || need.includes(h.l)).map(h => h.l).join(', ') : 'Look around, or continue'); const got = new Set(); let sel = -1;
+  const els = list.map(h => { const b = document.createElement('button'); b.className = 'hot'; b.style.left = h.x + '%'; b.style.top = h.y + '%'; b.innerHTML = `<span>${h.l}</span>`; box.appendChild(b); return b; });
+  const done = () => need ? need.every(n => got.has(n)) : false;
+  if (optional) cont('cont');
+  await new Promise(res => {
+    let busy = false, idle = null;
+    const poke = () => { clearTimeout(idle); if (!S.hints) return; idle = setTimeout(() => { const i = list.findIndex((h, k) => !els[k].classList.contains('done') && (!need || need.includes(h.item) || need.includes(h.l))); const j = i >= 0 ? i : 0;
+      els[j]?.classList.add('hint'); toast(`<b style="color:#7fd49a">Hint</b><br>${hglyph("ok")} the glowing <b>${list[j].l}</b>${optional ? ` · or ${hglyph("cont")} to move on` : ''}`); poke(); }, 20000); };
+    poke();
+    const act = async i => { if (busy) return; busy = true; poke(); els[i].classList.remove('hint'); const h = list[i]; els[i].classList.add('done'); box.style.pointerEvents = 'none';
+      if (h.look) await say('kemoy', h.look).catch(() => {}); if (h.talk) for (const [w, t] of h.talk) await say(w, t).catch(() => {});
+      if (h.item) { got.add(h.item); if (!h.item.startsWith('_')) giveItem(h.item); } got.add(h.l);
+      box.style.pointerEvents = ''; busy = false; if (optional) cont('cont'); if (done() || abortScene) { clearTimeout(idle); off(); res(); } };
+    els.forEach((b, i) => b.onclick = e => { e.stopPropagation(); act(i); });
+    const mark = () => els.forEach((b, i) => b.classList.toggle('sel', i === sel));
+    const off = on(a => { if (busy || (G.state !== 'play' && !abortScene)) return; if (['next', 'right', 'down'].includes(a)) { sel = (sel + 1) % els.length; mark(); } if (['left', 'up'].includes(a)) { sel = (sel + els.length - 1) % els.length; mark(); }
+      if (a === 'ok' && sel >= 0) act(sel); if (a === 'cont' && optional) { off(); res(); } if (abortScene) { off(); res(); } });
+    $('#cont').onclick = () => { if (optional && !busy) { off(); res(); } };
+  });
+  $('#cont').onclick = () => emit($('#cont').dataset.mode === 'cont' ? 'cont' : 'ok');
+  box.innerHTML = ''; cont(null); obj(goal); guard();
+}
+function giveItem(id) { if (!G.inv.includes(id)) G.inv.push(id); audio.radioJingle?.(); toast(`<b style="color:#7fd49a">Picked up</b><br>${ITEMS[id].name}`); }
+async function qte(q) {
+  guard(); await tutorial('qte'); const easy = S.qteEasy, time = q.time * (q.type === 'still' ? 1 : easy ? 1.8 : 1.3) * 1000, need = Math.ceil((q.count || 1) * (easy ? .55 : .8));
+  const keys = { kbd: q.type === 'press' ? ['E', 'Q', 'F', 'SPACE'][Math.random() * 4 | 0] : 'SPACE', pad: q.type === 'press' ? ['A', 'B', 'X', 'Y'][Math.random() * 4 | 0] : 'A' };
+  const label = () => G.device === 'touch' ? 'TAP' : G.device === 'pad' ? { A: 'Ⓐ', B: 'Ⓑ', X: 'Ⓧ', Y: 'Ⓨ' }[keys.pad] : keys.kbd;
+  const el = $('#qte'); el.classList.remove('hidden'); $('#qlabel').textContent = q.label + (q.type === 'still' ? ' · DON\'T MOVE' : q.type === 'mash' ? ' · MASH' : q.type === 'timing' ? ' · WAIT FOR IT' : '');
+  $('#qbtn').textContent = q.type === 'still' ? '…' : label(); $('#qbar').style.display = q.type === 'timing' ? 'block' : 'none'; audio.heartbeat();
+  const t0 = performance.now(); let hits = 0, result = null; const zone = [.55, .85]; $('#qzone').style.left = '55%'; $('#qzone').style.width = '30%';
+  const pos = () => { const u = ((performance.now() - t0) / time) * 2; return u <= 1 ? u : 2 - u; };
+  const press = k => { if (result) return; if (q.type === 'still') { result = 'fail'; return; } const want = G.device === 'pad' ? keys.pad : keys.kbd; if (k !== 'TAP' && k !== want && !(want === 'SPACE' && k === 'ENTER')) { if (q.type === 'press' && ['E', 'Q', 'F', 'SPACE', 'A', 'B', 'X', 'Y'].includes(k)) result = 'fail'; return; }
+    $('#qbtn').classList.add('hitk'); setTimeout(() => $('#qbtn').classList.remove('hitk'), 80); audio.swing();
+    if (q.type === 'press') result = 'ok'; else if (q.type === 'mash') { hits++; if (hits >= need) result = 'ok'; } else { const p = pos(); result = p >= zone[0] - (easy ? .05 : 0) && p <= zone[1] + (easy ? .05 : 0) ? 'ok' : 'fail'; } };
+  const off = on((a, k) => { if (a === 'key' && G.state === 'play') press(k); });
+  $('#qbtn').onpointerdown = e => { e.stopPropagation(); press('TAP'); };
+  while (!result) { const el2 = performance.now() - t0; if (el2 > time) result = q.type === 'still' ? 'ok' : 'fail'; if (abortScene) result = 'abort';
+    $('#qtime i').style.width = (100 - el2 / time * 100) + '%'; $('#qbtn').style.setProperty('--t', (1 - el2 / time) * 360 + 'deg'); $('#qmark').style.left = (pos() * 100) + '%'; $('#qbtn').textContent = q.type === 'still' ? '…' : label(); if (q.type === 'still' && Math.random() < .004) audio.groan(.12); await sleep(16); }
+  off(); el.classList.add('hidden'); guard();
+  if (result === 'ok') { audio.hit(); $('#flash').classList.remove('hit'); void $('#flash').offsetWidth; return; }
+  audio.hurt(); $('#flash').classList.add('hit'); await sleep(600); throw new Abort('dead');
+}
+async function card(a, b, ms = 4200) { const c = $('#card'); c.querySelector('.c1').textContent = a; c.querySelector('.c2').textContent = b || ''; c.classList.remove('hidden'); audio.sting(); await Promise.race([sleep(ms), waitFor(['ok']), abortP]); c.classList.add('hidden'); guard(); }
+async function blackCut(text) { const f = $('#fade'); f.style.transition = 'none'; f.style.opacity = 1; audio.drone(false); audio.boom(); f.innerHTML = `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:italic clamp(22px,3.4vw,40px) Georgia;color:#dfe;letter-spacing:.1em;opacity:0;transition:opacity 2s" id="dtext">${text}</div>`;
+  await sleep(1400); $('#dtext').style.opacity = 1; await sleep(3400); $('#dtext').style.opacity = 0; await sleep(1600); f.innerHTML = ''; f.style.transition = ''; audio.setMood('day'); }
+// ---------- scene runner ----------
+function save(i) { localStorage.setItem('atq2.save', JSON.stringify({ scene: i, inv: G.inv, flags: G.flags, t: Date.now() })); }
+function load() { try { return JSON.parse(localStorage.getItem('atq2.save')); } catch { return null; } }
+let cpScene = 0, cpInv = [], cpFlags = {};
+async function runScene(i) {
+  const sc = SCENES[i]; if (sc.ifFlag && !G.flags[sc.ifFlag]) return; G.scene = i; setGoal(sc.goal || (sc.trailer ? '' : 'Watch. Listen.')); G.sceneId = sc.id; G.state = 'play';
+  if (sc.cp || i === 0) { cpScene = i; cpInv = [...G.inv]; cpFlags = { ...G.flags }; }
+  save(i); audio.setMood(sc.mood || 'day'); if (sc.trailer) audio.drone(true);
+  if (SCENES[i + 1]) preload(SCENES[i + 1].img);
+  await showShot(sc.img, sc.kb, sc.fx || [], sc.gore);
+  await Promise.race([sleep(sc.trailer ? 1500 : 2200), abortP]);
+  $('#hudr').classList.toggle('hidden', !!sc.trailer);
+  for (const b of sc.beats) { guard();
+    if (b.shot) { await showShot(b.shot, b.kb, b.fx || [], false); await Promise.race([sleep(1600), abortP]); guard(); const nx = sc.beats[sc.beats.indexOf(b) + 1]; if (nx?.shot) preload(nx.shot); }
+    if (b.n) { await say('narrator', b.n, { auto: !!sc.trailer }); if (sc.trailer) { await Promise.race([sleep(2400), abortP]); guard(); } }
+    if (b.s) await say(b.s[0], b.s[1]);
+    if (b.obj) setGoal(b.obj);
+    if (b.choice) await choice(b.choice);
+    if (b.hot) await hotspots(b.hot, b.need, b.optional);
+    if (b.item) giveItem(b.item);
+    if (b.qte) await qte(b.qte);
+    if (b.scare) { audio.glass(); audio.sting(); audio.groan(.3); $('#flash').classList.remove('hit'); void $('#flash').offsetWidth; $('#flash').classList.add('hit'); document.body.classList.add('snap'); await showShot(b.scare, 'in', ['flicker'], true); setTimeout(() => document.body.classList.remove('snap'), 400); navigator.vibrate?.(300); await Promise.race([sleep(700), abortP]); }
+    if (b.sfx) ({ siren: () => audio.siren(.04, 10), glass: () => audio.glass(), groan: () => audio.groan(.15), crash: () => audio.crash(), thud: () => audio.thud(), static: () => audio.staticBurst(2.5), bell: () => [0, 2.4, 4.8, 7.2].forEach(d => setTimeout(() => audio.tone?.(196, 3, 'sine', .09, audio.verb, .01), d * 1000)) })[b.sfx]?.();
+    if (b.ifFlag && G.flags[b.ifFlag]) for (const [w, t] of b.then) await say(w, t);
+    if (b.black) await blackCut(b.black);
+    if (b.card) await card(...b.card);
   }
+  if (sc.trailer) audio.drone(false);
 }
-
-// ---------- zombies ----------
-let zombies = [];
-const particles = [];
-function spawnZombie(x, z, opts = {}) {
-  const m = makeZombie(settings.gore, opts.base); m.position.set(x, 0, z); scene.add(m);
-  const zz = { m, x, z, hp: opts.hp || 3, speed: opts.speed || (0.9 + Math.random() * 0.6), stagger: 0, dead: false, deadT: 0, idle: !!opts.idle, aggro: opts.aggro || 22, atk: 0 };
-  zombies.push(zz); return zz;
-}
-function clearZombies() { zombies.forEach(z => scene.remove(z.m)); zombies = []; }
-function burst(x, y, z) {
-  const color = settings.gore ? 0x6a0a0a : 0x6a6a60;
-  for (let i = 0; i < 12; i++) { const p = box(scene, x, y, z, 0.06, 0.06, 0.06, color); p.v = new THREE.Vector3((Math.random() - 0.5) * 3, Math.random() * 3, (Math.random() - 0.5) * 3); p.life = 0.8; particles.push(p); }
-}
-function updateZombies(dt, now) {
-  for (const z of zombies) {
-    if (z.dead) { z.deadT += dt; z.m.rotation.x = Math.max(-Math.PI / 2, z.m.rotation.x - dt * 4); if (z.deadT > 6) { scene.remove(z.m); z.gone = true; } continue; }
-    const dx = P.x - z.x, dz = P.z - z.z, d = Math.hypot(dx, dz); let spd = 0;
-    if (z.stagger > 0) { z.stagger -= dt; }
-    else if (!z.idle && d < z.aggro && state === 'play') {
-      spd = z.speed; z.x += dx / d * spd * dt; z.z += dz / d * spd * dt; z.m.rotation.y = Math.atan2(dx, dz);
-      for (const o of zombies) if (o !== z && !o.dead) { const ox = z.x - o.x, oz = z.z - o.z, od = Math.hypot(ox, oz); if (od < 0.6 && od > 0) { z.x += ox / od * (0.6 - od) * 0.5; z.z += oz / od * (0.6 - od) * 0.5; } }
-      collide(z, 0.25);
-      if (d < 1.15 && now - z.atk > 1100 && P.control) { z.atk = now; hurtPlayer(settings.gore ? 20 : 16); }
-    } else if (z.idle) { z.m.rotation.z = Math.sin(now / 900 + z.x) * 0.06; }
-    if (!z.idle && d < 14 && Math.random() < dt * 0.15) audio.groan(Math.max(0.02, 0.15 - d * 0.01));
-    z.m.position.set(z.x, 0, z.z); z.m.animate(dt, spd);
-  }
-  zombies = zombies.filter(z => !z.gone);
-  for (const p of particles) { p.life -= dt; p.v.y -= 9 * dt; p.position.addScaledVector(p.v, dt); if (p.position.y < 0.03) { p.position.y = 0.03; p.v.set(0, 0, 0); } if (p.life <= 0) scene.remove(p); }
-  for (let i = particles.length - 1; i >= 0; i--) if (particles[i].life <= 0) particles.splice(i, 1);
-}
-function swing() {
-  if (!P.hasBat || P.swingT > 0) return; P.swingT = 0.45; audio.swing();
-  const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw); let best = null, bd = 2.1;
-  for (const z of zombies) { if (z.dead) continue; const dx = z.x - P.x, dz = z.z - P.z, d = Math.hypot(dx, dz); if (d < bd && (dx * fx + dz * fz) / d > 0.5) { best = z; bd = d; } }
-  if (best) setTimeout(() => {
-    if (best.dead) return; audio.hit(); best.hp--; best.stagger = 0.8; best.x += fx * 1.0; best.z += fz * 1.0; collide(best, 0.25); burst(best.x, 1.4, best.z);
-    if (best.hp <= 0) { best.dead = true; audio.thud(); if (settings.gore) { const pool = box(scene, best.x, 0.02, best.z, 1, 0.01, 0.8, 0x3a0505); setTimeout(() => scene.remove(pool), 30000); } }
-  }, 150);
-}
-function hurtPlayer(dmg) {
-  P.hp -= dmg; P.lastHurt = performance.now(); audio.hurt(); $('damage').style.opacity = 1; setTimeout(() => $('damage').style.opacity = 0, 300);
-  if (P.hp <= 0) die();
-}
-
-// ---------- UI ----------
-const screens = ['warning', 'title', 'chapters', 'settings', 'controls', 'credits', 'pause', 'dead', 'loading'];
-let screenStack = [];
-function show(name) { screens.forEach(s => $(s).classList.toggle('hidden', s !== name)); focusIdx = 0; updateFocus(); }
-function hideScreens() { screens.forEach(s => $(s).classList.add('hidden')); }
-function fade(to, ms = 1200) { $('fade').style.transition = `opacity ${ms}ms`; $('fade').style.opacity = to; return wait(ms); }
-let state = 'menu', runToken = 0;
-const wait = ms => new Promise(r => setTimeout(r, ms));
-function setObjective(t) { $('objective').textContent = t ? '◆ ' + t : ''; }
-let subTimer;
-function subtitle(html) { clearTimeout(subTimer); $('subs').innerHTML = settings.subs && html ? `<span>${html}</span>` : ''; }
-function chapterCard(n, t, s, ms = 4500) { const c = $('chaptercard'); c.innerHTML = `<div class="n">${n}</div><div class="t">${t}</div>${s ? `<div class="s">${s}</div>` : ''}`; c.classList.remove('hidden'); return wait(ms).then(() => c.classList.add('hidden')); }
-
-// ---------- scripting API ----------
-let interacts = [];
-const G = {
-  THREE, W, npcs, P, settings, audio, scene, camera,
-  token: () => runToken,
-  alive(tok) { if (tok !== runToken) throw new Error('cancelled'); },
-  wait: (ms) => { const t = runToken; return wait(ms).then(() => { if (t !== runToken) return new Promise(() => {}); }); },
-  objective: setObjective, setTOD, npc, follow, goTo, hideNpc, spawnZombie, clearZombies, chapterCard, fade, placePlayer,
-  get zombies() { return zombies; },
-  control(on) { P.control = on; },
-  giveBat() { P.hasBat = true; bat.visible = true; }, giveLight() { P.hasLight = true; P.light = true; },
-  async narrate(id) {
-    const t = runToken; subtitle(`<span class="nar">${NARR[id]}</span>`);
-    const ok = await audio.playVoice(`${BASE}audio/narration/${id}.mp3`);
-    if (!ok) await wait(Math.max(2500, NARR[id].split(' ').length * 420));
-    if (t !== runToken) return new Promise(() => {});
-    subtitle(''); await wait(300);
-  },
-  async say(lines) {
-    for (const [who, text] of lines) {
-      const t = runToken; subtitle(`<b class="who">${who}:</b> ${text}`);
-      const dur = Math.max(1800, text.split(' ').length * 330 + 600); const start = performance.now(); input.take('use');
-      while (performance.now() - start < dur) { await wait(50); if (t !== runToken) return new Promise(() => {}); if (performance.now() - start > 500 && input.take('use')) break; }
+async function play(from) {
+  showScreen(null); fadeIn(); G.state = 'play';
+  for (let i = from; i < SCENES.length; i++) {
+    abortScene = null; let skipOff = null;
+    if (SCENES[i].trailer) { cont('skip'); skipOff = on(a => { if (a === 'ok' || a === 'cont' || a === 'pause') setAbort('skip'); }); }
+    try { await runScene(i); } catch (e) {
+      skipOff?.(); cont(null); $('#subs').classList.remove('on'); $('#hots').innerHTML = ''; $('#choices').innerHTML = ''; $('#qte').classList.add('hidden'); audio.stopVoice(); obj('');
+      if (!(e instanceof Abort)) { console.error(e); }
+      const why = abortScene || e.message; abortScene = null;
+      if (why === 'skip') { audio.drone(false); await blackCut('The day before...'); continue; }
+      if (why === 'quit') return;
+      if (why === 'dead') { G.state = 'dead'; showScreen('#dead'); await waitClick('#btnRetry'); showScreen(null); }
+      G.inv = [...cpInv]; G.flags = { ...cpFlags }; i = cpScene - 1; continue;
     }
-    subtitle('');
-  },
-  waitZone(x, z, r) { const t = runToken; return new Promise(res => { const iv = setInterval(() => { if (t !== runToken) { clearInterval(iv); return; } if (Math.hypot(P.x - x, P.z - z) < r) { clearInterval(iv); res(); } }, 100); }); },
-  waitInteract(target, label, r = 2.2) { const t = runToken; return new Promise(res => { const it = { target, label, r, res: () => { interacts = interacts.filter(x => x !== it); if (t === runToken) res(); } }; interacts.push(it); }); },
-  clearInteracts() { interacts = []; },
-  waitKill(list) { const t = runToken; return new Promise(res => { const iv = setInterval(() => { if (t !== runToken) { clearInterval(iv); return; } if (list.every(z => z.dead)) { clearInterval(iv); res(); } }, 100); }); },
-  async cine(from, look, to, ms) { // camera dolly
-    P.control = false; const t0 = performance.now(); cineCam = { from, look, to, ms, t0 };
-    await wait(ms); cineCam = null;
-  },
-  checkpoint(step) { setSave({ chapter: 1, step }); },
-  finishChapter() { const s = getSave() || {}; setSave({ chapter: 1, step: 0, done1: true }); localStorage.setItem('atq_ch1_done', '1'); },
-  quitToTitle: () => quitToTitle(),
-  kemoyModel, flood: W.refs.flood,
-};
-let cineCam = null;
-function targetPos(t) { return t.isObject3D ? new THREE.Vector3().setFromMatrixPosition(t.matrixWorld) : new THREE.Vector3(t.x, 1, t.z); }
-
-const chapter = makeChapter1(G);
-
-async function startChapter(step = 0) {
-  runToken++; const tok = runToken;
-  hideScreens(); $('hud').classList.remove('hidden'); if (mobile) $('touch').classList.remove('hidden');
-  audio.init(); clearZombies(); Object.keys(npcs).forEach(n => hideNpc(n)); kemoyModel.visible = false;
-  P.hp = 100; P.hasBat = false; bat.visible = false; P.hasLight = false; P.light = false; interacts = []; cineCam = null;
-  W.refs.momCar.visible = false; W.refs.gdoor.position.y = 3.9; W.refs.gdoor.scale.y = 0.8;
-  W.refs.flood.forEach(f => { f.sl.intensity = 0; });
-  state = 'play'; input.enabled = true; subtitle(''); setObjective('');
-  try { await chapter.run(step, tok); } catch (e) { if (e.message !== 'cancelled') console.error(e); }
+    skipOff?.(); cont(null);
+  }
+  localStorage.removeItem('atq2.save'); localStorage.setItem('atq2.done', '1'); G.state = 'title'; toTitle();
 }
-function die() { if (state !== 'play') return; state = 'dead'; P.control = false; runToken++; audio.stopVoice(); subtitle(''); document.exitPointerLock?.(); show('dead'); }
-function quitToTitle() { runToken++; state = 'menu'; audio.stopVoice(); subtitle(''); setObjective(''); $('hud').classList.add('hidden'); $('touch').classList.add('hidden'); document.exitPointerLock?.(); P.control = false; menuScene(); show('title'); refreshTitle(); $('fade').style.opacity = 0; }
-function menuScene() { clearZombies(); Object.keys(npcs).forEach(n => hideNpc(n)); setTOD('menu'); W.refs.flood.forEach(f => f.sl.intensity = 60); bat.visible = false;
-  for (let i = 0; i < 26; i++) spawnZombie(125 + Math.random() * 20, (Math.random() - 0.5) * 12, { idle: true });
-  placePlayer(158, 0.5, Math.PI / 2 - 0.05); P.pitch = -0.02; kemoyModel.visible = true; kemoyModel.position.set(150.2, 0, 1.2); kemoyModel.rotation.y = -Math.PI / 2; const nia = npc('nia', 150.3, 2, -Math.PI / 2); nia.lookAtPlayer = false; }
-
 // ---------- menus ----------
-function refreshTitle() {
-  const s = getSave(); $('btnContinue').classList.toggle('hidden', !(s && s.step > 0));
-  const done = localStorage.getItem('atq_ch1_done');
-  const chs = [['I', 'The Day Before', 'Lone Keem, Maine'], ['II', 'High Water', 'Flooded streets'], ['III', 'The Bridge', 'Sandbags & searchlights'], ['IV', 'Atrium', 'The mall & the underground'], ['V', 'First Snow', 'A small town up north']];
-  $('chapterList').innerHTML = chs.map(([n, t, s2], i) => `<div class="ch ${i ? 'locked' : ''}"><div><div class="n">CHAPTER ${n}</div><div class="t">${t}</div><div class="small">${s2}</div></div>${i ? '<div class="soon">COMING SOON</div>' : `<div style="display:flex;gap:8px;flex-wrap:wrap">${s && s.step > 0 ? '<button data-act="cont">Continue</button>' : ''}<button class="primary" data-act="new">${done ? 'Replay' : 'Play'}</button></div>`}</div>`).join('');
-  $('chapterList').querySelectorAll('[data-act]').forEach(b => b.onclick = () => { const st = b.dataset.act === 'cont' ? (getSave()?.step || 0) : 0; if (!st) setSave({ chapter: 1, step: 0 }); startChapter(st); });
-}
-let backTo = 'title';
-$('btnWarn').onclick = () => { localStorage.setItem('atq_warned', '1'); audio.init(); studioIntro(); };
-async function studioIntro() {
-  hideScreens(); $('fade').style.transition = 'opacity 0s'; $('fade').style.opacity = 1;
-  const c = $('studio'); c.classList.remove('hidden'); c.classList.add('play'); audio.sting();
-  let skip = false; const sk = () => skip = true; addEventListener('keydown', sk); addEventListener('pointerdown', sk);
-  const t0 = performance.now(); while (!skip && performance.now() - t0 < 4200) { await wait(50); if (input.take('use') || input.take('pause')) skip = true; }
-  removeEventListener('keydown', sk); removeEventListener('pointerdown', sk);
-  c.classList.add('hidden'); c.classList.remove('play'); audio.setMood('menu'); show('title'); refreshTitle(); fade(0, 1500);
-}
-$('btnContinue').onclick = () => startChapter(getSave()?.step || 0);
-$('btnChapters').onclick = () => { audio.init(); refreshTitle(); show('chapters'); };
-$('btnSettings').onclick = () => { backTo = 'title'; loadSettingsUI(); show('settings'); };
-$('btnControls').onclick = () => show('controls'); $('btnCredits').onclick = () => show('credits');
-document.querySelectorAll('.back').forEach(b => b.onclick = () => { if (backTo === 'pause' && state === 'paused') { show('pause'); } else show('title'); backTo = 'title'; });
-$('btnResume').onclick = resume; $('btnRestartCp').onclick = () => startChapter(getSave()?.step || 0);
-$('btnPauseSettings').onclick = () => { backTo = 'pause'; loadSettingsUI(); show('settings'); };
-$('btnQuit').onclick = quitToTitle; $('btnRetry').onclick = () => startChapter(getSave()?.step || 0);
-function loadSettingsUI() { $('sVol').value = settings.vol; $('sVoice').value = settings.voice; $('sMusic').value = settings.music; $('sSens').value = settings.sens; $('sSubs').checked = settings.subs; $('sGore').checked = settings.gore; $('sInvert').checked = settings.invert; }
-['sVol', 'sVoice', 'sMusic', 'sSens'].forEach(id => $(id).oninput = e => { settings[{ sVol: 'vol', sVoice: 'voice', sMusic: 'music', sSens: 'sens' }[id]] = +e.target.value; saveSettings(); audio.applyVolumes(); });
-['sSubs', 'sGore', 'sInvert'].forEach(id => $(id).onchange = e => { settings[{ sSubs: 'subs', sGore: 'gore', sInvert: 'invert' }[id]] = e.target.checked; saveSettings(); });
-let pausedAt = null;
-function pause() { if (state !== 'play') return; state = 'paused'; document.exitPointerLock?.(); audio.voiceEl?.pause(); show('pause'); }
-function resume() { if (state !== 'paused') return; hideScreens(); state = 'play'; audio.voiceEl && !audio.voiceEl.ended && audio.voiceEl.play().catch(() => {}); if (!mobile) canvas.requestPointerLock?.(); }
-document.addEventListener('pointerlockchange', () => { if (!document.pointerLockElement && state === 'play' && P.control && !mobile && !input.padActive) pause(); });
-// gamepad menu navigation
-let focusIdx = 0;
-function visibleButtons() { const s = screens.find(n => !$(n).classList.contains('hidden')); return s ? [...$(s).querySelectorAll('button:not(.hidden)')] : []; }
-function updateFocus() { document.querySelectorAll('button.focus').forEach(b => b.classList.remove('focus')); const b = visibleButtons()[focusIdx]; if (b && input.padActive) b.classList.add('focus'); }
-
-// ---------- main loop ----------
-const clock = new THREE.Clock();
-const fwd = new THREE.Vector3();
-function loop() {
-  requestAnimationFrame(loop);
-  const dt = Math.min(clock.getDelta(), 0.05), now = performance.now();
-  const { lx, ly } = input.update(dt);
-  if (state !== 'play') {
-    const btns = visibleButtons();
-    if (btns.length) { if (input.take('down')) { focusIdx = (focusIdx + 1) % btns.length; updateFocus(); } if (input.take('up')) { focusIdx = (focusIdx - 1 + btns.length) % btns.length; updateFocus(); } if (input.take('use') && input.padActive) { btns[focusIdx]?.click(); focusIdx = 0; updateFocus(); } }
-    if (input.take('pause') && state === 'paused') resume();
-    input.take('hit'); input.take('light');
-  } else {
-    if (input.take('pause')) pause();
-    if (P.control) {
-      P.yaw -= lx; P.pitch = Math.max(-1.3, Math.min(1.3, P.pitch - ly));
-      const run = input.run, spd = run ? 5.2 : 2.9; P.running = run && (input.move.x || input.move.y);
-      const sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
-      const mx = input.move.x * cy + input.move.y * sy, mz = -input.move.x * sy + input.move.y * cy;
-      P.x += mx * spd * dt; P.z += mz * spd * dt; collide(P);
-      const mv = Math.hypot(input.move.x, input.move.y); P.bob += dt * mv * (run ? 13 : 9);
-      if (Math.hypot(P.x - trail[0].x, P.z - trail[0].z) > 0.5) { trail.unshift({ x: P.x, z: P.z }); trail.length = 40; }
-      if (input.take('hit')) swing(); if (input.take('light') && P.hasLight) P.light = !P.light;
-    } else { input.take('hit'); input.take('light'); }
-    if (now - P.lastHurt > 4000 && P.hp < 100) P.hp = Math.min(100, P.hp + dt * 12);
-    // interaction
-    let prompt = '';
-    if (interacts.length && P.control) {
-      camera.getWorldDirection(fwd); let best = null, bs = -1;
-      for (const it of interacts) {
-        const tp = targetPos(it.target); if (it.target.isObject3D && it.target.isGroup) tp.y += 1.2;
-        const d = Math.hypot(tp.x - P.x, tp.z - P.z);
-        const dir = new THREE.Vector3(tp.x - camera.position.x, tp.y - camera.position.y, tp.z - camera.position.z).normalize();
-        const dot = fwd.dot(dir); if (d < it.r && (dot > 0.55 || d < 1.0) && dot > bs) { bs = dot; best = it; }
-      }
-      if (best) { const key = input.padActive ? 'A' : mobile ? 'USE' : 'E'; prompt = `<b>[${key}]</b> ${best.label}`; if (input.take('use')) best.res(); }
-    }
-    $('prompt').innerHTML = prompt;
-    $('healthbar').style.width = Math.max(0, P.hp) + '%'; $('health').style.opacity = P.hp < 100 ? 1 : 0.25;
-    if (P.hp < 40 && Math.random() < dt * 1.2) audio.heartbeat();
-  }
-  if (P.swingT > 0) { P.swingT -= dt; const k = Math.sin((0.45 - P.swingT) / 0.45 * Math.PI); bat.rotation.set(-0.5 - k * 1.2, 0.2 + k * 0.9, 0.3); } else bat.rotation.set(-0.5, 0.2, 0.3);
-  flash.intensity = P.light ? 40 : 0;
-  updateNpcs(dt); updateZombies(dt, now);
-  if (cineCam) {
-    const k = Math.min(1, (now - cineCam.t0) / cineCam.ms), e = k * k * (3 - 2 * k);
-    camera.position.set(...cineCam.from.map((v, i) => v + (cineCam.to[i] - v) * e)); camera.lookAt(...cineCam.look);
-  } else if (state === 'menu') {
-    const t = now / 1000; camera.position.set(158 + Math.sin(t * 0.1) * 0.6, 1.5, 0.5 + Math.sin(t * 0.07) * 1.2); camera.lookAt(130, 1.2, 0);
-  } else {
-    camera.position.set(P.x, P.y + Math.sin(P.bob) * 0.04, P.z); camera.rotation.set(P.pitch, P.yaw, 0, 'YXZ');
-  }
-  renderer.render(scene, camera);
-}
-loop();
-menuScene();
+function showScreen(id) { $$('.screen').forEach(s => s.classList.add('hidden')); if (id) $(id).classList.remove('hidden'); menuNav(id); }
+function fadeIn() { $('#fade').style.opacity = 0; }
+function waitClick(sel) { return new Promise(r => { const b = $(sel); const h = () => { b.removeEventListener('click', h); r(); }; b.addEventListener('click', h); }); }
+let navOff = null;
+function menuNav(id) { navOff?.(); navOff = null; if (!id) return; const root = $(id); let i = 0;
+  const btns = () => [...root.querySelectorAll('button:not(.hidden),input')].filter(b => b.offsetParent);
+  const mark = () => btns().forEach((b, j) => b.classList.toggle('sel', j === i && G.device !== 'touch'));
+  mark(); navOff = on(a => { const B = btns(); if (!B.length) return; if (a === 'down' || a === 'next') i = (i + 1) % B.length; if (a === 'up') i = (i + B.length - 1) % B.length;
+    const el = B[i]; if (el?.type === 'range' && (a === 'left' || a === 'right')) { el.value = +el.value + (a === 'right' ? 1 : -1) * +el.step; el.dispatchEvent(new Event('input')); }
+    if (a === 'ok' && el) el.click(); if ((a === 'cont') && root.querySelector('.back')) root.querySelector('.back').click(); mark(); }); }
+let back = '#title';
+function toTitle() { G.state = 'title'; audio.setMood('menu'); $('#btnContinue').classList.toggle('hidden', !load()); showScreen('#title'); back = '#title'; }
+$$('.back').forEach(b => b.onclick = () => { if (G.state === 'pausedSettings') { G.state = 'paused'; showScreen('#pause'); return; } if (G.state === 'inv') { G.state = 'play'; showScreen(null); return; } showScreen(back); });
+$('#btnWarn').onclick = async () => { audio.init(); showScreen(null); $('#studio').classList.remove('hidden'); audio.sting(); fadeIn();
+  await Promise.race([sleep(4200), waitFor(['ok', 'any'])]); $('#studio').classList.add('hidden'); toTitle(); };
+$('#btnNew').onclick = () => { G.inv = []; G.flags = {}; play(0); };
+$('#btnContinue').onclick = () => { const s = load(); if (!s) return; G.inv = s.inv || []; G.flags = s.flags || {}; play(s.scene); };
+$('#btnChapters').onclick = () => { const L = $('#chapterList'); L.innerHTML = '';
+  const row = (t, sub, idx) => { const d = document.createElement('div'); d.className = 'chap' + (idx == null ? ' locked' : ''); d.innerHTML = `<div><b>${t}</b><div class="small">${sub}</div></div>`;
+    if (idx != null) { const b = document.createElement('button'); b.textContent = 'Play'; b.dataset.act = idx === 0 ? 'new' : 'act' + idx; b.onclick = () => { G.inv = []; SCENES.slice(0, idx).forEach(sc => sc.beats.forEach(b => { if (b.item) G.inv.push(b.item); (b.hot || []).forEach(h => { if (h.item && !h.item.startsWith('_') && (b.need || []).includes(h.item)) G.inv.push(h.item); }); })); G.flags = {}; play(idx); }; d.appendChild(b); } L.appendChild(d); };
+  row('Chapter 1 · The Day Before', 'Lone Keem, Maine · the full chapter', 0);
+  CHAPTER_STARTS.slice(1).forEach(([n, i]) => row('— ' + n, 'Chapter 1', i));
+  [['Chapter 2 · High Water', 'Coming soon'], ['Chapter 3 · The Bridge', 'Coming soon'], ['Chapter 4 · Atrium', 'Coming soon'], ['Chapter 5 · First Snow', 'Coming soon']].forEach(([a, b]) => row(a, b));
+  showScreen('#chapters'); };
+const bindS = (id, k, chk) => { const el = $(id); if (chk) { el.checked = S[k]; el.onchange = () => { S[k] = el.checked; saveS(); applyS(); }; } else { el.value = S[k]; el.oninput = () => { S[k] = +el.value; saveS(); applyS(); }; } };
+function applyS() { audio.applyVolumes(); document.body.classList.toggle('still', S.still); if (!S.still) applyPar(); else $('#par').style.transform = '';
+  const sc = SCENES[G.scene]; if (sc) $$('.layer.on').forEach(l => l.classList.toggle('gore-soft', !!sc.gore && !S.gore)); }
+bindS('#sVol', 'vol'); bindS('#sVoice', 'voice'); bindS('#sMusic', 'music'); bindS('#sText', 'text'); bindS('#sSubs', 'subs', 1); bindS('#sGore', 'gore', 1); bindS('#sQte', 'qteEasy', 1); bindS('#sMotion', 'still', 1); bindS('#sHints', 'hints', 1); applyS();
+$('#btnSettings').onclick = () => showScreen('#settings'); $('#btnControls').onclick = () => showScreen('#controls'); $('#btnCredits').onclick = () => showScreen('#credits');
+function pause() { if (G.state !== 'play' || SCENES[G.scene]?.trailer) return; G.state = 'paused'; audio.voiceEl?.pause(); $$('.layer').forEach(l => l.style.animationPlayState = 'paused'); showScreen('#pause'); }
+function resume() { G.state = 'play'; showScreen(null); audio.voiceEl?.play().catch(() => {}); $$('.layer').forEach(l => l.style.animationPlayState = ''); }
+$('#btnPause').onclick = e => { e.stopPropagation(); pause(); };
+$('#btnInv').onclick = e => { e.stopPropagation(); openInv(); };
+function openInv() { if (G.state !== 'play') return; G.state = 'inv'; $('#invList').innerHTML = G.inv.length ? G.inv.map(i => `<div class="invi"><b>${ITEMS[i].name}</b><br>${ITEMS[i].desc}</div>`).join('') : '<p class="small">Empty pockets.</p>'; showScreen('#inv'); }
+on(a => { if (a === 'pause') { if (G.state === 'play') pause(); else if (G.state === 'paused') resume(); else if (G.state === 'inv') { G.state = 'play'; showScreen(null); } } if (a === 'inv') { if (G.state === 'play') openInv(); else if (G.state === 'inv') { G.state = 'play'; showScreen(null); } } });
+$('#btnResume').onclick = resume;
+$('#btnRestartCp').onclick = () => { resume(); setAbort('retry'); };
+$('#btnQuit').onclick = () => { resume(); setAbort('quit'); setTimeout(toTitle, 50); };
+$('#btnPauseSettings').onclick = () => { G.state = 'pausedSettings'; showScreen('#settings'); };
+// listeners that pause the story while a menu is open: block story input
+const _emit = emit;
 // boot
-const params = new URLSearchParams(location.search);
-$('fade').style.opacity = 0;
-if (params.has('step')) { localStorage.setItem('atq_warned', '1'); startChapter(+params.get('step')); }
-else show('warning');
-window.__atq = { get state() { return state; }, get step() { return chapter.cur; }, P, startChapter, get zombies() { return zombies.length; } };
+document.body.dataset.dev = 'kbd';
+if ('ontouchstart' in window) setDevice('touch');
+const qs = new URLSearchParams(location.search);
+if (qs.has('scene') || qs.has('id')) { $('#warning').classList.add('hidden'); const i = qs.get('id') ? SCENES.findIndex(s => s.id === qs.get('id')) : +qs.get('scene'); G.inv = ['compass', 'sketchbook', 'flashlight', 'bat']; play(i); }
+else { fadeIn(); }
+window.__atq.go = i => { setAbort('quit'); setTimeout(() => play(i), 100); };
+document.querySelector('#title .tbg').style.backgroundImage = "url(./img/title_bg.webp)";

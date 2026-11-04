@@ -21,6 +21,8 @@ Tone: grim, frightening, grounded. Moments of tenderness are the point. The viol
 | **Ruth Okafor** | 55 | Owns the Lighthouse Diner. Knows everyone's order. | Brisk, motherly. |
 
 ## Chapter 1 — "The Day Before" (≈15–25 min)
+**Cold open (v1.2):** a 60–90s skippable trailer: burning city, jammed highway, burning suburb, horde on a bridge, flooded street, dead mall, subway, snowy Maine town. Old Kemoy narrates over a deep drone score, then a hard cut to black: "The day before..."
+
 **Prologue (title card, narration):** "Everybody remembers where they were the day the world ended. I remember the day before. It was the best day I ever had in Lone Keem, Maine."
 
 **Act I — An Ordinary Saturday (warm)**
@@ -31,6 +33,7 @@ Tone: grim, frightening, grounded. Moments of tenderness are the point. The viol
 5. Main Street: walk to the Lighthouse Diner with Dad. Ruth gives Nia a free milkshake. Town sign: "Welcome to Lone Keem, Maine. Est. 1791."
 
 **Act II — Creeping Hints**
+5b. Afternoon (v1.2): comics on Theo's porch steps, fishing with Dad on the town dock ("Every Saturday. That is a promise."), piggyback ride for Nia along the harbor path at sunset.
 6. Radio at the diner: "…reports of unrest in Portland… residents advised to stay indoors…" Ruth turns it off.
 7. Far-off sirens. A helicopter. Dad's phone keeps buzzing. Mom is called in to the hospital early. Goodbye hug at the door (important).
 8. Evening: Walt doesn't answer his door; his tomatoes are trampled. Kemoy sees him standing very still in his yard, facing the wall.
