@@ -47,7 +47,7 @@ export const STORY = [
     enter(g) { const D = g.stepData; const dad = g.npc('marcus', 'marcus', -11, 19.2, PI / 2, 'Idle_Talking_Loop'); dad.root.add(Object.assign(g.weaponMeshes.shotgun.clone(), { visible: false }));
       const nia = g.npc('nia', 'nia', -11.3, 21, PI / 2, 'Idle_Loop', 0.62); g.cut = { anim: 'Idle_Loop', cam: V(-7.2, 1.7, 17.6), look: V(-10.2, 1.1, 20), flash: true };
       g.say([['marcus', 'KEEM! What the {hell|heck} did I say? I said stay PUT.'], ['keem', 'You also said "emergencies." This is like… the emergency.'], ['marcus', '…Fair. You brought the bat AND the pistol? Good. Don\'t tell your mother.'],
-        ['nia', 'Biscuit is in my hoodie. He\'s fine. He\'s judging you.'], ['keem', 'Biscuit is a rabbit, Nia.'], ['nia', 'A JUDGING rabbit.'],
+        ['nia', "Biscuit's in my hoodie. He's fine. He's just judging you. Like me."], ['keem', 'Biscuit is a rabbit, Nia.'], ['nia', "Yes, Keem. A judging rabbit. He gets it from me."],
         ['marcus', 'Listen. The Pells are gone. The truck\'s at Hank\'s Garage. Sheriff Doyle\'s cruiser is by the Market — there\'s a rifle in the rack.'], ['marcus', 'Get it. We\'ll cut through the backyards and meet you at Hank\'s. Fast and loud, son. Don\'t stop.'], ['keem', 'Fast and loud. Got it.']], () => {
         g.cut = null; dad.root.visible = false; nia.root.visible = false; g.objective('Get the rifle from the sheriff\'s cruiser by Riverside Market', 'Zombies hunt by sound. Crouch (C) to sneak past. Loot the cash & ammo on the way — spend it in the Armory (pause menu).');
         g.wpTarget = [-8.6, 1.2, -30]; g.stepData.runners = .25; g.horde(10, [[0, -4], [-4, -14], [3, -20], [-2, -24], [6, 2]]); g.victim(-12.5, -38, 'ruth', 2);
@@ -63,109 +63,109 @@ export const STORY = [
       if (D.after === -1 && g.alive().filter(z => dist2(g, z.root.position.x, z.root.position.z) < 30).length <= 2) { D.after = -2; goto(g, 4, 200); } } },
 
   { id: 'truck', cp: [14, -54, PI], obj: '', hint: '', mood: 'night', beat: 1,
-    enter(g) { const D = g.stepData; const dad = g.npc('marcus', 'marcus', 20, -61, -PI / 2, 'Idle_Talking_Loop'); const nia = g.npc('nia', 'nia', 20.3, -62.6, -PI / 2, 'Idle_Loop', .62);
+    enter(g) { const D = g.stepData; const dad = g.npc('marcus', 'marcus', 20, -61, -PI / 2, 'Idle_Talking_Loop'); const nia = g.npc('nia', 'nia', 20.3, -62.6, -PI / 2, 'Idle_Loop', .95);
       g.cut = { anim: 'Idle_Loop', cam: V(15, 1.8, -58), look: V(20, 1, -61.5), flash: true };
-      g.say([['marcus', 'You blew the {hell|heck} out of Hank\'s.'], ['keem', 'Hank\'s was… already kinda on fire, emotionally.'], ['marcus', 'My hand\'s cut up. You drive. You\'ve played enough of those games.'], ['nia', 'He crashes in ALL of them.'], ['keem', 'That\'s called STYLE.'], ['marcus', 'Bridge. Riverside Bridge. The Guard is on the far side. GO.']], () => {
+      g.say([['marcus', 'You blew the {hell|heck} out of Hank\'s.'], ['keem', 'Hank\'s was… already kinda on fire, emotionally.'], ['marcus', 'My hand\'s cut up. You drive. You\'ve played enough of those games.'], ['nia', "He crashes in every single one. Every one."], ['keem', 'That\'s called STYLE.'], ['marcus', 'Bridge. Riverside Bridge. The Guard is on the far side. GO.']], () => {
         g.cut = null; D.canDrive = true; g.objective('Get in the truck and drive to Riverside Bridge', 'E / ✋ near the truck. GAS/BRAKE + ◀ ▶ (W/S A/D, pad RT/LT). Ram them.'); g.wpTarget = [22, 1.4, -64];
         D.onDrive = (g) => { dad.root.visible = nia.root.visible = false; g.wpTarget = [0, 1, -96]; g.objective('Drive to Riverside Bridge', 'Plow through. Don\'t stop.'); D.hordeAll = true; D.runners = .3; g.horde(16, [[0, -66], [-2, -72], [3, -78], [-3, -84], [2, -90], [0, -80]]); g.audio.beat(2);
-          g.say([['nia', 'Left! LEFT! Your OTHER left!'], ['keem', 'I KNOW WHICH {damn |}LEFT!']]); }; }); },
+          g.say([['nia', "Left. LEFT. Boy, your other left!"], ['keem', 'I KNOW WHICH {damn |}LEFT!']]); }; }); },
     update(g) { const T = g.truck; if (T.driving && T.g.position.z < -91) { T.v = 0; g.shake(1); g.audio.crash(); g.exitTruck(); g.player.root.position.set(1, 0, -93.5); goto(g, 5, 150); } } },
 
   { id: 'boss', cp: [0.5, -93.5, PI], obj: 'Defeat Big Gus', hint: 'Roll away from his slam (red ring) and his charge. Headshots hurt him most.', mood: 'tense', beat: 2,
-    enter(g) { const D = g.stepData; const dad = g.npc('marcus', 'marcus', 3.5, -92.5, PI, 'Idle_Loop'); const nia = g.npc('nia', 'nia', 4.2, -91.6, PI, 'Idle_Loop', .62);
+    enter(g) { const D = g.stepData; const dad = g.npc('marcus', 'marcus', 3.5, -92.5, PI, 'Idle_Loop'); const nia = g.npc('nia', 'nia', 4.2, -91.6, PI, 'Idle_Loop', .95);
       const b = g.spawnZ(-0.2, -103.5, { boss: true, hp: 900, scale: 1.5, runner: false }); b.speed = 1.7; b.cd = 2; g.audio.roar && setTimeout(() => { g.audio.roar(); g.audio.shout('keem_boss', true); }, 1200); b.aggro = 99; b.mat.userData.u.uShirt.value.set('#e8e2d2'); b.mat.userData.u.uBlood.value = g.settings.gore ? 1.3 : .2; g.boss = b; $q('#bossn').textContent = 'BIG GUS — the barber';
       g.horde(4, [[-4, -104], [4, -104]]); D.hordeAll = true; g.wpTarget = null;
       g.say([['keem', 'Is that… Gus? From the barbershop?'], ['marcus', 'Gus was always big. That is NOT {fuckin\' |}normal big.'], ['keem', 'He gave me the worst {damn |}fade of my LIFE. This is personal.']]); },
-    update(g) { if (g.boss && g.boss.dead && !g.stepData.won) { g.stepData.won = true; setTimeout(() => { g.say([['keem', 'Lineup\'s crooked, Gus{, you ugly bastard|}.'], ['nia', 'That was SO gross. Do it again.'], ['marcus', 'Bridge. Now. {Move your ass|Move it}!']]); goto(g, 6, 400); }, 1800); } } },
+    update(g) { if (g.boss && g.boss.dead && !g.stepData.won) { g.stepData.won = true; setTimeout(() => { g.say([['keem', 'Lineup\'s crooked, Gus{, you ugly bastard|}.'], ['nia', "That was disgusting. …Okay, do it again."], ['marcus', 'Bridge. Now. {Move your ass|Move it}!']]); goto(g, 6, 400); }, 1800); } } },
 
   { id: 'bridge', cp: [0.3, -97, PI], obj: 'Cross Riverside Bridge', hint: 'Keep Nia close. Don\'t look back.', mood: 'sad', beat: 0,
-    enter(g) { const dad = g.npc('marcus', 'marcus', 2, -95.5, PI, 'Walk_Loop'); const nia = g.npc('nia', 'nia', -1.4, -95.5, PI, 'Walk_Loop', .62); follow(g, dad, [1.6, 1.2]); follow(g, nia, [-1.2, .9]); g.wpTarget = [0, 1.2, -122]; g.stepData.dad = dad;
+    enter(g) { const dad = g.npc('marcus', 'marcus', 2, -95.5, PI, 'Walk_Loop'); const nia = g.npc('nia', 'nia', -1.4, -95.5, PI, 'Walk_Loop', .95); follow(g, dad, [1.6, 1.2]); follow(g, nia, [-1.2, .9]); g.wpTarget = [0, 1.2, -122]; g.stepData.dad = dad;
       g.horde(6, [[0, -80], [-4, -84], [4, -86]], { runner: true, aggro: 99 }); g.stepData.runners = .6; },
     update(g) { const D = g.stepData; if (!D.end && g.player.root.position.z < -114) { D.end = true; const dad = D.dad; dad.update = null; dad.root.position.set(0.5, 0, -110); dad.root.rotation.y = 0; dad.play('Pistol_Aim_Neutral');
         g.cut = { anim: 'Idle_Loop', cam: V(-3.5, 1.8, -121), look: V(0.5, 1.2, -110), flash: true }; g.audio.setMood('sad');
-        g.say([['marcus', 'Keem. Take your sister. Go.'], ['keem', 'Dad, no — {goddammit, |}come ON—'], ['marcus', 'Somebody has to hold the gate. I\'ll be right behind you.'], ['nia', 'Promise?'], ['marcus', 'Promise. Go. GO!'], ['keem', '…'], ['keem', 'He said he\'d be right behind us.']], () => { g.onComplete && g.onComplete(1); }); } } },
+        g.say([['marcus', 'Keem. Take your sister. Go.'], ['keem', 'Dad, no — {goddammit, |}come ON—'], ['marcus', 'Somebody has to hold the gate. I\'ll be right behind you.'], ['nia', "You promise? For real this time?"], ['marcus', 'Promise. Go. GO!'], ['keem', '…'], ['keem', 'He said he\'d be right behind us.']], () => { g.onComplete && g.onComplete(1); }); } } },
 
   // ===================== CHAPTER 2 — HIGH WATER =====================
   // Picks up seconds after the bridge. Haverford, the next town south, is flooded, overrun, and very much not the "safe zone" the radio promised.
   { id: 'c2_shore', ch: 2, cp: [0.3, -136, PI], obj: 'Reach the National Guard checkpoint', hint: 'The radio said Haverford was a safe zone. Follow the road south.', mood: 'tense', beat: 1,
     enter(g) { const D = g.stepData; g.ch2Reset(g, 7); if (!g.save.owned.includes('pistol')) { g.give('pistol'); g.save.ammo.light = (g.save.ammo.light || 0) + 48; }
-      const nia = g.npc('nia', 'nia', -1.2, -134.5, PI, 'Walk_Loop', .62); follow(g, nia, [-1.2, .9]); D.nia = nia; g.wpTarget = [0, 1.2, -156];
+      const nia = g.npc('nia', 'nia', -1.2, -134.5, PI, 'Walk_Loop', .95); follow(g, nia, [-1.2, .9]); D.nia = nia; g.wpTarget = [0, 1.2, -156];
       g.horde(5, [[-6, -146], [6, -150], [0, -170]], { aggro: 14 });
-      g.say([['nia', "He's coming, right? Dad's coming."], ['keem', "Dad's coming. He said right behind us."], ['nia', "He also said the Patriots would win the Super Bowl."], ['keem', "That was one time. And the refs were {fuckin' |}blind."], ['radio', 'This is the National Guard. Haverford is a designated safe zone. Proceed to the checkpoint.'], ['nia', "See? Safe zone. Snacks. Maybe a cot."]]); },
+      g.say([['nia', "He's coming. Right? Tell me he's coming."], ['keem', "Dad's coming. He said right behind us."], ['nia', "He also said his knee was fine. Then he fell down the stairs."], ['keem', "That was one time. And the refs were {fuckin' |}blind."], ['radio', 'This is the National Guard. Haverford is a designated safe zone. Proceed to the checkpoint.'], ['nia', "Safe zone. Okay. I just want a cot and a phone charger."]]); },
     update(g) { if (dist2(g, 0, -156) < 6 && !g.stepData.go) { g.stepData.go = true; goto(g, 8, 150); } } },
 
   { id: 'c2_checkpoint', ch: 2, cp: [0.3, -153, PI], obj: 'Clear the checkpoint', hint: 'The soldiers are… busy. Being eaten.', mood: 'tense', beat: 2,
-    enter(g) { const D = g.stepData; g.ch2Reset(g, 8); const nia = g.npc('nia', 'nia', -1.4, -152, PI, 'Idle_Loop', .62); follow(g, nia, [-1.2, 1]); D.nia = nia;
+    enter(g) { const D = g.stepData; g.ch2Reset(g, 8); const nia = g.npc('nia', 'nia', -1.4, -152, PI, 'Idle_Loop', .95); follow(g, nia, [-1.2, 1]); D.nia = nia;
       g.victim(-6, -161, null, 3); g.victim(7, -162, null, 2); g.victim(-14, -158, null, 2);
       g.horde(9, [[-8, -166], [8, -168], [0, -175], [-16, -160], [16, -162]], { aggro: 30 }); D.hordeAll = true; g.wpTarget = null; g.audio.beat(2);
-      g.say([['nia', 'Oh. Oh no. The safe zone is eating the safe zone.'], ['keem', "That soldier's getting his whole {damn |}spine slurped like a noodle."], ['nia', "I'm never eating ramen again."], ['keem', 'Stay behind me!']]); },
+      g.say([['nia', "Oh, so the safe zone is eating the safe zone. Cool. Love that."], ['keem', "That soldier's getting his whole {damn |}spine slurped like a noodle."], ['nia', "I'm never eating noodles again. Thanks, Keem."], ['keem', 'Stay behind me!']]); },
     update(g) { const D = g.stepData; if (!D.clear && g.alive().length === 0) { D.clear = true; g.objective('Search the command tent', 'The big tent on the right. Look for the radio.'); g.wpTarget = [12.5, 1, -154];
-        g.say([['keem', 'Clear. Nia, you good?'], ['nia', "I stepped in a guy. Like, IN him."]]);
+        g.say([['keem', 'Clear. Nia, you good?'], ['nia', "I stepped in somebody. Like, inside of him. I'm fine. I'm not fine."]]);
         D.uses = [{ x: 12, z: -154, label: 'Search the command tent', fn: (g) => { D.uses = []; g.save.ammo.rifle = (g.save.ammo.rifle || 0) + 90; g.save.cash += 250; g.toast && g.toast('+90 rifle ammo · +$250 · Guard SAW unlocked in the Armory');
           g.cut = { anim: 'Idle_Loop', cam: V(9, 1.7, -151), look: V(14, 1.1, -155) };
-          g.say([['sgt', "…if anybody's hearing this… it's Sergeant Okafor… Haverford's gone. Last evac bird lifts from the high school stadium at oh-six-hundred."], ['sgt', "Gate's on a backup panel. Needs fuses. Hardware store, the doughnut place, the laundromat… I really wanted a doughnut. Okafor out."], ['keem', 'Fuses. Doughnuts. Helicopter. Okay. I can do three things.'], ['nia', "You can't even do two. You burned cereal once."]], () => { g.cut = null; goto(g, 9, 200); }); } }]; } } },
+          g.say([['sgt', "…if anybody's hearing this… it's Sergeant Okafor… Haverford's gone. Last evac bird lifts from the high school stadium at oh-six-hundred."], ['sgt', "Gate's on a backup panel. Needs fuses. Hardware store, the doughnut place, the laundromat… I really wanted a doughnut. Okafor out."], ['keem', 'Fuses. Doughnuts. Helicopter. Okay. I can do three things.'], ['nia', "You can't even do two things. You burned cereal, Keem. Cereal."]], () => { g.cut = null; goto(g, 9, 200); }); } }]; } } },
 
   { id: 'c2_town', ch: 2, cp: [0, -168, PI], obj: 'Find 3 fuses for the school gate (0/3)', hint: 'Hardware store, Doughnut Depot, Suds-n-Duds laundromat. Loot everything.', mood: 'night', beat: 1,
-    enter(g) { const D = g.stepData; g.ch2Reset(g, 9); D.fuses = 0; const nia = g.npc('nia', 'nia', -1.4, -166, PI, 'Idle_Loop', .62); follow(g, nia, [-1.2, 1]); D.nia = nia; g.wpTarget = null;
+    enter(g) { const D = g.stepData; g.ch2Reset(g, 9); D.fuses = 0; const nia = g.npc('nia', 'nia', -1.4, -166, PI, 'Idle_Loop', .95); follow(g, nia, [-1.2, 1]); D.nia = nia; g.wpTarget = null;
       g.horde(10, [[-12, -182], [12, -196], [-24, -198], [22, -214], [-6, -226], [28, -190]], { aggro: 16 }); D.runners = .25;
       const got = (msg) => { D.fuses++; g.audio.pickup(); g.objective('Find 3 fuses for the school gate (' + D.fuses + '/3)', 'Hardware store, Doughnut Depot, Suds-n-Duds laundromat.'); g.say(msg);
         if (D.fuses === 3) { g.objective('Get to the Haverford High gate', 'South end of Main. Follow the marker.'); g.wpTarget = [0, 1.2, -253]; g.horde(6, [[-8, -240], [8, -244]], { runner: true, aggro: 40 }); } };
       D.uses = [
-        { x: -10, z: -188, label: 'Grab fuse (Haverford Hardware)', fn: () => { D.uses = D.uses.filter(u => u.x !== -10); got([['keem', "Fuse one. And a nail gun I can't use. Story of my life."], ['nia', 'There is a guy in the paint aisle eating another guy. Like a burrito.']]); g.horde(4, [[-16, -184], [-8, -194]], { aggro: 30 }); } },
-        { x: 9.6, z: -214, label: 'Grab fuse (Doughnut Depot)', fn: () => { D.uses = D.uses.filter(u => u.x !== 9.6); got([['nia', 'They have BOSTON CREAM. The apocalypse can wait.'], ['keem', "Nia, that zombie has sprinkles on his face. Do NOT eat that {shit|stuff}."]]); g.horde(4, [[14, -222], [6, -208]], { aggro: 30 }); } },
-        { x: -25.6, z: -190, label: 'Grab fuse (Suds-n-Duds)', fn: () => { D.uses = D.uses.filter(u => u.x !== -25.6); got([['keem', 'Fuse three. Somebody got eaten in the spin cycle. Pink suds. Pink.'], ['nia', 'I am gonna need SO much therapy.']]); g.horde(4, [[-30, -200], [-20, -186]], { aggro: 30 }); } }]; },
+        { x: -10, z: -188, label: 'Grab fuse (Haverford Hardware)', fn: () => { D.uses = D.uses.filter(u => u.x !== -10); got([['keem', "Fuse one. And a nail gun I can't use. Story of my life."], ['nia', "There's a man in the paint aisle eating another man like a burrito. I'm going home."]]); g.horde(4, [[-16, -184], [-8, -194]], { aggro: 30 }); } },
+        { x: 9.6, z: -214, label: 'Grab fuse (Doughnut Depot)', fn: () => { D.uses = D.uses.filter(u => u.x !== 9.6); got([['nia', "Boston cream. The world can end in five minutes."], ['keem', "Nia, that zombie has sprinkles on his face. Do NOT eat that {shit|stuff}."]]); g.horde(4, [[14, -222], [6, -208]], { aggro: 30 }); } },
+        { x: -25.6, z: -190, label: 'Grab fuse (Suds-n-Duds)', fn: () => { D.uses = D.uses.filter(u => u.x !== -25.6); got([['keem', 'Fuse three. Somebody got eaten in the spin cycle. Pink suds. Pink.'], ['nia', "I'm gonna need so much therapy. Like, a whole team."]]); g.horde(4, [[-30, -200], [-20, -186]], { aggro: 30 }); } }]; },
     update(g) { const D = g.stepData; if (D.fuses === 3 && !D.go && dist2(g, 0, -253) < 4) { D.go = true; goto(g, 10, 300); } } },
 
   { id: 'c2_gate', ch: 2, cp: [0, -252, 0], obj: 'Hold the gate while Nia wires the panel', hint: 'Waves come up Main Street. Grenades help. Don\'t let them reach Nia.', mood: 'tense', beat: 3,
-    enter(g) { const D = g.stepData; g.ch2Reset(g, 10); D.t = 0; D.wave = 0; D.len = 60; const nia = g.npc('nia', 'nia', 3.4, -255.2, PI, 'Idle_Loop', .62); D.nia = nia; g.wpTarget = null; D.hordeAll = true; D.runners = .35;
-      g.say([['nia', "Okay. Red wire, blue wire… they're both brown. Why are they both BROWN?"], ['keem', 'Just make it beep, Nia!'], ['nia', 'Give me one minute and stop yelling at me!']]); },
+    enter(g) { const D = g.stepData; g.ch2Reset(g, 10); D.t = 0; D.wave = 0; D.len = 60; const nia = g.npc('nia', 'nia', 3.4, -255.2, PI, 'Idle_Loop', .95); D.nia = nia; g.wpTarget = null; D.hordeAll = true; D.runners = .35;
+      g.say([['nia', "Red wire, blue wire… they're both brown. Who did this? Why are they BROWN?"], ['keem', 'Just make it beep, Nia!'], ['nia', "Give me one minute and stop breathing on me!"]]); },
     update(g, dt) { const D = g.stepData; if (D.done) return; D.t += dt; const left = Math.max(0, Math.ceil(D.len - D.t)); if (left !== D.lastL) { D.lastL = left; g.objective('Hold the gate: ' + left + 's', 'Waves come up Main Street. Protect Nia.'); }
       if (D.t > D.wave * 9 && D.wave < 6) { D.wave++; const n = g.alive().length < 22 ? 5 + D.wave : 2; g.horde(n, [[-6, -222], [6, -226], [-20, -232], [18, -230], [0, -214]], { runner: D.wave > 2, aggro: 99 }); g.audio.roar && D.wave % 2 && g.audio.roar(); }
       if (D.t > 28 && !D.dad) { D.dad = g.npc('marcus', 'marcus', 0, -212, PI, 'Jog_Fwd_Loop'); D.dad.update = (dt) => { const p = D.dad.root.position; if (p.z > -246) { p.z -= 5 * dt; D.dad.play('Jog_Fwd_Loop'); } else D.dad.play('Pistol_Aim_Neutral'); };
-        g.say([['marcus', 'KEEM! NIA! Told you. Right behind you!'], ['keem', 'Right behind us? That was like two HOURS, Dad!'], ['marcus', 'I stopped for gas. And a doughnut. Shut up and shoot, son.'], ['nia', 'DAD! You got Boston cream without me?!']]); }
+        g.say([['marcus', 'KEEM! NIA! Told you. Right behind you!'], ['keem', 'Right behind us? That was like two HOURS, Dad!'], ['marcus', 'I stopped for gas. And a doughnut. Shut up and shoot, son.'], ['nia', "Dad. You got Boston cream. Without me. Wow."]]); }
       if (D.dad && (D.dcd = (D.dcd || 0) - dt) < 0) { D.dcd = .8; const dp = D.dad.root.position; let best = null, bd = 18; g.alive().forEach(z => { const d = z.root.position.distanceTo(dp); if (d < bd) { bd = d; best = z; } }); if (best) { const dir = best.root.position.clone().sub(dp).normalize(); D.dad.root.rotation.y = Math.atan2(dir.x, dir.z); g.damageZ(best, 70, dir, { head: Math.random() < .4 }); g.audio.shot('shotgun'); } }
       if (D.t >= D.len) { D.done = true; g.world.ch2.panel.material.emissive.set('#2f2'); g.openGate(true); g.audio.play && g.audio.play('reload_in', { vol: .8, flat: true });
-        g.say([['nia', 'BEEP! It beeped! I am a genius!'], ['keem', 'Gate is open — GO, go, go!']], () => goto(g, 11, 500)); } } },
+        g.say([['nia', "It beeped. I'm a genius. Say it. Say I'm a genius."], ['keem', 'Gate is open — GO, go, go!']], () => goto(g, 11, 500)); } } },
 
   { id: 'c2_boss', ch: 2, cp: [0, -260, PI], obj: 'Defeat Coach Brickman', hint: 'He charges like a linebacker. Sidestep, then unload. Headshots.', mood: 'tense', beat: 2,
-    enter(g) { const D = g.stepData; g.ch2Reset(g, 11); g.npc('marcus', 'marcus', 2, -257.5, PI, 'Pistol_Aim_Neutral'); g.npc('nia', 'nia', -2, -257.5, PI, 'Idle_Loop', .62);
+    enter(g) { const D = g.stepData; g.ch2Reset(g, 11); g.npc('marcus', 'marcus', 2, -257.5, PI, 'Pistol_Aim_Neutral'); g.npc('nia', 'nia', -2, -257.5, PI, 'Idle_Loop', .95);
       const b = g.spawnZ(0, -284, { boss: true, hp: 1500, scale: 1.75, runner: false }); b.speed = 2.0; b.cd = 2; b.aggro = 99; b.mat.userData.u.uShirt.value.set('#b8202a'); b.mat.userData.u.uBlood.value = g.settings.gore ? 1.4 : .2; g.boss = b; $q('#bossn').textContent = 'COACH BRICKMAN — 31 years, 0 playoff wins';
       g.horde(5, [[-10, -282], [10, -282]], { aggro: 99 }); D.hordeAll = true; g.wpTarget = null; g.audio.roar && setTimeout(() => g.audio.roar(), 900);
-      g.say([['brick', 'BEAVERS! ON THE LINE! RAAAGH!'], ['keem', 'Is that Coach Brickman? He failed me in GYM. In GYM, Dad!'], ['marcus', "Then go get your {damn |}grade back, son."], ['nia', 'He is eating a whistle. Like, the whole whistle.']]); },
-    update(g) { if (g.boss && g.boss.dead && !g.stepData.won) { g.stepData.won = true; setTimeout(() => { g.say([['keem', 'Give me my A, Coach{, you sweaty bastard|}.'], ['marcus', "That's my boy. Ugly as hell, but that's my boy."], ['nia', 'Helicopter! Where is the helicopter?']]); goto(g, 12, 600); }, 1800); } } },
+      g.say([['brick', 'BEAVERS! ON THE LINE! RAAAGH!'], ['keem', 'Is that Coach Brickman? He failed me in GYM. In GYM, Dad!'], ['marcus', "Then go get your {damn |}grade back, son."], ['nia', "He's eating the whistle. The whole whistle. Okay."]]); },
+    update(g) { if (g.boss && g.boss.dead && !g.stepData.won) { g.stepData.won = true; setTimeout(() => { g.say([['keem', 'Give me my A, Coach{, you sweaty bastard|}.'], ['marcus', "That's my boy. Ugly as hell, but that's my boy."], ['nia', "Okay, where's the helicopter? Somebody said helicopter."]]); goto(g, 12, 600); }, 1800); } } },
 
   { id: 'c2_end', ch: 2, cp: [0, -272, PI], obj: 'Find the evac helicopter', hint: 'Check the scoreboard.', mood: 'sad', beat: 0,
-    enter(g) { const D = g.stepData; g.ch2Reset(g, 12); const dad = g.npc('marcus', 'marcus', 1.6, -270, PI, 'Walk_Loop'); const nia = g.npc('nia', 'nia', -1.4, -270, PI, 'Walk_Loop', .62); follow(g, dad, [1.6, 1.2]); follow(g, nia, [-1.2, .9]); D.dad = dad; g.wpTarget = [0, 1.2, -293];
+    enter(g) { const D = g.stepData; g.ch2Reset(g, 12); const dad = g.npc('marcus', 'marcus', 1.6, -270, PI, 'Walk_Loop'); const nia = g.npc('nia', 'nia', -1.4, -270, PI, 'Walk_Loop', .95); follow(g, dad, [1.6, 1.2]); follow(g, nia, [-1.2, .9]); D.dad = dad; g.wpTarget = [0, 1.2, -293];
       D.uses = [{ x: 0, z: -293.2, label: 'Read the scoreboard', fn: (g) => { D.uses = []; dad.update = nia.update = null; dad.root.position.set(1.6, 0, -291); nia.root.position.set(-1.4, 0, -291.4); dad.root.rotation.y = nia.root.rotation.y = PI; dad.play('Idle_Loop'); nia.play('Idle_Loop');
         g.world.ch2.board.material.map = g.world.signTex ? g.world.signTex(['EVAC LEFT EARLY. SORRY.', 'GO TO PORTLAND · FORT WILLIAMS', '— PFC DANNY, I AM SO SORRY'], '#101010') : g.world.ch2.board.material.map; g.world.ch2.board.material.needsUpdate = true;
         g.cut = { anim: 'Idle_Loop', cam: V(-3, 1.7, -287), look: V(0, 3.6, -296) }; g.audio.setMood('sad');
-        g.say([['keem', '"Evac left early. Sorry. Go to Portland." They left EARLY? Who leaves EARLY?'], ['nia', 'Danny did. Danny is SO sorry.'], ['marcus', "Portland, then. Sixty miles. We've got a truck and half a doughnut."], ['nia', 'Dad… why is your sleeve wet?'], ['marcus', "It's nothing, baby. Glass. From the gate."], ['keem', '…Dad. Let me see your arm.'], ['marcus', "Keem. I said it's nothing. Get in the truck."]], () => { g.cut = { anim: 'Idle_Loop', cam: V(3, 1.5, -289), look: V(1.6, 1.2, -291) }; setTimeout(() => g.onComplete && g.onComplete(2), 1800); }); } }];
+        g.say([['keem', '"Evac left early. Sorry. Go to Portland." They left EARLY? Who leaves EARLY?'], ['nia', "Danny did. Danny is so, so sorry. Forget Danny."], ['marcus', "Portland, then. Sixty miles. We've got a truck and half a doughnut."], ['nia', "Dad… why's your sleeve wet?"], ['marcus', "It's nothing, baby. Glass. From the gate."], ['keem', '…Dad. Let me see your arm.'], ['marcus', "Keem. I said it's nothing. Get in the truck."]], () => { g.cut = { anim: 'Idle_Loop', cam: V(3, 1.5, -289), look: V(1.6, 1.2, -291) }; setTimeout(() => g.onComplete && g.onComplete(2), 1800); }); } }];
       g.say([['marcus', 'Stadium lights still on. Somebody was here.'], ['keem', 'Scoreboard says something. Come on.']]); } },
 
   // ===================== CHAPTER 3 — ROUTE 1 =====================
   { id: 'c3_road', ch: 3, cp: [0, -310, PI], obj: 'Find fuel at the Big Moose Truck Stop', hint: 'The truck is running on fumes. The truck stop is on the left.', mood: 'night', beat: 1,
     enter(g) { const D = g.stepData; fam(g, D, -312); g.wpTarget = [-22, 1.2, -347]; g.horde(7, [[-8, -330], [6, -345], [-20, -340], [10, -360]], { aggro: 16 });
-      g.say([['nia', 'Dad, you are sweating like Uncle Ray at a buffet.'], ['marcus', "It's August, baby."], ['keem', "It's October, Dad."], ['marcus', "Then it's a hot October. Find us some diesel."]]); },
+      g.say([['nia', "Dad, you're sweating like Uncle Ray at a cookout."], ['marcus', "It's August, baby."], ['keem', "It's October, Dad."], ['marcus', "Then it's a hot October. Find us some diesel."]]); },
     update(g) { if (dist2(g, -22, -347) < 6 && !g.stepData.go) { g.stepData.go = true; goto(g, 14, 150); } } },
   { id: 'c3_stop', ch: 3, cp: [-18, -342, PI], obj: 'Clear the truck stop', hint: 'Truckers. Big ones. Aim high.', mood: 'tense', beat: 2,
     enter(g) { const D = g.stepData; fam(g, D, -342, -18); D.hordeAll = true; g.horde(10, [[-30, -356], [-14, -362], [-26, -330], [0, -352]], { aggro: 40 }); D.runners = .3; dadGun(g, D);
-      g.say([['marcus', 'Diesel pumps. Cover me.'], ['keem', 'That one has a CB radio cord around his neck. Breaker breaker, motherfucker.'], ['nia', 'Language!'], ['keem', 'Nia, there is a dude with no face.']]); },
+      g.say([['marcus', 'Diesel pumps. Cover me.'], ['keem', 'That one has a CB radio cord around his neck. Breaker breaker, motherfucker.'], ['nia', "Language. Mom would've popped you."], ['keem', 'Nia, there is a dude with no face.']]); },
     update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (!D.clear && g.alive().length === 0) { D.clear = true; g.objective('Pump the diesel', 'Pump island under the canopy.'); g.wpTarget = [-22, 1, -347];
-      D.uses = [{ x: -22, z: -347, label: 'Pump diesel', fn: () => { D.uses = []; g.save.cash += 200; g.toast && g.toast('Tank full · +$200 from the register'); g.say([['marcus', "Full tank. Now I need to lie down a minute."], ['nia', "There's a motel. Pine Tree. It has CABLE."]], () => goto(g, 15, 200)); } }]; } } },
+      D.uses = [{ x: -22, z: -347, label: 'Pump diesel', fn: () => { D.uses = []; g.save.cash += 200; g.toast && g.toast('Tank full · +$200 from the register'); g.say([['marcus', "Full tank. Now I need to lie down a minute."], ['nia', "There's a motel. Pine Tree. It has cable. I'm not asking."]], () => goto(g, 15, 200)); } }]; } } },
   { id: 'c3_motel', ch: 3, cp: [10, -372, PI], obj: 'Check Dad at the Pine Tree Motel', hint: 'Room 4. He went in alone.', mood: 'sad', beat: 0,
     enter(g) { const D = g.stepData; fam(g, D, -372, 10, true); g.wpTarget = [27, 1.2, -386]; g.horde(4, [[20, -400], [16, -380]], { aggro: 12 });
       D.uses = [{ x: 26.5, z: -386, label: 'Knock on Room 4', fn: () => { D.uses = []; const dad = g.npc('marcus', 'marcus', 24.5, -386, -PI / 2, 'Idle_Loop'); g.cut = { anim: 'Idle_Loop', cam: V(20, 1.7, -384), look: V(24.5, 1.3, -386) }; g.audio.setMood('sad');
         g.say([['keem', 'Dad. Roll up the sleeve.'], ['marcus', 'Keem—'], ['keem', 'ROLL IT UP.'], ['marcus', "…Gate in Haverford. One of the soldiers. Little bastard didn't even have teeth on one side."], ['keem', "That's a bite, Dad. That's a fucking BITE."], ['marcus', "I know what it is. Don't tell your sister. Not yet."], ['marcus', "Portland. The Navy. Somebody's gotta have something. Till then, I'm still your old man."], ['keem', '…Okay. Okay.']], () => { g.cut = null; dad.root.position.set(22, 0, -384); goto(g, 16, 200); }); } }];
-      g.say([['nia', "He's been in there twenty minutes. Is he pooping? Is it a poop?"]]); } },
+      g.say([['nia', "He's been in there twenty minutes. Somebody go check on him. Not me."]]); } },
   { id: 'c3_boss', ch: 3, cp: [6, -380, PI], obj: 'Kill Big Rig Ronnie', hint: 'He comes with the horn. Dodge the charge, then light him up.', mood: 'tense', beat: 3,
     enter(g) { const D = g.stepData; fam(g, D, -380, 6); dadGun(g, D); const b = boss(g, 0, -402, 1700, '#2a4a7a', 'BIG RIG RONNIE — 2.1 million miles, 0 showers'); b.speed = 2.3;
       g.horde(5, [[-10, -400], [10, -404]], { aggro: 99 }); D.hordeAll = true; g.audio.horn && g.audio.horn();
-      g.say([['ronnie', 'TEN-FOUR, GOOD BUDDY! RAAAGH!'], ['nia', 'He has a steering wheel stuck in his chest!'], ['marcus', "That's Ronnie. He sold me bad jerky in 2009. Kill him, son."]]); },
-    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['keem', "Over and out, Ronnie."], ['marcus', '*cough* Good. That was good.'], ['nia', 'Dad? Your nose is bleeding.']]); goto(g, 17, 600); }, 1600); } } },
+      g.say([['ronnie', 'TEN-FOUR, GOOD BUDDY! RAAAGH!'], ['nia', "He has a whole steering wheel in his chest. How is he still walking?"], ['marcus', "That's Ronnie. He sold me bad jerky in 2009. Kill him, son."]]); },
+    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['keem', "Over and out, Ronnie. Ten-four, {type shit|type stuff}."], ['marcus', '*cough* Good. That was good.'], ['nia', "Dad? Your nose is bleeding. Dad."]]); goto(g, 17, 600); }, 1600); } } },
   { id: 'c3_end', ch: 3, cp: [0, -404, PI], obj: 'Get to the turnpike on-ramp', hint: 'South, past the barrier.', mood: 'sad', beat: 0,
     enter(g) { const D = g.stepData; fam(g, D, -404); g.wpTarget = [0, 1.2, -413];
       g.say([['marcus', "Turnpike's faster. Twenty miles to Portland."], ['radio', '...this is the Tollmen. Turnpike is ours. Everybody pays. Everybody.']]); },
-    update(g) { if (dist2(g, 0, -413) < 4 && !g.stepData.go) { g.stepData.go = true; g.cut = { anim: 'Idle_Loop', cam: V(2, 1.6, -409), look: V(0, 1.3, -420) }; g.say([['nia', 'Everybody pays what?'], ['marcus', "Whatever they want, baby. Whatever they want."]], () => g.onComplete && g.onComplete(3)); } } },
+    update(g) { if (dist2(g, 0, -413) < 4 && !g.stepData.go) { g.stepData.go = true; g.cut = { anim: 'Idle_Loop', cam: V(2, 1.6, -409), look: V(0, 1.3, -420) }; g.say([['nia', "Everybody pays what, exactly?"], ['marcus', "Whatever they want, baby. Whatever they want."]], () => g.onComplete && g.onComplete(3)); } } },
 
   // ===================== CHAPTER 4 — EVERYBODY PAYS =====================
   { id: 'c4_plaza', ch: 4, cp: [0, -424, PI], obj: 'Get through the toll plaza', hint: 'Humans shoot back. Use cars for cover. Strafe.', mood: 'tense', beat: 2,
@@ -174,26 +174,26 @@ export const STORY = [
     update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (!D.go && g.alive().length === 0) { D.go = true; goto(g, 19, 250); } } },
   { id: 'c4_taken', ch: 4, cp: [0, -462, PI], obj: 'Find Dad and Nia', hint: 'Follow the drag marks to the camp.', mood: 'night', beat: 1,
     enter(g) { const D = g.stepData; g.openGate(true); g.cut = { anim: 'Idle_Loop', cam: V(3, 1.8, -458), look: V(0, 1, -470), flash: true }; g.audio.setMood('sad');
-      g.say([['nia', 'KEEM! LET GO OF ME!'], ['marcus', 'Take me, not her, you sons of bitches—'], ['deacon', "Oh, we're takin' both. The old man's got a bite. The Captain pays double for biters."], ['keem', 'DAD!']], () => { g.cut = null; g.wpTarget = [0, 1.2, -505]; g.horde(8, [[-10, -485], [10, -490], [-24, -480], [24, -484]], { aggro: 20 }); raiders(g, 4, [[-8, -498], [8, -500], [-20, -492], [20, -494]]); }); },
+      g.say([['nia', "KEEM! Get your hands off me!"], ['marcus', 'Take me, not her, you sons of bitches—'], ['deacon', "Oh, we're takin' both. The old man's got a bite. The Captain pays double for biters."], ['keem', 'DAD!']], () => { g.cut = null; g.wpTarget = [0, 1.2, -505]; g.horde(8, [[-10, -485], [10, -490], [-24, -480], [24, -484]], { aggro: 20 }); raiders(g, 4, [[-8, -498], [8, -500], [-20, -492], [20, -494]]); }); },
     update(g) { if (dist2(g, 0, -505) < 7 && !g.stepData.go && !g.cut) { g.stepData.go = true; goto(g, 20, 250); } } },
   { id: 'c4_cage', ch: 4, cp: [0, -500, PI], obj: 'Clear the camp, then break the cage', hint: 'Raiders first. Then the padlock.', mood: 'tense', beat: 3,
-    enter(g) { const D = g.stepData; g.openGate(true); D.hordeAll = true; g.npc('marcus', 'marcus', -1, -514, 0, 'Idle_Loop'); g.npc('nia', 'nia', 1, -514, 0, 'Idle_Loop', .62); raiders(g, 6, [[-14, -508], [14, -508], [-22, -500], [22, -500]]); g.horde(6, [[-30, -510], [30, -510]], { runner: true, aggro: 99 });
-      g.say([['nia', 'Keem! In here! It smells like feet and murder!'], ['keem', 'Hang on, Nia!']]); },
+    enter(g) { const D = g.stepData; g.openGate(true); D.hordeAll = true; g.npc('marcus', 'marcus', -1, -514, 0, 'Idle_Loop'); g.npc('nia', 'nia', 1, -514, 0, 'Idle_Loop', .95); raiders(g, 6, [[-14, -508], [14, -508], [-22, -500], [22, -500]]); g.horde(6, [[-30, -510], [30, -510]], { runner: true, aggro: 99 });
+      g.say([['nia', "Keem! In here! It smells like feet and bad decisions!"], ['keem', 'Hang on, Nia!']]); },
     update(g) { const D = g.stepData; if (!D.clear && g.alive().length === 0) { D.clear = true; g.wpTarget = [0, 1, -512];
-      D.uses = [{ x: 0, z: -512.4, label: 'Break the padlock', fn: () => { D.uses = []; g.say([['marcus', "Knew you'd come. Took your sweet time."], ['nia', 'Dad bit one of them! Like, he BIT him!'], ['marcus', "…He tasted like Marlboros."]], () => goto(g, 21, 300)); } }]; } } },
+      D.uses = [{ x: 0, z: -512.4, label: 'Break the padlock', fn: () => { D.uses = []; g.say([['marcus', "Knew you'd come. Took your sweet time."], ['nia', "Dad bit one of them. Like, with his teeth. I'm traumatized."], ['marcus', "…He tasted like Marlboros."]], () => goto(g, 21, 300)); } }]; } } },
   { id: 'c4_boss', ch: 4, cp: [0, -506, PI], obj: 'Kill Deacon', hint: 'He hides behind his boys. Grenades.', mood: 'tense', beat: 2,
     enter(g) { const D = g.stepData; fam(g, D, -506); dadGun(g, D); const b = g.spawnZ(0, -490, { raider: true, hp: 1100, gun: 'shotgun', shirt: '#101010' }); b.root.scale.setScalar(1.25); g.boss = b; $q('#bossn').textContent = 'DEACON — Tollman lieutenant';
-      raiders(g, 4, [[-10, -488], [10, -488]]); D.hordeAll = true; g.say([['deacon', "You owe the toll, boy. I'll take it outta your hide."], ['keem', "Come collect, Deacon."]]); },
+      raiders(g, 4, [[-10, -488], [10, -488]]); D.hordeAll = true; g.say([['deacon', "You owe the toll, boy. I'll take it outta your hide."], ['keem', "Come collect, Deacon. Exact change, {type shit|type stuff}."]]); },
     update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['deacon', '…the King… he\'ll find you…'], ['keem', "Tell him the toll's paid."]]); goto(g, 22, 600); }, 1500); } } },
   { id: 'c4_end', ch: 4, cp: [0, -512, PI], obj: 'Head for the Maine Mall', hint: 'South. Past the barrier.', mood: 'sad', beat: 0,
     enter(g) { const D = g.stepData; fam(g, D, -512); g.wpTarget = [0, 1.2, -523];
-      g.say([['nia', "Who's the Captain? Why does he pay for biters?"], ['marcus', "Don't know, baby. Don't wanna."], ['marcus', 'My hand… I can\'t feel my hand, Keem.']]); },
+      g.say([['nia', "Who's the Captain? And why is he buying biters?"], ['marcus', "Don't know, baby. Don't wanna."], ['marcus', 'My hand… I can\'t feel my hand, Keem.']]); },
     update(g) { if (dist2(g, 0, -523) < 4 && !g.stepData.go) { g.stepData.go = true; g.say([['keem', "Mall's got a pharmacy. We'll get you something."]], () => g.onComplete && g.onComplete(4)); } } },
 
   // ===================== CHAPTER 5 — BLACK FRIDAY =====================
   { id: 'c5_lot', ch: 5, cp: [0, -534, PI], obj: 'Cross the Maine Mall parking lot', hint: 'Somebody is waving a flashlight by the doors.', mood: 'night', beat: 1,
     enter(g) { const D = g.stepData; fam(g, D, -534); dadGun(g, D); g.wpTarget = [0, 1.2, -606]; g.horde(12, [[-20, -560], [16, -570], [-8, -585], [24, -590], [0, -598]], { aggro: 18 }); D.runners = .3;
-      g.say([['nia', 'I came here for back-to-school. I got a Cinnabon. It was the best day of my life.'], ['keem', 'Cinnabon is a corpse now, Nia.']]); },
+      g.say([['nia', "I got my first job application here. And a Cinnabon. Peak of my life."], ['keem', 'Cinnabon is a corpse now, Nia.']]); },
     update(g) { if (dist2(g, 0, -606) < 6 && !g.stepData.go) { g.stepData.go = true; goto(g, 24, 200); } } },
   { id: 'c5_pharm', ch: 5, cp: [0, -604, PI], obj: 'Find 3 antiviral packs (0/3)', hint: 'Dr. Reyes says: the kiosk, the van, the ambulance.', mood: 'tense', beat: 2,
     enter(g) { const D = g.stepData; fam(g, D, -604); dadGun(g, D); D.n = 0; const R = g.npc('reyes', null, 3, -608, PI, 'Idle_Loop'); const T = g.npc('tuck', null, 5, -607, PI, 'Pistol_Aim_Neutral');
@@ -202,15 +202,15 @@ export const STORY = [
       D.uses = [[-24, -600, 'Search the kiosk'], [22, -566, 'Search the van'], [-26, -552, 'Search the ambulance']].map(([x, z, label]) => ({ x, z, label, fn: () => { D.uses = D.uses.filter(u => u.x !== x); got(); } }));
       g.horde(8, [[-24, -590], [22, -574], [-26, -560]], { aggro: 14 }); } },
   { id: 'c5_hold', ch: 5, cp: [0, -600, PI], obj: 'Hold the doors while Reyes works', hint: 'Waves from every direction. Protect Dad.', mood: 'tense', beat: 3,
-    enter(g) { const D = g.stepData; D.t = 0; D.wave = 0; D.len = 50; D.hordeAll = true; D.runners = .4; g.npc('marcus', 'marcus', 0, -609, PI, 'Idle_Loop'); g.npc('reyes', null, 1.4, -609, -PI / 2, 'Idle_Loop'); g.npc('nia', 'nia', -1.5, -609, PI, 'Idle_Loop', .62);
+    enter(g) { const D = g.stepData; D.t = 0; D.wave = 0; D.len = 50; D.hordeAll = true; D.runners = .4; g.npc('marcus', 'marcus', 0, -609, PI, 'Idle_Loop'); g.npc('reyes', null, 1.4, -609, -PI / 2, 'Idle_Loop'); g.npc('nia', 'nia', -1.5, -609, PI, 'Idle_Loop', .95);
       g.say([['reyes', 'Hold still, Marcus. This is going in your thigh.'], ['marcus', "Buy me dinner first, doc."], ['tuck', 'Incoming! Like, ALL of them!']]); },
     update(g, dt) { const D = g.stepData; if (D.done) return; D.t += dt; const left = Math.max(0, Math.ceil(D.len - D.t)); if (left !== D.lastL) { D.lastL = left; g.objective('Hold the doors: ' + left + 's', 'Protect Dad.'); }
       if (D.t > D.wave * 8 && D.wave < 6) { D.wave++; g.horde(g.alive().length < 22 ? 5 + D.wave : 2, [[-24, -570], [24, -570], [0, -555], [-30, -595], [30, -595]], { runner: D.wave > 2, aggro: 99 }); }
-      if (D.t >= D.len) { D.done = true; g.say([['reyes', "It's in. It'll buy him days. Maybe a week."], ['nia', 'Days for what?'], ['tuck', 'Uh, guys? Santa is coming out of the mall.']], () => goto(g, 26, 400)); } } },
+      if (D.t >= D.len) { D.done = true; g.say([['reyes', "It's in. It'll buy him days. Maybe a week."], ['nia', "Days for what? Days until what?"], ['tuck', 'Uh, guys? Santa is coming out of the mall.']], () => goto(g, 26, 400)); } } },
   { id: 'c5_boss', ch: 5, cp: [0, -596, PI], obj: 'Kill Mall Santa', hint: 'He throws elves. Do not let him hug you.', mood: 'tense', beat: 2,
     enter(g) { const D = g.stepData; fam(g, D, -596); dadGun(g, D); const b = boss(g, 0, -610, 2000, '#c01818', 'MALL SANTA — naughty list: everyone'); b.speed = 2.1; g.horde(6, [[-12, -606], [12, -606]], { runner: true, aggro: 99 }); D.hordeAll = true;
-      g.say([['santa', 'HO… HO… HOOOOARGH!'], ['nia', 'I sat on his lap when I was six!'], ['keem', "And now I'm gonna put six in his fat ass."]]); },
-    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['keem', 'Merry fucking Christmas.'], ['tuck', "That's the best thing I've ever seen."]]); goto(g, 27, 600); }, 1600); } } },
+      g.say([['santa', 'HO… HO… HOOOOARGH!'], ['nia', "I took a picture with him when I was six. I want it back."], ['keem', "And now I'm gonna put six in his fat ass."]]); },
+    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['keem', 'Merry {fuckin\' |}Christmas. Naughty list, {type shit|type stuff}.'], ['tuck', "That's the best thing I've ever seen."]]); goto(g, 27, 600); }, 1600); } } },
   { id: 'c5_end', ch: 5, cp: [0, -600, PI], obj: 'Talk to Dr. Reyes', hint: 'She knows something.', mood: 'sad', beat: 0,
     enter(g) { const D = g.stepData; fam(g, D, -600); const R = g.npc('reyes', null, 3, -606, PI, 'Idle_Loop'); g.wpTarget = [3, 1.2, -605];
       D.uses = [{ x: 3, z: -605, label: 'Talk to Dr. Reyes', fn: () => { D.uses = []; g.cut = { anim: 'Idle_Loop', cam: V(0, 1.7, -601), look: V(3, 1.4, -606) };
@@ -219,7 +219,7 @@ export const STORY = [
   // ===================== CHAPTER 6 — THE LIGHTHOUSE =====================
   { id: 'c6_park', ch: 6, cp: [0, -646, PI], obj: 'Reach the old fort', hint: 'Fort Williams. The stone ruins on the left.', mood: 'night', beat: 1,
     enter(g) { const D = g.stepData; fam(g, D, -646); dadGun(g, D); g.wpTarget = [-26, 1.2, -678]; g.horde(10, [[-10, -665], [10, -670], [-20, -690], [16, -684]], { aggro: 16 });
-      g.say([['marcus', "Your mother and I got engaged right there. By the lighthouse."], ['nia', 'Gross.'], ['marcus', 'She said yes. Then she threw up. Lobster roll.']]); },
+      g.say([['marcus', "Your mother and I got engaged right there. By the lighthouse."], ['nia', "Ew. Please stop."], ['marcus', 'She said yes. Then she threw up. Lobster roll.']]); },
     update(g) { if (dist2(g, -26, -678) < 7 && !g.stepData.go) { g.stepData.go = true; goto(g, 29, 200); } } },
   { id: 'c6_raid', ch: 6, cp: [-20, -678, PI], obj: 'Survive the Tollmen raid', hint: 'Raiders and the dead. Hold the ruins.', mood: 'tense', beat: 3,
     enter(g) { const D = g.stepData; fam(g, D, -678, -20); dadGun(g, D); D.hordeAll = true; raiders(g, 8, [[-6, -700], [6, -704], [-30, -705], [20, -700], [0, -715]]); g.horde(8, [[-40, -690], [30, -680]], { runner: true, aggro: 99 });
@@ -228,14 +228,14 @@ export const STORY = [
   { id: 'c6_boss', ch: 6, cp: [0, -700, PI], obj: 'Kill the Toll King', hint: 'Armored. Headshots and grenades.', mood: 'tense', beat: 2,
     enter(g) { const D = g.stepData; fam(g, D, -700); dadGun(g, D); const b = g.spawnZ(4, -722, { raider: true, hp: 1600, gun: 'saw', shirt: '#4a3a10' }); b.root.scale.setScalar(1.35); g.boss = b; $q('#bossn').textContent = 'THE TOLL KING — everybody pays';
       raiders(g, 4, [[-10, -718], [14, -718]]); D.hordeAll = true; g.say([['king', 'Pay up, boy!'], ['marcus', "Keem. Take his crown."]]); },
-    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['king', 'The Captain… he doesn\'t cure them… he…'], ['nia', 'He what?']]); goto(g, 31, 700); }, 1500); } } },
+    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['king', 'The Captain… he doesn\'t cure them… he…'], ['nia', "He what? Finish the sentence!"]]); goto(g, 31, 700); }, 1500); } } },
   { id: 'c6_light', ch: 6, cp: [4, -712, PI], obj: 'Signal the ship from the lighthouse', hint: 'The keeper\'s house by the tower.', mood: 'sad', beat: 0,
     enter(g) { const D = g.stepData; fam(g, D, -712, 4); g.wpTarget = [8, 1.2, -733];
       D.uses = [{ x: 8, z: -732, label: 'Flash the lighthouse signal', fn: () => { D.uses = []; const s = g.world.zones && g.world.zones._ship; if (s) s.intensity = 60; goto(g, 32, 500); } }]; } },
   { id: 'c6_end', ch: 6, cp: [6, -728, PI], obj: '', hint: '', mood: 'sad', beat: 0,
-    enter(g) { const D = g.stepData; const dad = g.npc('marcus', 'marcus', 8, -731, PI, 'Idle_Loop'); g.npc('nia', 'nia', 4.5, -730, PI, 'Idle_Loop', .62); g.npc('reyes', null, 2.5, -729, PI, 'Idle_Loop');
+    enter(g) { const D = g.stepData; const dad = g.npc('marcus', 'marcus', 8, -731, PI, 'Idle_Loop'); g.npc('nia', 'nia', 4.5, -730, PI, 'Idle_Loop', .95); g.npc('reyes', null, 2.5, -729, PI, 'Idle_Loop');
       g.cut = { anim: 'Idle_Loop', cam: V(6, 1.7, -724), look: V(-30, 2, -840) }; g.audio.setMood('sad'); const s = g.world.zones && g.world.zones._ship; if (s) s.intensity = 60;
-      g.say([['radio', 'Fort Williams, this is the Captain. We see your light. Bring the infected one to the shore. Alone.'], ['reyes', "…That's not a Navy call sign."], ['nia', 'Dad?'],
+      g.say([['radio', 'Fort Williams, this is the Captain. We see your light. Bring the infected one to the shore. Alone.'], ['reyes', "…That's not a Navy call sign."], ['nia', "Dad?"],
         ['marcus', "Keem… my eyes. Everything's gray."], ['keem', 'Dad, look at me. LOOK at me.'], ['marcus', 'Keem… run. Take your sister and run.']],
         () => { g.cut = { anim: 'Idle_Loop', cam: V(6, 1.6, -720), look: V(6, 3, -760) }; dad.root.visible = false; g.shake(1); g.audio.shot('revolver'); setTimeout(() => g.onComplete && g.onComplete(6), 2200); }); } },
 
@@ -246,7 +246,7 @@ const $q = (s) => document.querySelector(s);
 const CH_START = { 1: 0, 2: 7, 3: 13, 4: 18, 5: 23, 6: 28 };
 export function chOf(i) { const s = STORY[i]; return s && s.ch ? s.ch : 1; }
 export { CH_START };
-function fam(g, D, z, x = 0, noDad) { g.openGate(true); if (!noDad) { const d = g.npc('marcus', 'marcus', x + 1.6, z + 1.5, PI, 'Walk_Loop'); follow(g, d, [1.6, 1.2]); D.dad = d; } const n = g.npc('nia', 'nia', x - 1.4, z + 1.5, PI, 'Walk_Loop', .62); follow(g, n, [-1.2, .9]); D.nia = n; }
+function fam(g, D, z, x = 0, noDad) { g.openGate(true); if (!noDad) { const d = g.npc('marcus', 'marcus', x + 1.6, z + 1.5, PI, 'Walk_Loop'); follow(g, d, [1.6, 1.2]); D.dad = d; } const n = g.npc('nia', 'nia', x - 1.4, z + 1.5, PI, 'Walk_Loop', .95); follow(g, n, [-1.2, .9]); D.nia = n; }
 function dadGun(g, D) { D.dadGun = true; }
 function dadTick(g, D, dt) { if (!D.dad || !D.dadGun || (D.dcd = (D.dcd || 0) - dt) > 0) return; D.dcd = .9; const dp = D.dad.root.position; let best = null, bd = 18; g.alive().forEach(z => { if (z.boss) return; const d = z.root.position.distanceTo(dp); if (d < bd) { bd = d; best = z; } }); if (best) { const dir = best.root.position.clone().sub(dp).normalize(); g.damageZ(best, 60, dir, { head: Math.random() < .35 }); g.audio.shot('shotgun'); } }
 function boss(g, x, z, hp, shirt, name) { const b = g.spawnZ(x, z, { boss: true, hp, scale: 1.75, runner: false }); b.cd = 2; b.aggro = 99; b.mat.userData.u.uShirt.value.set(shirt); b.mat.userData.u.uBlood.value = g.settings.gore ? 1.4 : .2; g.boss = b; $q('#bossn').textContent = name; g.audio.roar && setTimeout(() => g.audio.roar(), 900); return b; }

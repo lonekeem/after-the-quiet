@@ -92,10 +92,10 @@ KO = Kokoro('/workspace/kokoro/kokoro.onnx', '/workspace/kokoro/voices.bin')
 P = lambda r: f'asetrate=24000*{r},aresample=24000,atempo={1/r:.3f}'
 ROOM = 'highpass=f=85,equalizer=f=220:t=q:w=1:g=1.5,equalizer=f=3200:t=q:w=1.2:g=2,aecho=0.85:0.6:23|41:0.10|0.06'
 V = {  # who: voice, base speed, pitch ratio, extra filter
- 'keem': ('am_puck', 1.0, 1.05, ''), 'marcus': ('am_michael', .94, 1.0, ''), 'nia': ('af_heart', 1.0, 1.12, ''),
+ 'keem': ('am_liam', 1.1, 1.06, ''), 'marcus': ('am_michael', .94, 1.0, ''), 'nia': ('af_jessica', 1.0, 1.0, ''),
  'dube': ('bm_george', .9, 1.0, ''), 'walt': ('am_fenrir', .9, .98, ''), 'ruth': ('af_bella', .97, 1.0, ''), 'gus': ('am_onyx', .9, .92, ''),
  'sgt': ('am_eric', .98, 1.0, 'highpass=f=300,lowpass=f=3600,acrusher=bits=11:mix=0.15'), 'brick': ('am_onyx', .92, .9, ''),
- 'ronnie': ('am_adam', .9, .9, ''), 'deacon': ('bm_daniel', .95, .97, ''), 'reyes': ('af_sarah', 1.0, 1.0, ''), 'tuck': ('am_liam', 1.05, 1.02, ''), 'santa': ('am_onyx', .85, .85, ''), 'king': ('bm_lewis', .92, .95, ''),
+ 'ronnie': ('am_adam', .9, .9, ''), 'deacon': ('bm_daniel', .95, .97, ''), 'reyes': ('af_sarah', 1.0, 1.0, ''), 'tuck': ('am_echo', 1.05, 1.0, ''), 'santa': ('am_onyx', .85, .85, ''), 'king': ('bm_lewis', .92, .95, ''),
  'radio': ('am_michael', 1.0, 1.0, 'highpass=f=350,lowpass=f=3400,acrusher=bits=10:mix=0.2'),
  'npcf': ('af_heart', 1.06, 1.02, ''), 'npcm': ('am_fenrir', 1.06, 1.0, '')}
 def f0_std(a, sr):  # crude autocorrelation pitch tracker -> semitone std of voiced frames
@@ -114,8 +114,19 @@ def render(text, voice, speed, lang):
     a, sr = KO.create(p, voice=voice, speed=speed * rng.uniform(.96, 1.04), lang=lang); out.append(a)
     if j < len(parts) - 1: out.append(np.zeros(int(sr * rng.uniform(.22, .42)), np.float32))
   return np.concatenate(out), sr
+SPOKEN = [(r'\bgoing to\b', 'gonna'), (r'\bwant to\b', 'wanna'), (r'\bgot to\b', 'gotta'), (r'\byou all\b', "y'all"), (r'\babout to\b', 'finna'),
+  (r'\b(nothin|somethin|comin|goin|doin|talkin|kiddin|playin|lookin|trippin|runnin)g\b', r"\1'"), (r'\bkind of\b', 'kinda'), (r'\bout of\b', 'outta')]
+PRON = [(r'\bNia\b', 'Nee-uh'), (r'\bOkafor\b', 'Oh-kah-for'), (r'\bReyes\b', 'Ray-ess'), (r'\bTollmen\b', 'Toll men'), (r'\bHaverford\b', 'Haver-ford'), (r'\bDeacon\b', 'Dee-kun'),
+  (r'\bCinnabon\b', 'Sinna-bon'), (r'\bSAW\b', 'S. A. W.'), (r'\bmotherfucker\b', 'mother-fucker'), (r'\bKeem\b', 'Keem'), (r'\.30-30\b', 'thirty-thirty'), (r'\bEMS\b', 'E.M.S.')]
+def spoken(who, t):
+  if who in ('keem', 'nia', 'tuck'):
+    for a, b in SPOKEN: t = re.sub(a, b, t, flags=re.I)
+    if who == 'keem': t = re.sub(r'^No([.,!])', r'Nah\1', t)
+  for a, b in PRON: t = re.sub(a, b, t)
+  return t
 def say(who, text, path, shout=None):
   if os.path.exists(path): return
+  text = spoken(who, text)
   clean = re.sub(r'\([^)]*\)', '', text).strip(' ,')
   if not re.search(r'[A-Za-z]', clean): return
   voice, sp, pr, extra = V[who]; lang = 'en-us' if voice[0] == 'a' else 'en-gb'
@@ -148,8 +159,8 @@ BARKS = {
  'keem_scared': ('keem', ['Oh man... oh man.', "Is he... is he eating him?", "Don't look. Don't look.", "That's Mister Walt... oh no."]),
  'marcus_shout': ('marcus', ['Keem! Over here!', 'Behind you, son!', 'Keep moving!', 'Good shot!']),
  'marcus_chat': ('marcus', ['Stay close, son.', 'Eyes up. Watch the treeline.', 'Easy... easy.', "You're doin' good, Keem.", "Breathe. We're gettin' out of here."]),
- 'nia_shout': ('nia', ['Keem, hurry!', 'Biscuit, hold on!', 'Behind you!']),
- 'nia_chat': ('nia', ["Keem, I'm scared.", 'Is Biscuit okay?', 'Can we go home now?', "Uh, Keem? There's one over there!", "I'm not crying. You're crying."]),
+ 'nia_shout': ('nia', ['Keem, move!', 'Boy, BEHIND you!', 'Hurry up!']),
+ 'nia_chat': ('nia', ["Keem, I swear to God.", 'Biscuit is fine. Stop asking.', 'Can we not die today? Thanks.', "Uh, Keem? One's right there. Right there.", "I'm not crying. You're crying."]),
  'npc_chat': ('npcm', ['Is anybody out there?', 'Lock your doors!', "They're comin' from the river!", 'Oh God... oh God.', 'Somebody call nine one one!']),
  'npcf_chat': ('npcf', ['Has anyone seen my husband?', 'Get inside! Get inside!', "Don't let them hear you!", "Oh my God, they're everywhere."]),
  'npcf_scream': ('npcf', ['Aaaah! No! Nooo!', 'Help meee! Please!', 'Get it off! Get it off me!']),

@@ -177,7 +177,7 @@ export class Game {
   nextLine() { const d = $('#dlg'); const it = this.dlgQ.shift(); if (!it) { this.dlgCur = null; d.classList.remove('on'); this.audio.stopVoice && this.audio.stopVoice(); return; } if (it.cb) { it.cb(this); this.nextLine(); return; }
     if (it.raw == null) { it.raw = it.text; const L = langLine(it.raw, this.settings.lang || 'on'); it.text = L.sub; it.vtext = L.voice; it.bleeps = L.bleeps; }
     this.dlgCur = it; const names = { keem: 'Keem', marcus: 'Dad', nia: 'Nia', walt: 'Mr. Walt', ruth: 'Ruth', dube: 'Mr. Dube', radio: 'Radio', note: 'Dad\'s note', gus: 'Big Gus', sgt: 'Sgt. Okafor (radio)', brick: 'Coach Brickman', ronnie: 'Big Rig Ronnie', deacon: 'Deacon', reyes: 'Dr. Reyes', tuck: 'Tuck', santa: 'Mall Santa', king: 'The Toll King' };
-    $('#who').textContent = names[it.who] || it.who; const cur = it; it.who !== 'keem' && this.audio.voice && this.audio.voice(it.who, it.vtext, it.bleeps).then(dd => { if (dd && this.dlgCur === cur) cur.dur = Math.max(cur.dur || 0, dd + .5); });
+    $('#who').textContent = names[it.who] || it.who; const cur = it; this.audio.voice && this.audio.voice(it.who, it.vtext, it.bleeps).then(dd => { if (dd && this.dlgCur === cur) cur.dur = Math.max(cur.dur || 0, dd + .5); });
     
     $('#line').textContent = it.text; d.classList.add('on'); it.t = 0; it.dur = (1.6 + it.text.length * 0.045) / (this.settings.text || 1); }
   skipLine() { if (this.dlgCur) this.nextLine(); }
