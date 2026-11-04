@@ -135,8 +135,8 @@ export class AudioSys {
 export const vhash = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); };
 const BASE = (import.meta.env && import.meta.env.BASE_URL || '/') + 'sfx/';
 const FAM = { gun_pistol: 3, gun_rifle: 3, gun_shotgun: 3, gun_revolver: 3, gun_smg: 3, gun_sniper: 3, thunder: 3, z_growl: 6, z_moan: 4, z_attack: 3, z_eat: 3, z_chew: 4, z_tear: 3, scream: 4,
-  step_concrete: 5, step_grass: 5, step_wood: 5, punch: 5, bat: 5, flesh: 5, metal: 5, shell: 5, plank: 5, glass: 5, cloth: 2 };
-const ONE = ['explosion', 'rain_loop', 'truck_loop', 'boss_roar', 'reload_out', 'reload_in', 'door_open', 'creak', 'knife', 'coins', 'chop'];
+  step_concrete: 5, step_grass: 5, step_wood: 5, punch: 5, bat: 5, flesh: 5, metal: 5, shell: 5, plank: 5, glass: 5, cloth: 2, step_mud: 5, step_asphalt: 5, z_shuffle: 4, breath: 4, jump: 2, land: 2, squelch: 3 };
+const ONE = ['explosion', 'rain_loop', 'truck_loop', 'boss_roar', 'reload_out', 'reload_in', 'door_open', 'creak', 'knife', 'coins', 'chop', 'roll', 'alarm_loop', 'wind_loop', 'tire_loop'];
 const P = AudioSys.prototype, O = {};
 ['init', 'applyVolumes', 'setMood', 'ambientTick', 'shot', 'hit', 'swing', 'hurt', 'groan', 'thud', 'crash', 'explode', 'pickup', 'engine', 'scream', 'click', 'splat', 'glass'].forEach(k => O[k] = P[k]);
 P.init = function () { const first = !this.ctx; O.init.call(this); if (!first || !this.ctx) return;
@@ -151,12 +151,42 @@ P.load = function (name) { if (this.bufs[name]) return Promise.resolve(this.bufs
   return this.loading[name] = fetch(BASE + name + '.mp3').then(r => { if (!r.ok || /html/.test(r.headers.get('content-type') || '')) throw 0; return r.arrayBuffer(); })
     .then(a => new Promise((res, rej) => { const q = this.ctx.decodeAudioData(a, res, rej); if (q && q.catch) q.catch(rej); })).then(b => (this.bufs[name] = b)).catch(() => null); };
 // play a sample; returns the source node, or null if not loaded (caller then uses the synth fallback)
+// v1.4.1 3D audio: audio.at(pos) tags the next sample(s) in this tick with a world position -> PannerNode (equalpower for phones),
+// inverse distance falloff, distance low-pass, and a hard cap on simultaneous sounds (far/quiet ones are dropped first).
+const DUMMY = { g: { gain: { value: 0, setTargetAtTime() {} } }, playbackRate: { setTargetAtTime() {} }, stop() {}, dummy: true };
+const MOBILE = typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent); const MAXV = MOBILE ? 18 : 30;
+P.at = function (p) { if (!p) return this; this._at = { x: p.x, y: p.y ?? 1, z: p.z }; if (!this._atQ) { this._atQ = 1; queueMicrotask(() => { this._at = null; this._atQ = 0; }); } return this; };
+P.listen = function (cam, indoors) { if (!this.ctx) return; const L = this.ctx.listener, e = cam.matrixWorld.elements, t = this.ctx.currentTime; const x = e[12], y = e[13], z = e[14];
+  this.lpos = { x, y, z }; if (L.positionX) { L.positionX.setTargetAtTime(x, t, .02); L.positionY.setTargetAtTime(y, t, .02); L.positionZ.setTargetAtTime(z, t, .02); L.forwardX.setTargetAtTime(-e[8], t, .02); L.forwardY.setTargetAtTime(-e[9], t, .02); L.forwardZ.setTargetAtTime(-e[10], t, .02); L.upX.setTargetAtTime(e[4], t, .02); L.upY.setTargetAtTime(e[5], t, .02); L.upZ.setTargetAtTime(e[6], t, .02); }
+  else { L.setPosition(x, y, z); L.setOrientation(-e[8], -e[9], -e[10], e[4], e[5], e[6]); }
+  if (indoors !== this.indoors) { this.indoors = indoors; this.rain(this.rainOn !== false, indoors ? .05 : .16); this.wind(true, indoors ? .02 : .1); } };
+P.dist = function (p) { const l = this.lpos; if (!l || !p) return 0; const dx = p.x - l.x, dy = (p.y ?? 1) - l.y, dz = p.z - l.z; return Math.sqrt(dx * dx + dy * dy + dz * dz); };
 P.play = function (name, o = {}) { if (!this.ctx) return null; let n = name; if (FAM[name]) n = name + Math.floor(Math.random() * FAM[name]);
+  const pos = o.pos || (o.flat ? null : this._at); const d = pos ? this.dist(pos) : 0; const maxD = o.maxD || 70;
+  if (pos && d > maxD) return DUMMY; this.nAct = this.nAct || 0;
+  if (this.nAct >= MAXV && !o.loop && (pos ? d > 6 : (o.vol ?? 1) < .4)) return DUMMY;
   const b = this.bufs[n]; if (!b) { this.load(n); return null; }
   const s = this.ctx.createBufferSource(), g = this.ctx.createGain(); s.buffer = b; s.loop = !!o.loop; s.playbackRate.value = (o.rate || 1) * (1 + (o.jit ?? .06) * (Math.random() * 2 - 1));
   g.gain.value = o.vol ?? 1; s.connect(g); let out = g;
-  if (o.pan && this.ctx.createStereoPanner) { const p = this.ctx.createStereoPanner(); p.pan.value = o.pan; g.connect(p); out = p; }
-  out.connect(o.bus || this.sfx); if (o.verb) g.connect(this.verb); s.start(this.ctx.currentTime + (o.delay || 0)); s.g = g; return s; };
+  if (pos && this.ctx.createPanner) { const p = this.ctx.createPanner(); p.panningModel = 'equalpower'; p.distanceModel = 'inverse'; p.refDistance = o.ref || 2.5; p.maxDistance = maxD; p.rolloffFactor = o.roll ?? 1.1;
+    if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y ?? 1; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y ?? 1, pos.z);
+    if (d > 14) { const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = Math.max(700, 16000 / (1 + (d - 14) * .25)); out.connect(f); out = f; }
+    out.connect(p); out = p; s.panner = p; }
+  else if (o.pan && this.ctx.createStereoPanner) { const p = this.ctx.createStereoPanner(); p.pan.value = o.pan; g.connect(p); out = p; }
+  out.connect(o.bus || this.sfx); if (o.verb || d > 20) g.connect(this.verb); if (!o.loop) { this.nAct++; s.onended = () => { this.nAct--; }; }
+  s.start(this.ctx.currentTime + (o.delay || 0)); s.g = g; return s; };
+P.move = function (src, p) { if (src && src.panner && p) { const q = src.panner; if (q.positionX) { q.positionX.value = p.x; q.positionY.value = p.y ?? 1; q.positionZ.value = p.z; } else q.setPosition(p.x, p.y ?? 1, p.z); } };
+// loop emitter attached to an object (car alarm, burning car, engine of NPC cars)
+P.loopAt = function (name, p, vol = .5, o = {}) { const s = this.play(name, Object.assign({ loop: true, pos: p, vol, jit: 0 }, o)); return s && !s.dummy ? s : null; };
+P.wind = function (on, vol = .1) { if (!this.ctx) return; if (on && !this.windSrc) { this.windSrc = this.play('wind_loop', { loop: true, vol: 0, bus: this.amb, jit: 0, flat: true }); if (!this.windSrc) return; }
+  if (this.windSrc) this.windSrc.g.gain.setTargetAtTime(on ? vol : 0, this.ctx.currentTime, 1.5); };
+P.footstep = function (surf, p, vol = .35, who = 'p') { const k = who === 'z' ? (Math.random() < .6 ? 'z_shuffle' : 'step_' + surf) : 'step_' + surf; this.play(k, { pos: p, vol: who === 'z' ? vol * .9 : vol, jit: .12, ref: who === 'p' ? 4 : 2, maxD: 30, rate: who === 'z' ? .85 : 1 }); };
+P.breathe = function (vol = .25) { this.play('breath', { vol, jit: .08, flat: true }); };
+P.jumpS = function () { this.play('jump', { vol: .45, flat: true }); };
+P.land = function (vol = .6) { this.play('land', { vol, flat: true }); this.play('cloth', { vol: .25, flat: true }); };
+P.rollS = function () { if (!this.play('roll', { vol: .6, flat: true })) this.swing(); this.play('cloth', { vol: .35, rate: .8, flat: true }); };
+P.squelch = function (vol = .7) { if (!this.play('squelch', { vol, jit: .12 })) this.splat(); };
+P.tires = function (on, amt = 0) { if (!this.ctx) return; if (on && !this.tireSrc) this.tireSrc = this.play('tire_loop', { loop: true, vol: 0, jit: 0, flat: true }); if (this.tireSrc) this.tireSrc.g.gain.setTargetAtTime(on ? Math.min(.5, amt) : 0, this.ctx.currentTime, .08); };
 P.shot = function (kind = 'pistol') { const k = FAM['gun_' + kind] ? kind : 'pistol';
   if (!this.play('gun_' + k, { vol: kind === 'smg' || kind === 'rifle' ? .75 : 1, verb: true, jit: .04 })) return O.shot.call(this, kind);
   if (kind !== 'shotgun') this.play('shell', { vol: .35, delay: .35 + Math.random() * .2 }); };
@@ -183,15 +213,15 @@ P.chew = function (vol = .3) { if (!this.play('z_chew', { vol, jit: .12 })) this
 P.tear = function (vol = .3) { if (!this.play('z_tear', { vol, jit: .1 })) this.splat(); };
 P.eat = function (vol = .3) { this.play('z_eat', { vol, jit: .1 }); };
 P.thunder = function (vol = .7) { if (!this.play('thunder', { vol, verb: true, jit: .1, delay: Math.random() * 1.5 })) this.boom(); };
-P.rain = function (on, vol = .16) { if (!this.ctx) return; const t = this.ctx.currentTime;
-  if (on && !this.rainSrc) { this.rainSrc = this.play('rain_loop', { loop: true, vol: 0, bus: this.amb, jit: 0 }); if (!this.rainSrc) { setTimeout(() => this.rain(on, vol), 800); return; } }
+P.rain = function (on, vol = .16) { if (!this.ctx) return; this.rainOn = on; const t = this.ctx.currentTime;
+  if (on && !this.rainSrc) { this.rainSrc = this.play('rain_loop', { loop: true, vol: 0, bus: this.amb, jit: 0, flat: true }); this.wind(true, .1); if (!this.rainSrc) { setTimeout(() => this.rain(on, vol), 800); return; } }
   if (this.rainSrc) this.rainSrc.g.gain.setTargetAtTime(on ? vol : 0, t, 1.2); };
 P.engine = function (on, rpm = 0) { if (!this.ctx) return; const t = this.ctx.currentTime;
-  if (on && !this.truckSrc) this.truckSrc = this.play('truck_loop', { loop: true, vol: 0, jit: 0 });
+  if (on && !this.truckSrc) this.truckSrc = this.play('truck_loop', { loop: true, vol: 0, jit: 0, flat: true });
   if (!this.truckSrc) return O.engine.call(this, on, rpm);
   this.truckSrc.g.gain.setTargetAtTime(on ? .45 + rpm * .35 : 0, t, .15); this.truckSrc.playbackRate.setTargetAtTime(.8 + rpm * .9, t, .2);
   if (!on) { const s = this.truckSrc; this.truckSrc = null; setTimeout(() => { try { s.stop(); } catch {} }, 600); } };
-P.ambientTick = function () { O.ambientTick.call(this); if (!this.ctx || this.ctx.state !== 'running') return;
+P.ambientTick = function () { O.ambientTick.call(this); if (!this.ctx || this.ctx.state !== 'running') return; if (this.lpos && Math.random() < .035) { const an = Math.random() * 6.283, d = 45 + Math.random() * 60, p = { x: this.lpos.x + Math.cos(an) * d, y: 2, z: this.lpos.z + Math.sin(an) * d }; if (Math.random() < .5) this.play('scream', { vol: .5, pos: p, maxD: 200 }); else { const n = 1 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) setTimeout(() => this.play(FAM.gun_rifle ? 'gun_rifle' : 'gun_pistol', { vol: .45, pos: p, maxD: 200 }), i * (120 + Math.random() * 200)); } }
   if ((this.mode === 'night' || this.mode === 'tense') && Math.random() < .035) this.thunder(.5 + Math.random() * .4); };
 // ---- voices ----
 P.voice = function (who, text, bleeps) { this.stopVoice(); if (!this.ctx || this.s.voices === false || who === 'note') return Promise.resolve(0);
@@ -202,7 +232,8 @@ P.voice = function (who, text, bleeps) { this.stopVoice(); if (!this.ctx || this
         const o = this.ctx.createOscillator(), og = this.ctx.createGain(); o.frequency.value = 1000; og.gain.value = 0; og.gain.setValueAtTime(.22, ta); og.gain.setValueAtTime(0, tb); o.connect(og); og.connect(this.voiceBus); o.start(ta); o.stop(tb + .05); }); }
     return b.duration; }); };
 P.stopVoice = function () { this.vTok = (this.vTok || 0) + 1; if (this.vSrc) { try { this.vSrc.stop(); } catch {} this.vSrc = null; } };
-P.shout = function (key, force) { if (!this.ctx || this.s.voices === false) return; const now = performance.now(); if (!force && now - this.lastBark < 4000) return;
+P.shout = function (key, force, pos) { if (pos) this.at(pos); const at = this._at; if (!this.ctx || this.s.voices === false) return; const now = performance.now(); if (!force && now - this.lastBark < 4000) return;
   if (!force && this.ctx.currentTime < (this.vEnd || 0)) return; this.lastBark = now;
   if (this.s.lang !== 'clean' && this.s.lang !== 'bleep' && this.man && this.man.barks[key + '_x'] && Math.random() < .5) key = key + '_x';
-  const n = (this.man && this.man.barks[key]) || 2; const name = 'v/' + key + Math.floor(Math.random() * n); const s = this.play(name, { bus: this.voiceBus, jit: .02, vol: key.startsWith('npc') ? .7 : 1 }); if (!s) this.load(name); };
+  const n = (this.man && this.man.barks[key]) || 2; const name = 'v/' + key + Math.floor(Math.random() * n); const s = this.play(name, { bus: this.voiceBus, jit: .02, vol: key.startsWith('npc') ? .8 : 1, pos: key.startsWith('keem') ? null : at, flat: key.startsWith('keem'), ref: 4, maxD: 60 });
+  if (!s) { this.load(name); return; } if (s.dummy) return; const tx = this.man && this.man.texts && this.man.texts[key]; if (tx && this.onBark) { const i = +name.slice(name.lastIndexOf(key) + key.length); this.onBark(tx[0], tx[1][i] || ''); } };

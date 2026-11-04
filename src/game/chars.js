@@ -13,24 +13,24 @@ export function bodyMat(o) {
   };
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
-    sh.vertexShader = 'varying vec3 vBP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvBP = position;');
+    sh.vertexShader = 'varying vec3 vBP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvBP = position; { float sy = smoothstep(1.22,1.36,position.y)*(1.0-smoothstep(1.47,1.53,position.y)); float sx = 1.0-smoothstep(0.30,0.40,abs(position.x)); float k = sy*sx*0.45; transformed.z = mix(transformed.z, -0.015, k*0.6); transformed.x *= 1.0 - k*0.16*smoothstep(0.1,0.22,abs(position.x)); float t = smoothstep(1.0,1.2,position.y)*(1.0-smoothstep(1.45,1.5,position.y))*(1.0-smoothstep(0.2,0.3,abs(position.x))); transformed.z = mix(transformed.z, -0.015, t*0.12); }');
     sh.fragmentShader = 'varying vec3 vBP;\nuniform vec3 uSkin,uShirt,uPants,uShoes,uHair;uniform vec3 uJacket,uJSleeve;uniform float uNoHead,uJk,uLong,uCamo,uBoots,uGlove,uPlaid,uStripe,uGloss,uPuff;uniform float uSleeve,uGrime,uBlood,uZed,uSeed;\n' +
       sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
       float h = vBP.y / 1.83; float ax = abs(vBP.x); if (uNoHead > 0.5 && vBP.y > 1.47 && ax < 0.13) discard;
       vec3 c = uPants; float jk = 0.0; float cl = 1.0;
-      if (h > 0.52) c = uShirt;
-      if (uJk > 0.5 && h > 0.52) { bool open = uJk < 1.5 && ax < 0.05 && vBP.z > 0.0 && h < 0.8; if (!open) { c = (ax > 0.17) ? uJSleeve : uJacket; jk = 1.0; } }
+      if (h > 0.575) c = uShirt;
+      if (uJk > 0.5 && h > 0.575) { bool open = uJk < 1.5 && ax < 0.05 && vBP.z > 0.0 && h < 0.8; if (!open) { c = (ax > 0.17) ? uJSleeve : uJacket; jk = 1.0; } }
       if (uJk > 2.5) { c = uJacket; jk = 1.0; }
-      if (uLong > 0.0 && h <= 0.52 && h > 0.52 - uLong * 0.28 && !(uJk < 1.5 && vBP.z > 0.03 && ax < 0.06)) { c = uJacket; jk = 1.0; }
+      if (uLong > 0.0 && h <= 0.575 && h > 0.575 - uLong * 0.28 && !(uJk < 1.5 && vBP.z > 0.03 && ax < 0.06)) { c = uJacket; jk = 1.0; }
       if (ax > uSleeve && !(uJk > 0.5 && ax < 0.62)) { c = uSkin; cl = 0.0; }
       if (uGlove > 0.5 && ax > 0.62) { c = vec3(0.06); cl = 0.0; }
       if (h > 0.82 && ax < 0.16) { c = uSkin; cl = 0.0; }
       if (h < 0.055 + uBoots * 0.07) { c = uShoes; cl = 0.0; }
-      if (uJk < 2.5 && h > 0.47 && h < 0.53 && ax < 0.2 && jk < 0.5) c = uShoes * 1.4 + 0.02; // belt
+      if (uJk < 2.5 && h > 0.548 && h < 0.578 && ax < 0.2 && jk < 0.5) c = uShoes * 1.4 + 0.02; // belt
       if (uCamo > 0.5 && cl > 0.5 && jk < 0.5 || (uCamo > 0.5 && uJk > 1.5 && jk > 0.5)) { float q = sin(vBP.x*17.+sin(vBP.y*13.)*2.)+sin(vBP.y*19.+vBP.z*15.)+sin(vBP.z*21.+vBP.x*9.);
         c = q > 1.0 ? c*0.45 : q > 0.1 ? c*vec3(0.85,0.75,0.55) : q < -1.2 ? c*vec3(1.25,1.2,0.95) : c; }
       if (uPlaid > 0.5 && jk > 0.5) { float a = step(0.7, fract(vBP.y*22.)) + step(0.7, fract((vBP.x+vBP.z)*22.)); c *= 1.0 - 0.35*min(a,1.0) - 0.25*step(1.5,a); }
-      if (uStripe > 0.5 && cl > 0.5 && ((h < 0.52 && h > 0.06 && ax > 0.12) || (fract(h*6.0) < 0.06 && uJk > 0.5 && jk > 0.5 && h < 0.7))) c = vec3(0.85,0.85,0.7);
+      if (uStripe > 0.5 && cl > 0.5 && ((h < 0.575 && h > 0.06 && ax > 0.12) || (fract(h*6.0) < 0.06 && uJk > 0.5 && jk > 0.5 && h < 0.7))) c = vec3(0.85,0.85,0.7);
       if (uPuff > 0.5 && jk > 0.5) c *= 0.85 + 0.15*step(0.5, fract(vBP.y*14.));
       float n1 = sin(vBP.x*31.+uSeed)*sin(vBP.y*23.+uSeed*2.)*sin(vBP.z*37.+1.3);
       float n2 = sin(vBP.x*9.+uSeed*3.)*sin(vBP.y*7.)*sin(vBP.z*11.+uSeed);

@@ -75,6 +75,7 @@ def scream(dur, f0, f1, female):
   F = [(900, 1), (1350, .8), (2900, .35)] if female else [(750, 1), (1200, .7), (2600, .3)]; y = sum(bp(src, a, 6)*g for a, g in F)
   return y * np.minimum(1, T/.05) * np.minimum(1, (dur-T)/.3)
 for v in range(4): enc(f'{OUT}/scream{v}.mp3', scream(rng.uniform(1.1, 1.8), rng.uniform(330, 420) if v % 2 else rng.uniform(220, 280), rng.uniform(600, 800) if v % 2 else rng.uniform(420, 520), v % 2 == 1), filt='aecho=0.6:0.5:80|180:0.3|0.15')
+exec(open('tools/sfx3d.py').read())  # v1.4.1 positional-audio SFX set
 # ---------- Kenney CC0 ----------
 K = {'reload_out': 'metalLatch.ogg', 'reload_in': 'metalClick.ogg', 'cloth0': 'cloth1.ogg', 'cloth1': 'cloth2.ogg', 'door_open': 'doorOpen_1.ogg', 'creak': 'creak1.ogg', 'knife': 'knifeSlice.ogg', 'coins': 'handleCoins.ogg', 'chop': 'chop.ogg'}
 for k, s in K.items(): kenney(k, s)
@@ -83,35 +84,82 @@ for i in range(5):
   kenney(f'punch{i}', f'impactPunch_heavy_00{i}.ogg'); kenney(f'bat{i}', f'impactWood_heavy_00{i}.ogg'); kenney(f'flesh{i}', f'impactSoft_heavy_00{i}.ogg')
   kenney(f'metal{i}', f'impactMetal_heavy_00{i}.ogg'); kenney(f'shell{i}', f'impactMetal_light_00{i}.ogg', 'asetrate=44100*1.6,aresample=44100,volume=0.6'); kenney(f'plank{i}', f'impactPlank_medium_00{i}.ogg')
   kenney(f'glass{i}', f'impactGlass_heavy_00{i}.ogg')
-# ---------- voices (Kokoro TTS, warm stock voices) ----------
+# ---------- voices (Kokoro TTS stock voices; v1.4.1 naturalness pass) ----------
+# No cloning, no paid TTS. Natural delivery: most natural stock voices, minimal pitch shifting (formant-preserving-ish),
+# per-line speed/pitch jitter, real pauses at "…"/"—", soft breath before some lines, gentle EQ + small-room reverb,
+# shouted lines get more energy, and a flatness check re-renders monotone takes at another speed and keeps the liveliest.
 KO = Kokoro('/workspace/kokoro/kokoro.onnx', '/workspace/kokoro/voices.bin')
 P = lambda r: f'asetrate=24000*{r},aresample=24000,atempo={1/r:.3f}'
-V = {  # who: voice, speed, filter
- 'keem': ('am_puck', 1.05, P(1.13) + ',loudnorm=I=-17'), 'marcus': ('am_michael', .95, P(.97) + ',loudnorm=I=-17'), 'nia': ('af_sky', 1.02, P(1.16) + ',loudnorm=I=-17'),
- 'dube': ('bm_george', .9, 'loudnorm=I=-17'), 'walt': ('am_adam', .9, 'loudnorm=I=-17'), 'ruth': ('af_bella', 1.0, 'loudnorm=I=-17'), 'gus': ('am_onyx', .9, P(.9) + ',loudnorm=I=-17'),
- 'radio': ('am_michael', 1.0, P(.97) + ',highpass=f=350,lowpass=f=3400,acrusher=bits=10:mix=0.2,loudnorm=I=-18'),
- 'npcf': ('af_nicole', 1.1, 'loudnorm=I=-16'), 'npcm': ('am_eric', 1.1, 'loudnorm=I=-16')}
-def say(who, text, path):
+ROOM = 'highpass=f=85,equalizer=f=220:t=q:w=1:g=1.5,equalizer=f=3200:t=q:w=1.2:g=2,aecho=0.85:0.6:23|41:0.10|0.06'
+V = {  # who: voice, base speed, pitch ratio, extra filter
+ 'keem': ('am_puck', 1.0, 1.05, ''), 'marcus': ('am_michael', .94, 1.0, ''), 'nia': ('af_heart', 1.0, 1.12, ''),
+ 'dube': ('bm_george', .9, 1.0, ''), 'walt': ('am_fenrir', .9, .98, ''), 'ruth': ('af_bella', .97, 1.0, ''), 'gus': ('am_onyx', .9, .92, ''),
+ 'radio': ('am_michael', 1.0, 1.0, 'highpass=f=350,lowpass=f=3400,acrusher=bits=10:mix=0.2'),
+ 'npcf': ('af_heart', 1.06, 1.02, ''), 'npcm': ('am_fenrir', 1.06, 1.0, '')}
+def f0_std(a, sr):  # crude autocorrelation pitch tracker -> semitone std of voiced frames
+  fr = int(sr * .04); out = []
+  for i in range(0, len(a) - fr, fr):
+    x = a[i:i+fr] - np.mean(a[i:i+fr]);
+    if np.sqrt(np.mean(x*x)) < .02: continue
+    c = np.correlate(x, x, 'full')[fr-1:]; lo, hi = int(sr/400), int(sr/70); k = lo + int(np.argmax(c[lo:hi]))
+    if c[k] > .3 * c[0]: out.append(12*np.log2(sr/k))
+  return float(np.std(out)) if len(out) > 4 else 0.0
+def breath(sr, dur):
+  n = rng.standard_normal(int(sr*dur)); n = bp(n, 1400, 1.2) if sr == SR else n - lp(n, .3); e = np.sin(np.linspace(0, np.pi, len(n)))**2; return (n*e*.035).astype(np.float32)
+def render(text, voice, speed, lang):
+  parts = [p.strip(' ,') for p in re.split(r'\s*(?:…|\.\.\.|—)\s*', text) if re.search(r'[A-Za-z]', p)]; out = []
+  for j, p in enumerate(parts):
+    a, sr = KO.create(p, voice=voice, speed=speed * rng.uniform(.96, 1.04), lang=lang); out.append(a)
+    if j < len(parts) - 1: out.append(np.zeros(int(sr * rng.uniform(.22, .42)), np.float32))
+  return np.concatenate(out), sr
+def say(who, text, path, shout=None):
   if os.path.exists(path): return
-  clean = re.sub(r'\([^)]*\)', '', text).replace('…', ', ').replace('—', ', ').strip(' ,')
+  clean = re.sub(r'\([^)]*\)', '', text).strip(' ,')
   if not re.search(r'[A-Za-z]', clean): return
-  voice, speed, filt = V[who]; a, sr = KO.create(clean, voice=voice, speed=speed, lang='en-us' if voice[0] == 'a' else 'en-gb')
-  a = np.concatenate([np.zeros(int(sr*.05), np.float32), a, np.zeros(int(sr*.1), np.float32)]); sf.write('/tmp/_v.wav', a, sr)
-  subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', '/tmp/_v.wav', '-af', filt, '-ac', '1', '-b:a', '48k', path], check=True)
+  voice, sp, pr, extra = V[who]; lang = 'en-us' if voice[0] == 'a' else 'en-gb'
+  shout = shout if shout is not None else clean.count('!') >= 1 and len(clean) < 40
+  if shout: sp *= 1.07
+  if clean.endswith('?'): sp *= .97
+  best = None
+  for tr in range(3):  # flatness check: keep the most expressive take
+    a, sr = render(clean, voice, sp * (1, .93, 1.06)[tr], lang); fs = f0_std(a, sr)
+    if best is None or fs > best[0]: best = (fs, a)
+    if fs > 2.2: break
+  a = best[1]; pre = breath(sr, rng.uniform(.18, .3)) if rng.random() < .45 and not shout else np.zeros(int(sr*.05), np.float32)
+  a = np.concatenate([pre, np.zeros(int(sr*.03), np.float32), a, np.zeros(int(sr*.12), np.float32)]); sf.write('/tmp/_v.wav', a, sr)
+  r = pr * rng.uniform(.985, 1.015); f = (P(r) + ',' if abs(r - 1) > .004 else '') + ROOM + (',' + extra if extra else '')
+  f += ',acompressor=threshold=0.25:ratio=3:attack=5:release=80,volume=2dB' if shout else ''
+  f += ',loudnorm=I=-16' if shout else ',loudnorm=I=-17'
+  subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', '/tmp/_v.wav', '-af', f, '-ac', '1', '-b:a', '48k', path], check=True)
 for who, text, h in json.load(open('/tmp/lines.json')): say(who, text, f'{OUT}/v/{h}.mp3')
 BARKS = {
- 'keem_reload': ('keem', ['Reloading!', 'Cover me, nobody!', 'Reloading, reloading!']), 'keem_hurt': ('keem', ['Ow!', 'Agh!', 'Get off me!', 'Ugh!']),
- 'keem_kill': ('keem', ['Stay down!', 'Nope!', 'Headshot!', 'Yeah!', 'Not today!', 'Sorry, mister!']), 'keem_pickup': ('keem', ['Ooh, nice.', 'Mine now.', 'Got it.']),
- 'keem_empty': ('keem', ['Out of ammo!', 'Empty! Come on!']), 'keem_boss': ('keem', ['That is a big dude!', 'Nope nope nope!']),
- 'marcus_shout': ('marcus', ['Keem! Over here!', 'Behind you, son!', 'Keep moving!', 'Good shot!']), 'nia_shout': ('nia', ['Keem, hurry!', 'Biscuit, hold on!', 'Behind you!']),
+ 'keem_reload': ('keem', ['Reloading!', 'Uh, cover me? Nobody? Cool.', 'Reloading, reloading!', 'Hang on, hang on, new mag.']),
+ 'keem_hurt': ('keem', ['Ow!', 'Agh!', 'Get off me!', 'Ugh!', 'Nngh, okay, that hurt.']),
+ 'keem_kill': ('keem', ['Stay down!', 'Nope!', 'Yeah!', 'Not today!', 'Sorry, mister!', 'Okay, okay, that worked.']),
+ 'keem_pickup': ('keem', ['Ooh, nice.', 'Mine now.', 'Got it.', "Uh, yeah, I'm takin' that.", "Okay, that's useful."]),
+ 'keem_empty': ('keem', ['Out of ammo!', 'Empty! Come on!', "Uh oh. Click. That's bad."]),
+ 'keem_boss': ('keem', ['That is a big dude!', 'Nope nope nope!', "Gus? Gus, buddy, it's me!"]),
+ 'keem_drive': ('keem', ['Hold on! Hold on!', 'Move, move, move!', "Sorry, Mister Pell's mailbox!", "Okay, uh, brakes. Where're the brakes?", "I don't even have my permit!", 'Get outta the road!']),
+ 'keem_combat': ('keem', ['Come on, then!', 'Uh, nope. Back up!', "There's more of 'em!", 'Okay, okay. I got this.', 'Eyes up, Keem. Eyes up.']),
+ 'keem_melee': ('keem', ['Hah!', 'Hyah!', 'Get back!', 'Rrgh!']),
+ 'keem_scared': ('keem', ['Oh man... oh man.', "Is he... is he eating him?", "Don't look. Don't look.", "That's Mister Walt... oh no."]),
+ 'marcus_shout': ('marcus', ['Keem! Over here!', 'Behind you, son!', 'Keep moving!', 'Good shot!']),
+ 'marcus_chat': ('marcus', ['Stay close, son.', 'Eyes up. Watch the treeline.', 'Easy... easy.', "You're doin' good, Keem.", "Breathe. We're gettin' out of here."]),
+ 'nia_shout': ('nia', ['Keem, hurry!', 'Biscuit, hold on!', 'Behind you!']),
+ 'nia_chat': ('nia', ["Keem, I'm scared.", 'Is Biscuit okay?', 'Can we go home now?', "Uh, Keem? There's one over there!", "I'm not crying. You're crying."]),
+ 'npc_chat': ('npcm', ['Is anybody out there?', 'Lock your doors!', "They're comin' from the river!", 'Oh God... oh God.', 'Somebody call nine one one!']),
+ 'npcf_chat': ('npcf', ['Has anyone seen my husband?', 'Get inside! Get inside!', "Don't let them hear you!", "Oh my God, they're everywhere."]),
+ 'npcf_scream': ('npcf', ['Aaaah! No! Nooo!', 'Help meee! Please!', 'Get it off! Get it off me!']),
+ 'npcm_scream': ('npcm', ['Aaagh! Get it off!', 'No! No no no!', 'Somebody! Aaah!']),
  'keem_kill_x': ('keem', ['Stay the fuck down!', 'Eat shit!', 'Hell yeah!', 'Fuck off!', 'Not today, motherfucker!']), 'keem_hurt_x': ('keem', ['Shit!', 'Ah, fuck!', 'Get the fuck off me!']),
  'keem_empty_x': ('keem', ['Empty! Shit!', 'Out of ammo, dammit!']), 'keem_boss_x': ('keem', ['That is one big motherfucker!', 'Oh, hell no!']), 'keem_reload_x': ('keem', ['Reloading, shit, shit!', 'Come on, damn it!']),
+ 'keem_drive_x': ('keem', ['Get the fuck outta the road!', 'Holy shit, holy shit!']), 'keem_combat_x': ('keem', ['Come get some, ugly!', "Oh shit, there's more!"]), 'keem_scared_x': ('keem', ['Oh, what the fuck...', 'Holy shit, man...']),
  'marcus_shout_x': ('marcus', ['Behind you, damn it!', 'Move your ass, son!', 'Hell of a shot!']), 'npcm_help_x': ('npcm', ['Holy shit, run!', 'Get the fuck away from me!']),
  'npcf_help': ('npcf', ['Help! Somebody help me!', 'No! Get off me!', 'Please! Help!']), 'npcm_help': ('npcm', ['Run! Just run!', 'Help! Help!', 'Get away from me!']),
 }
-manifest = {}
+manifest = {}; texts = {}
 for key, (who, lines) in BARKS.items():
-  manifest[key] = len(lines)
-  for i, l in enumerate(lines): say(who, l, f'{OUT}/v/{key}{i}.mp3')
-json.dump({'barks': manifest, 'voiced': sorted(os.path.basename(p)[:-4] for p in glob.glob(OUT + '/v/*.mp3'))}, open(OUT + '/manifest.json', 'w'))
+  manifest[key] = len(lines); texts[key] = [who, lines]
+  for i, l in enumerate(lines): say(who, l, f'{OUT}/v/{key}{i}.mp3', shout=('scream' in key or 'help' in key or key.endswith('_shout') or key.startswith('keem_melee')) or None)
+json.dump({'barks': manifest, 'texts': texts, 'voiced': sorted(os.path.basename(p)[:-4] for p in glob.glob(OUT + '/v/*.mp3'))}, open(OUT + '/manifest.json', 'w'))
 print('done', len(glob.glob(OUT + '/*.mp3')), 'sfx', len(glob.glob(OUT + '/v/*.mp3')), 'voice')

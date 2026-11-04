@@ -27,7 +27,7 @@ for (const dir of ['up','down','left','right']) {
 // aim: crosshair (screen centre) ray should hit a zombie placed in front of the camera
 const aim = await p.evaluate(async()=>{const g=window.__atq.game; g.give?.('rifle'); g.equip?.('rifle'); g.state.aim=true; await new Promise(r=>setTimeout(r,600));
   g.camera.updateMatrixWorld(); const ray=g.aimRay(); const P=ray.origin.clone().addScaledVector(ray.direction,7); const z=g.spawnZ(P.x,P.z,{idle:true}); z.root.position.y=0; const sp=g.ws.spread; g.ws.spread=0;
-  await new Promise(r=>setTimeout(r,500)); const X=document.querySelector('#xhair').getBoundingClientRect(); const hp0=z.hp; let n=0; for(let i=0;i<6&&!z.dead;i++){g.state.fireCd=0;g.state.reload=0;g.fire();n++;} g.ws.spread=sp; return {before:hp0, after:z.hp, dead:!!z.dead, shots:n, xh:[Math.round(X.left+X.width/2),Math.round(X.top+X.height/2)]};});
+  await new Promise(r=>setTimeout(r,500)); g.camera.updateMatrixWorld(); const r3=g.aimRay(); const Q=r3.origin.clone().addScaledVector(r3.direction,7); z.root.position.set(Q.x,0,Q.z); z.st="idle"; z.root.updateMatrixWorld(true); const X=document.querySelector('#xhair').getBoundingClientRect(); const hp0=z.hp; let n=0; for(let i=0;i<6&&!z.dead;i++){g.state.fireCd=0;g.state.reload=0;g.fire();n++;} g.ws.spread=sp; return {before:hp0, after:z.hp, dead:!!z.dead, shots:n, xh:[Math.round(X.left+X.width/2),Math.round(X.top+X.height/2)]};});
 results.push(`aim/fire at crosshair: zombie hp ${aim.before} -> ${aim.after} dead=${aim.dead}`);
 await p.screenshot({path:'/tmp/shots/v131.png'});
 console.log(results.join('\n')); console.log('FAILS', fail, errs.slice(0,4)); await b.close();
