@@ -91,7 +91,7 @@ export class Game {
     this.pickups.forEach(p => this.scene.remove(p.mesh)); this.pickups = []; this.props.forEach(p => this.scene.remove(p)); this.props = []; this.decalN = 0; this.decals.forEach(d => d.visible = false);
     if (this.truck) this.truck.driving = false; document.body.classList.remove('driving'); $('#drive')?.classList.add('hidden'); this.drv = {}; this.boss = null; $('#boss').classList.add('hidden'); this.dlgQ = []; this.dlgCur = null; $('#dlg').classList.remove('on'); }
   loadStep(i) {
-    this.clearActors(); const st = STORY[i]; this.step = i; this.stepData = {}; const P = this.player; this.dead = false; this.dying = null; this.cut = null;
+    this.clearActors(); const st = STORY[i]; if (this.step !== i) this._bossRetry = false; this.step = i; this.stuckT = 0; this.stepTok = (this.stepTok || 0) + 1; this.stepData = {}; const P = this.player; this.dead = false; this.dying = null; this.cut = null;
     this.maxHp = 100 + (perk(this.save, 2) ? 20 : 0) + (perk(this.save, 9) ? 20 : 0) + (this.settings.qteEasy ? 50 : 0); this.hp = this.maxHp;
     this.state = { roll: 0, atk: 0, atkHit: 0, combo: 0, comboT: 0, vy: 0, y: 0, crouch: false, run: false, aim: false, reload: 0, fireCd: 0, stun: 0 };
     P.root.visible = true; P.model.visible = true; for (const k in P.bones) P.bones[k].scale.set(1, 1, 1);
@@ -104,6 +104,25 @@ export class Game {
     st.enter(this); this.objective(st.obj, st.hint); this.audio.setMood(st.mood || 'night'); this.audio.rain && this.audio.rain(st.rain !== false && st.mood !== 'day'); this.audio.beat(st.beat || 0);
     this.checkpoint();
   }
+  // v1.6.3 failsafes: unstick player/targets, respawn a missing boss, offer an objective skip after 3 min stuck
+  inCol(x, z, r = .3) { return this.world.colliders.some(c => x > c.x0 - r && x < c.x1 + r && z > c.z0 - r && z < c.z1 + r); }
+  freeNear(x, z) { if (!this.inCol(x, z)) return [x, z]; for (let d = 1; d < 30; d += 1) for (let a = 0; a < 16; a++) { const nx = x + Math.cos(a / 16 * 6.283) * d, nz = z + Math.sin(a / 16 * 6.283) * d; if (!this.inCol(nx, nz)) return [nx, nz]; } return [x, z]; }
+  failsafe(dt) { if (this.cut || this.dlgCur) return; this.stuckT = (this.stuckT || 0) + dt; this.fsT = (this.fsT || 0) + dt; if (this.fsT < 2) return; this.fsT = 0; this.alive().forEach(z => { const q = z.root.position; if (this.inCol(q.x, q.z, 0)) { const f = this.freeNear(q.x, q.z); q.x = f[0]; q.z = f[1]; } });
+    const P = this.player.root.position; if (!this.truck.driving && this.inCol(P.x, P.z, 0)) { const [x, z] = this.freeNear(P.x, P.z); P.x = x; P.z = z; }
+    const w = this.wpTarget; if (w && this.inCol(w[0], w[2], 0)) { const [x, z] = this.freeNear(w[0], w[2]); this.wpTarget = [x, w[1], z]; }
+    const st = STORY[this.step]; if (/^(Kill|Defeat)/.test(st.obj || '') && !this.boss && !this.stepData.won && this.stuckT > 6 && !this._bossRetry) { this._bossRetry = true; this.loadStep(this.step); return; }
+    const sk = document.getElementById('skipObj'); if (sk) sk.classList.toggle('hidden', !(this.stuckT > 180)); }
+  skipObjective() { const D = this.stepData, P = this.player.root.position; this.stuckT = 120; this.toast && this.toast('Objective skipped');
+    const sp = this.pickups.find(p => p.l.story); if (sp) { P.x = sp.mesh.position.x; P.z = sp.mesh.position.z; this.takePickup(sp); return; }
+    if (D.uses && D.uses.length) { const u = D.uses[0]; P.x = u.x; P.z = u.z + .5; u.fn(this); return; }
+    if (D.trig && D.tankerHP > 0 && !D.tankerBoom) { D.tankerBoom = true; return; }
+    const T = this.truck; if (D.canDrive && T && !T.driving && !D.drove) { D.drove = true; this.enterTruck(); return; }
+    if (T && T.driving && this.wpTarget) { T.g.position.x = this.wpTarget[0]; T.g.position.z = this.wpTarget[2]; return; }
+    if (this.boss && !this.boss.dead) { this.damageZ(this.boss, 1e7, P.clone().normalize(), {}); return; }
+    const A = this.alive(); if (A.length) { A.forEach(z => this.damageZ(z, 1e7, z.root.position.clone().normalize(), {})); return; }
+    if (this.wpTarget) { P.x = this.wpTarget[0]; P.z = this.wpTarget[2]; return; }
+    if (this.step < STORY.length - 1) this.loadStep(this.step + 1); }
+  restartCheckpoint() { this.stepTok = (this.stepTok || 0) + 1; this.paused = false; this.last = performance.now(); try { this.loadStep(this.step); } catch (e) { console.error(e); this.clearActors(); this.cut = null; this.dying = null; this.dead = false; const cp = STORY[this.step].cp; this.player.root.position.set(cp[0], 0, cp[1]); } }
   checkpoint() { this.save.step = this.step; writeSave(this.LS, this.save); }
   setDoor(open) { const w = this.world; w.doorCol.x0 = open ? 999 : 11.9; w.doorCol.x1 = open ? 999 : 12.1; w.doorBoards.forEach(b => b.visible = !open); w.frontDoor.rotation.y = open ? -1.6 : 0; }
   setTruck(i) { if (!this.truck) { const g = this.world.car(22, -64, 0, '#7a2218', { truck: true, lights: true }); this.truck = { g, v: 0, head: 0, driving: false }; this.truck.col = g.userData.col; }
@@ -177,7 +196,7 @@ export class Game {
   nextLine() { const d = $('#dlg'); const it = this.dlgQ.shift(); if (!it) { this.dlgCur = null; d.classList.remove('on'); this.audio.stopVoice && this.audio.stopVoice(); return; } if (it.cb) { it.cb(this); this.nextLine(); return; }
     if (it.raw == null) { it.raw = it.text; const L = langLine(it.raw, this.settings.lang || 'on'); it.text = L.sub; it.vtext = L.voice; it.bleeps = L.bleeps; }
     this.dlgCur = it; const names = { keem: 'Keem', marcus: 'Dad', nia: 'Nia', walt: 'Mr. Walt', ruth: 'Ruth', dube: 'Mr. Dube', radio: 'Radio', note: 'Dad\'s note', gus: 'Big Gus', sgt: 'Sgt. Okafor (radio)', brick: 'Coach Brickman', ronnie: 'Big Rig Ronnie', deacon: 'Deacon', reyes: 'Dr. Reyes', tuck: 'Tuck', santa: 'Mall Santa', king: 'The Toll King' };
-    $('#who').textContent = names[it.who] || it.who; const cur = it; this.audio.voice && this.audio.voice(it.who, it.vtext, it.bleeps).then(dd => { if (dd && this.dlgCur === cur) cur.dur = Math.max(cur.dur || 0, dd + .5); });
+    $('#who').textContent = names[it.who] || it.who; const cur = it; const muteKeem = it.who === 'keem' && this.step === 0 && ['wake', 'walk', 'peek', undefined].includes(this.stepData && this.stepData.phase); !muteKeem && this.audio.voice && this.audio.voice(it.who, it.vtext, it.bleeps).then(dd => { if (dd && this.dlgCur === cur) cur.dur = Math.max(cur.dur || 0, dd + .5); });
     
     $('#line').textContent = it.text; d.classList.add('on'); it.t = 0; it.dur = (1.6 + it.text.length * 0.045) / (this.settings.text || 1); }
   skipLine() { if (this.dlgCur) this.nextLine(); }
@@ -312,7 +331,7 @@ export class Game {
     if (this.dlgCur) { this.dlgCur.t += rdt; if (this.dlgCur.t > this.dlgCur.dur && (this.settings.auto !== false || !this.cut)) this.nextLine(); }
     if (this.dying) { this.updateDying(dt); this.updateZ(dt); this.updateFX(dt); return; }
     // cutscene camera
-    const st = STORY[this.step]; st.update && st.update(this, dt);
+    const st = STORY[this.step]; st.update && st.update(this, dt); this.failsafe(dt);
     if (s.fireCd > 0) s.fireCd -= dt; if (s.reload > 0) { s.reload -= dt; if (s.reload <= 0) this.finishReload(); }
     if (s.comboT > 0) { s.comboT -= dt; if (s.comboT <= 0) s.combo = 0; }
     if (this.hp < this.maxHp && this.t - (this.lastHurt || 0) > 5) this.hp = Math.min(this.maxHp, this.hp + dt * 4);

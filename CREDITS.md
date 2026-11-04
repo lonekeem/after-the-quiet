@@ -1,4 +1,4 @@
-# Credits & Licenses — After the Quiet v1.6.2 (Story Mode)
+# Credits & Licenses — After the Quiet v1.6.3 (Story Mode)
 Lone Keem Studios · created by Keem
 
 | Asset | Source | License |
@@ -13,6 +13,6 @@ Lone Keem Studios · created by Keem
 | Engine / tools | three.js (MIT), Vite (MIT), Capacitor (MIT) | MIT |
 | Voiced dialogue & shouts (`public/sfx/v/`) | Text-to-speech with Kokoro-82M (hexgrad, Apache-2.0) stock synthetic voices, rendered offline by `tools/make_audio.py` (lightly pitch-tuned). No real person's voice was cloned or imitated. Subtitles stay on; voices can be turned off in Settings. | Model: Apache-2.0 · Audio: © Lone Keem Studios |
 
-## v1.6.2 audio additions
+## v1.6.3 audio additions
 - Procedural SFX (footsteps mud/asphalt, zombie shuffles, breathing, jump/land, roll, squelches, car alarm, wind, tires) synthesized in-repo by `tools/sfx3d.py` — original, CC0.
 - All voices: Kokoro-82M stock voices (Apache-2.0), rendered locally with free tools; no voice cloning, no paid TTS. All voice lines are subtitled.

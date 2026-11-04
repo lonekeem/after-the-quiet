@@ -118,9 +118,10 @@ $('#btnPShop').onclick = () => { back = '#pause'; openShop(); }; $('#btnPInv').o
 $('#btnSettings').onclick = () => { back = '#title'; state = 'settings'; showScreen('#settings'); }; $('#btnControls').onclick = () => showScreen('#controls'); $('#btnCredits').onclick = () => showScreen('#credits');
 $('#btnPauseSettings').onclick = () => { back = '#pause'; state = 'settings'; showScreen('#settings'); };
 $('#btnResume').onclick = resume; $('#btnPause').onclick = e => { e.stopPropagation(); pause(); };
-$('#btnRestartCp').onclick = () => { resume(); game.loadStep(game.step); };
+$('#skipObj').onclick = () => game && game.skipObjective();
+$('#btnRestartCp').onclick = () => { resume(); game.restartCheckpoint(); };
 $('#btnQuit').onclick = () => { writeSave(LS, save); toTitle(); };
-$('#btnRetry').onclick = () => { showScreen(null); state = 'play'; save = loadSave(LS) || save; game.save = save; game.paused = false; game.last = performance.now(); game.loadStep(save.step); };
+$('#btnRetry').onclick = () => { showScreen(null); state = 'play'; save = loadSave(LS) || save; game.save = save; game.paused = false; game.last = performance.now(); game.step = save.step; game.restartCheckpoint(); };
 $('#btnDeadQuit').onclick = toTitle; $('#btnEndTitle').onclick = toTitle;
 // ---------- settings ----------
 const bindS = (id, k, kind) => { const el = $(id); if (!el) return; if (kind === 'chk') { el.checked = !!S[k]; el.onchange = () => { S[k] = el.checked; saveS(); applyS(k); }; } else if (kind === 'sel') { el.value = S[k]; el.onchange = () => { S[k] = el.value; saveS(); applyS(k); }; } else { el.value = S[k]; el.oninput = () => { S[k] = +el.value; saveS(); applyS(k); }; } };

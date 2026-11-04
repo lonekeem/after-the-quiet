@@ -243,7 +243,7 @@ export function buildWorld(scene, Q, texLoader, base, CM = {}) {
     wallBox(16, 4, 10, plankMat('#b8a070'), -26, 2, -334); sign(['BIG MOOSE TRUCK STOP', 'DIESEL · DINER · JERKY'], -26, 4.8, -328.9, 0, 6, 1.6, '#6a2a10');
     const canopy = new THREE.Mesh(new THREE.BoxGeometry(18, .5, 9), Z_white); canopy.position.set(-22, 4.6, -350); scene.add(canopy);
     [-28, -22, -16].forEach(x => { wallBox(.5, 4.4, .5, Z_red, x, 2.2, -350); wallBox(.8, 1.4, .6, Z_white, x, .7, -347); });
-    Z_pl(-22, 4, -350, '#e8f0ff', 10, 22);
+    Z_pl(-22, 4, -350, '#e8f0ff', 14, 26);
     [[-34, -362, .1], [-12, -366, -.2], [16, -340, 1.5], [18, -380, 1.6]].forEach(([x, z, r]) => car(x, z, r, '#7a2a1a', { truck: 1, rust: 1 }));
     [[-5, -330, .3], [5, -348, 2.6], [-4.5, -372, .1], [4.8, -392, 3.1]].forEach(([x, z, r], i) => car(x, z, r, ['#2a3a5a', '#5a5a5a', '#7a6a3a', '#3a3a3a'][i], { wreck: i % 2 }));
     for (let i = 0; i < 5; i++) wallBox(5.6, 3, 7, plankMat(i % 2 ? '#a07060' : '#8a6050'), 30, 1.5, -398 + i * 6);
@@ -322,7 +322,7 @@ export function buildWorld(scene, Q, texLoader, base, CM = {}) {
       p[k + 1] = y; p[k + 3] = p[k] + .03; p[k + 4] = y - .5; p[k + 5] = p[k + 2]; } g.attributes.position.needsUpdate = true; }); }
 
   // bounds
-  box(-300, -48, -300, 300); box(48, 300, -300, 300); box(-300, 300, 66, 300); box(-300, 300, -400, -299);
+  box(-300, -48, -300, 300); box(48, 300, -300, 300); box(-300, 300, 66, 300); // v1.6.3: old south bound (-400..-299) removed — it walled off Chapter 3+
 
   return { ch2, zones, signTex, colliders, walls, updaters, lights, fire, car, sign, frontDoor, doorCol, doorBoards, tanker, tankCol, KH, mud, update(dt, t, cam) { updaters.forEach(u => u(dt, t, cam)); } };
 }
