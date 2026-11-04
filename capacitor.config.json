@@ -1,22 +1,22 @@
 {
   "appId": "com.lonekeemstudios.app",
-  "appName": "Lone Keem Studios",
+  "appName": "After the Quiet",
   "webDir": "dist",
-  "backgroundColor": "#0f0a1a",
+  "backgroundColor": "#050b08",
   "android": {
-    "backgroundColor": "#0f0a1a",
+    "backgroundColor": "#050b08",
     "allowMixedContent": false
   },
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 1500,
-      "launchAutoHide": false,
-      "backgroundColor": "#0f0a1a",
+      "launchShowDuration": 1200,
+      "launchAutoHide": true,
+      "backgroundColor": "#050b08",
       "androidScaleType": "CENTER_CROP",
       "showSpinner": false
     },
     "StatusBar": {
-      "backgroundColor": "#0f0a1a",
+      "backgroundColor": "#050b08",
       "style": "DARK",
       "overlaysWebView": false
     }

@@ -1,17 +1,2 @@
-{
-  "name": "Lone Keem Studios",
-  "short_name": "Lone Keem Studios",
-  "description": "Your character. Your series. Create your character and make or watch short AI series.",
-  "start_url": "./",
-  "scope": "./",
-  "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#0f0a1a",
-  "theme_color": "#0f0a1a",
-  "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
-    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ]
-}
+{ "name": "After the Quiet", "short_name": "After the Quiet", "description": "A story-driven zombie game by Lone Keem Studios.", "start_url": "./", "scope": "./", "display": "fullscreen", "orientation": "landscape", "background_color": "#050b08", "theme_color": "#050b08",
+  "icons": [ { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }, { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }, { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" } ] }

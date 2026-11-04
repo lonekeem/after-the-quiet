@@ -1,8 +1,3 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-
-// GitHub Pages serves the site from /<repo>/. Override with BASE_PATH (e.g. "/" on Vercel).
-export default defineConfig({
-  plugins: [react()],
-  base: process.env.BASE_PATH || '/lonekeem-studios/',
-});
+// Relative base works on GitHub Pages (/lonekeem-studios/) and inside the Capacitor Android app.
+export default defineConfig({ base: './', build: { chunkSizeWarningLimit: 1200 } });
