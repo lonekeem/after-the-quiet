@@ -50,6 +50,11 @@ The old cinematic movie version is preserved at tag `cinematic-final`.
 - Heavier gore: bigger sprays, multi-limb dismemberment, gorier finishers.
 - Feeding scenes: kneeling eaters with head dips and tearing, struggling victims, bite-synced spurts, growing pools, chew/tear SFX, eaters look up at Keem.
 
+### v1.9.5
+- End-of-chapter screen: the Continue button now names and loads the real next chapter (it always said "Continue to Chapter 2").
+- "Daddy" is now "Dad" in all dialogue and subtitles (those lines re-voiced).
+- Boss health bars now go down as hits land for every boss, including the raider bosses (Deacon, Toll King, Captain). Boss resistance unchanged.
+
 ### v1.9.4
 - Raiders act like real shooters: pick a firing spot (prefers cover), walk there, then hold and fire after a short aim-up. Muzzle flash and tracers come from their gun.
 - Raiders and zombies fight each other. Zombies go for the nearest human (Keem, raiders, allies), but allies can't die. You only get cash/XP for kills you were part of.
