@@ -50,6 +50,12 @@ The old cinematic movie version is preserved at tag `cinematic-final`.
 - Heavier gore: bigger sprays, multi-limb dismemberment, gorier finishers.
 - Feeding scenes: kneeling eaters with head dips and tearing, struggling victims, bite-synced spurts, growing pools, chew/tear SFX, eaters look up at Keem.
 
+### v1.9.2
+- Movement put back to v1.9.0 (no acceleration lag, no layered upper body, no leg twist, original camera follow).
+- Keem turns to face where he moves whenever you are not aiming, even with a gun out; faces the crosshair (strafe/backpedal) only while aiming or for 0.5s after a shot.
+- Touch devices: objective hints say left stick / ✋ hand button instead of WASD / E.
+- Kept from v1.9.1: shader prewarm, retry cleanup, 1.5s post-dialogue grace, barrier collision, death anims, HUD.
+
 ### v1.9.1
 - Smoother movement: acceleration/deceleration, capped turn rate, strafe/backpedal legs, upper-body gun layer, gait speed matched to footfalls; smoothed camera.
 - Zombies/Keem no longer pass through bridge barriers; corpses separate; hit-react before death ragdoll.

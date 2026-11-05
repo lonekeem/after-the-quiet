@@ -34,6 +34,8 @@ export function langLine(raw, mode) { const re = /\{([^|}]*)\|([^}]*)\}/g; const
     const len = voice.length || 1; bleeps.forEach(b => { b[0] /= len; b[1] /= len; }); } return { sub, voice, bleeps }; }
 export function playerLook() { try { const l = JSON.parse(localStorage.getItem('atq3.look') || 'null'); if (l && l.hair) return Object.assign({}, DEFAULT_LOOK, l); } catch (e) { } return DEFAULT_LOOK; }
 
+// v1.9.2: touch wording for objective hints on phones
+const touchHint = (h) => h.replace(/\(WASD \/ left stick\)/g, '(left stick)').replace(/\bE \/ ✋/g, '✋ hand button').replace(/\bPress E\b/g, 'Tap ✋').replace(/GAS\/BRAKE \+ ◀ ▶ \([^)]*\)/g, 'GAS/BRAKE + ◀ ▶').replace(/\bWASD\b/g, 'left stick');
 export class Game {
   constructor(opts) { Object.assign(this, opts); this.t = 0; this.paused = true; this.running = false; this.timeScale = 1; this.hitstop = 0; this.trauma = 0; }
   async load(progress) {
@@ -197,7 +199,7 @@ export class Game {
   alive() { return this.zombies.filter(z => !z.dead); }
 
   // ---------- UI helpers ----------
-  objective(t, h) { $('#objt').textContent = t || ''; $('#objh').textContent = this.settings.hints ? (h || '') : ''; $('#obj').style.display = t ? '' : 'none'; }
+  objective(t, h) { if (h && (matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window)) h = touchHint(h); $('#objt').textContent = t || ''; $('#objh').textContent = this.settings.hints ? (h || '') : ''; $('#obj').style.display = t ? '' : 'none'; }
   // v1.6 human raiders: keep ~9m, strafe, shoot (telegraphed muzzle + tracer), never eat
   raiderAI(z, d, toP, dt, zp) { if (d > Math.max(z.aggro, 28) && !this.stepData.hordeAll) return; toP.normalize(); z.root.rotation.y = angLerp(z.root.rotation.y, Math.atan2(toP.x, toP.z), Math.min(1, dt * 5));
     z.sd = z.sd || (Math.random() < .5 ? 1 : -1); const want = d > 12 ? 1 : d < 7 ? -1 : 0; const sx = (toP.x * want + -toP.z * z.sd * .5) * z.speed * dt, sz = (toP.z * want + toP.x * z.sd * .5) * z.speed * dt;
@@ -308,10 +310,10 @@ export class Game {
     r.setFromCamera(new THREE.Vector2(cx + rnd(-sp, sp) * 4, cy + rnd(-sp, sp) * 4), this.camera); return r.ray; }
   fire() { const s = this.state, id = this.save.cur, w = WEAPONS[id], ws = this.ws; if (s.reload > 0 || s.fireCd > 0) return;
     if ((this.save.mags[id] || 0) <= 0) { this.audio.click(); if ((this.save.ammo[w.ammo] || 0) <= 0) this.audio.shout && this.audio.shout('keem_empty'); s.fireCd = .25; if ((this.save.ammo[w.ammo] || 0) > 0) this.reload(); else this.toast('Out of ammo — loot or buy more'); return; }
-    this.save.mags[id]--; s.fireCd = w.rate; this.audio.shot(id); this.shake(id === 'shotgun' || id === 'sniper' ? .28 : .1); this.cam.pitch += (id === 'sniper' ? .05 : .015) * (s.aim ? .5 : 1); this.cam.yaw += rnd(-.006, .006);
+    this.save.mags[id]--; s.fireCd = w.rate; this.audio.shot(id); this.shake(id === 'shotgun' || id === 'sniper' ? .28 : .1); this.cam.pitch += (id === 'sniper' ? .05 : .015) * (s.aim ? .5 : 1); this.cam.yaw += rnd(-.006, .006); s.shotT = .5;
     const mz = V3(); const muzzle = (this.cam.fp ? this.vmMesh : this.weaponMeshes[id]).getObjectByName('muzzle'); if (muzzle) muzzle.getWorldPosition(mz); else this.player.worldOf('DEF-hand.R', mz);
     this.muzzle.position.copy(mz); this.muzzle.visible = true; this.muzzle.material.rotation = rnd(0, 6); this.mLight.position.copy(mz); this.mLight.color.set('#ffc070'); this.mLight.intensity = 30; this.mT = 0.05;
-    s.shotT = .16; if (!this.player.ucur && (!this.cam.fp && this.player.curName.startsWith('Pistol') || this.player.curName === 'Idle_Loop')) this.player.play('Pistol_Shoot', { once: true, force: true, speed: 2, cb: () => { this.player.curName = ''; } });
+    if (!this.cam.fp && this.player.curName.startsWith('Pistol') || this.player.curName === 'Idle_Loop') this.player.play('Pistol_Shoot', { once: true, force: true, speed: 2, cb: () => { this.player.curName = ''; } });
     if (w.gl) { const ray = this.aimRay(); const rc = new THREE.Raycaster(ray.origin, ray.direction, 0, ws.range); const wh = rc.intersectObjects(this.world.walls, false)[0]; let bd = wh ? wh.distance : ws.range;
       this.alive().forEach(z => { const t = z.root.position.clone().setY(1).sub(ray.origin).dot(ray.direction); if (t > 0 && t < bd && ray.distanceToPoint(z.root.position.clone().setY(1)) < .6) bd = t; }); this.explode(ray.at(Math.max(2.5, bd), V3()), 5.5, 220 * (ws.dmg / w.dmg)); return; }
     if (w.flame) { const ray = this.aimRay(); for (let i = 0; i < 2; i++) this.flameAt(mz, 1, ray.direction.clone().multiplyScalar(rnd(9, 13))); this.mLight.color && this.mLight.color.set('#ff8030');
@@ -333,7 +335,7 @@ export class Game {
     const tp = this.tracer.geometry.attributes.position; tp.setXYZ(0, mz.x, mz.y, mz.z); tp.setXYZ(1, end.x, end.y, end.z); tp.needsUpdate = true; this.tracer.visible = true; this.trT = 0.04; }
   hitMark(head) { const x = $('#xhair'); x.style.color = head ? '#f44' : '#fc8'; clearTimeout(this._hm); this._hm = setTimeout(() => x.style.color = '#fff', 120); }
   reload() { const id = this.save.cur, w = WEAPONS[id]; if (w.type !== 'gun' || this.state.reload > 0) return; const need = this.ws.mag - (this.save.mags[id] || 0); if (need <= 0 || !(this.save.ammo[w.ammo] > 0)) return;
-    this.state.reload = this.ws.reload; this.audio.reload ? this.audio.reload() : this.audio.click(); if (!this.cam.fp && !this.player.ucur) this.player.play('Pistol_Reload', { once: true, force: true, speed: 1.4 / this.ws.reload, cb: () => { this.player.curName = ''; } }); }
+    this.state.reload = this.ws.reload; this.audio.reload ? this.audio.reload() : this.audio.click(); if (!this.cam.fp) this.player.play('Pistol_Reload', { once: true, force: true, speed: 1.4 / this.ws.reload, cb: () => { this.player.curName = ''; } }); }
   finishReload() { const id = this.save.cur, w = WEAPONS[id]; const need = this.ws.mag - (this.save.mags[id] || 0); const n = Math.min(need, this.save.ammo[w.ammo] || 0); this.save.mags[id] += n; this.save.ammo[w.ammo] -= n; this.audio.click(); }
   attack() { const w = WEAPONS[this.save.cur]; if (this.truck.driving || this.cut || this.dying) return; if (w.type === 'gun') return this.fire(); const s = this.state; if (s.atk > 0 || s.roll > 0) return;
     const P = this.player; // soft lock
@@ -379,7 +381,7 @@ export class Game {
     if (this.hp < this.maxHp && this.t - (this.lastHurt || 0) > 5) this.hp = Math.min(this.maxHp, this.hp + dt * 4);
     if (T.driving) this.updateTruck(dt); else if (!this.cut) this.updatePlayer(dt);
     else { P.play(this.cut.anim || 'Idle_Loop'); }
-    P.mixer.update(dt); { const lg = (this.cut || T.driving) ? 0 : (s.leg || 0); P.model.rotation.y = lg; if (Math.abs(lg) > .01) { const b1 = P.bone('DEF-spine.001'), b3 = P.bone('DEF-spine.003'); b1 && b1.rotateY(-lg * .55); b3 && b3.rotateY(-lg * .45); } }
+    P.mixer.update(dt);
     if (!this.truck.driving) this.stepTrack(this.player, this.player.root.position, 'p'); this.chatter(dt);
     this.updateZ(dt); for (const k in this.npcs) { const n = this.npcs[k]; n.update && n.update(dt); n.mixer.update(dt); this.victimStruggle(n, dt); this.stepTrack(n, n.root.position, 'n'); if (n.bleed && Math.random() < dt * 3) { const p = n.root.position.clone(); p.y = .3; this.blood(p, V3(0, .6, 0), 3, 1.2); } }
     // pickups
@@ -392,32 +394,20 @@ export class Game {
     if (I.pressed('crouch')) s.crouch = !s.crouch; if (I.pressed('view')) { this.cam.fp = !this.cam.fp; this.settings.fp = this.cam.fp; }
     s.aim = I.aim && gun; { const tap = I.pressed('atk'); if (tap || (I.atk && (!gun || w.auto)) || (gun && I.atk && tap)) this.attack(); }
     const mv = I.move; const mag = Math.min(1, mv.length()); const run = (I.run || mag > .95 && I.touchRun) && !s.crouch && !s.aim;
-    let spd = s.crouch ? 1.35 : run ? 5.4 * (perk(this.save, 7) ? 1.12 : 1) : 3.0; if (s.aim) spd = 2.0; if (s.atk > 0) spd *= .3; if (s.stun > 0) { spd = 0; s.stun -= dt; }
-    const yaw = this.cam.yaw; let dx = 0, dz = 0; const strafeMode = (gun || this.cam.fp) && s.roll <= 0;
-    if (mag > .08) { const a = Math.atan2(mv.x, mv.y) + yaw; let k = 1; if (strafeMode) { const rel = Math.cos(a - (P.root.rotation.y)); if (rel < -.3) k = .72; else if (rel < .5) k = .86; } // slower backpedal / strafe
-      dx = Math.sin(a) * spd * mag * k; dz = Math.cos(a) * spd * mag * k; }
-    // v1.9.1 grounded movement: accelerate / decelerate toward the target velocity instead of snapping
-    if (s.vx == null) { s.vx = 0; s.vz = 0; s.leg = 0; } { const want = dx * dx + dz * dz, have = s.vx * s.vx + s.vz * s.vz; const rate = want > have ? (run ? 7 : 10) : (have > 16 ? 6 : 11); const f = 1 - Math.exp(-rate * dt); s.vx += (dx - s.vx) * f; s.vz += (dz - s.vz) * f; }
-    if (Math.abs(s.vx) + Math.abs(s.vz) < .03 && mag <= .08) { s.vx = 0; s.vz = 0; } dx = s.vx; dz = s.vz; const v = Math.hypot(dx, dz);
-    // facing: capped turn rate so turning to shoot swings rather than snaps
-    const turn = (to, rate, lerpK) => { let d = to - P.root.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); const step = clamp(d * Math.min(1, dt * lerpK), -rate * dt, rate * dt); P.root.rotation.y += step; };
-    if (!strafeMode && v > .25 && s.atk <= 0 && s.roll <= 0) turn(Math.atan2(dx, dz), 9, 10);
-    if (strafeMode) turn(yaw + Math.PI, this.cam.fp ? 40 : 11, 14);
+    let spd = s.crouch ? 1.6 : run ? 6.2 * (perk(this.save, 7) ? 1.15 : 1) : 3.1; if (s.aim) spd = 2.2; if (s.atk > 0) spd *= .3; if (s.stun > 0) { spd = 0; s.stun -= dt; }
+    const yaw = this.cam.yaw; let dx = 0, dz = 0; if (s.shotT > 0) s.shotT -= dt; const faceAim = (gun && (s.aim || s.shotT > 0)) || this.cam.fp; // v1.9.2: face the crosshair only while aiming/firing (or first-person); otherwise turn toward travel
+    if (mag > .08) { const a = Math.atan2(mv.x, mv.y) + yaw; dx = Math.sin(a) * spd * mag; dz = Math.cos(a) * spd * mag;
+      if (!faceAim && s.atk <= 0 && s.roll <= 0) P.root.rotation.y = angLerp(P.root.rotation.y, a, Math.min(1, dt * 12)); }
+    if (faceAim) P.root.rotation.y = angLerp(P.root.rotation.y, yaw + Math.PI, Math.min(1, dt * 18));
     if (run && mag > .5 && !s.crouch) { s.brT = (s.brT || 0) - dt; s.runT = (s.runT || 0) + dt; if (s.brT <= 0 && s.runT > 2.5) { s.brT = rnd(1.1, 1.5); this.audio.breathe && this.audio.breathe(Math.min(.35, .1 + s.runT * .02)); } } else s.runT = Math.max(0, (s.runT || 0) - dt * 2);
-    if (s.roll > 0) { s.roll -= dt; const f = 6.5; dx = Math.sin(P.root.rotation.y) * f; dz = Math.cos(P.root.rotation.y) * f; s.vx = dx * .5; s.vz = dz * .5; }
+    if (s.roll > 0) { s.roll -= dt; const f = 6.5; dx = Math.sin(P.root.rotation.y) * f; dz = Math.cos(P.root.rotation.y) * f; }
     if (s.atk > 0) { s.atk -= dt; if (s.atkHit > 0) { s.atkHit -= dt; if (s.atkHit <= 0) this.meleeHit(); } }
     const p = P.root.position; this.moveCollide(p, dx * dt, dz * dt, 0.35);
     // vertical
     if (s.y > 0 || s.vy > 0) { s.vy -= 14 * dt; s.y = Math.max(0, s.y + s.vy * dt); if (s.y === 0) { s.vy = 0; this.audio.land && this.audio.land(); P.play('Jump_Land', { once: true, force: true, speed: 1.6, cb: () => P.curName = '' }); } } p.y = s.y;
-    // locomotion: playback rate follows real ground speed (no foot skating); legs twist toward travel dir in strafe mode, reverse cycle when backpedaling
-    let legYaw = 0, back = false; if (strafeMode && v > .2) { let th = Math.atan2(dx, dz) - P.root.rotation.y; th = Math.atan2(Math.sin(th), Math.cos(th)); if (Math.abs(th) > 1.95) { back = true; th = Math.atan2(Math.sin(th - Math.PI), Math.cos(th - Math.PI)); legYaw = clamp(th, -.9, .9); } else legYaw = clamp(th, -1.2, 1.2); }
-    s.leg = lerp(s.leg, legYaw, Math.min(1, dt * 9)); s.back = back;
-    const upper = gun && !this.cam.fp && v > .25 && s.y <= 0 && !s.crouch && s.roll <= 0; const L = upper ? '@L' : '';
-    if (upper) P.playUpper(s.reload > 0 ? 'Pistol_Reload' : (s.shotT > 0 ? 'Pistol_Shoot' : (s.aim ? 'Pistol_Aim_Neutral' : 'Pistol_Idle_Loop')), { speed: s.reload > 0 ? 1.4 / (this.ws.reload || 1.4) : s.shotT > 0 ? 2 : 1 }); else P.stopUpper();
-    if (s.shotT > 0) s.shotT -= dt;
-    if (!P.oneShot || upper && P.oneShot && /^Pistol_(Shoot|Reload)/.test(P.curName)) { if (upper && P.oneShot) { P.oneShot = null; P.curName = ''; }
-      const sg = back ? -1 : 1; if (s.y > 0) P.play('Jump_Loop'); else if (v > .25) { if (s.crouch) P.play('Crouch_Fwd_Loop', { speed: clamp(v / .7, .6, 2.2) }); else if (v > 4.3) P.play('Sprint_Loop' + L, { speed: clamp(v / 2.95, .8, 1.9), fade: .3 }); else if (v > 1.5) P.play('Jog_Fwd_Loop' + L, { speed: sg * clamp(v / 2.3, .7, 1.45), fade: .25 }); else P.play('Walk_Loop' + L, { speed: sg * clamp(v / .9, .55, 1.7), fade: .25 }); }
-      else if (s.crouch) P.play('Crouch_Idle_Loop'); else if (gun) P.play(s.aim ? 'Pistol_Aim_Neutral' : 'Pistol_Idle_Loop', { fade: .25 }); else P.play('Idle_Loop', { fade: .3 }); }
+    // locomotion anims
+    if (!P.oneShot) { if (s.y > 0) P.play('Jump_Loop'); else if (mag > .08) { if (s.crouch) P.play('Crouch_Fwd_Loop'); else if (run) P.play('Sprint_Loop'); else if (spd * mag > 2.6) P.play('Jog_Fwd_Loop', { speed: .9 }); else P.play('Walk_Loop', { speed: 1.1 }); }
+      else if (s.crouch) P.play('Crouch_Idle_Loop'); else if (gun) P.play(s.aim ? 'Pistol_Aim_Neutral' : 'Pistol_Idle_Loop'); else P.play('Idle_Loop'); }
     P.model.visible = !this.cam.fp; }
   moveCollide(p, dx, dz, r) { const C = this.world.colliders; let nx = p.x + dx, nz = p.z + dz;
     const L = Math.hypot(dx, dz); if (L > r) { const n = Math.ceil(L / r); let hw = false; for (let k = 0; k < n; k++) hw = this.moveCollide(p, dx / n, dz / n, r) || hw; return hw; } // sub-step: no tunnelling through thin props
@@ -540,16 +530,12 @@ export class Game {
     else if (T && T.driving) { const p = T.g.position; T.ch = T.ch == null ? T.head : angLerp(T.ch, T.head, Math.min(1, rdt * 3)); const dd = 7.5 + Math.abs(T.v) * .12; desired = V3(p.x - Math.sin(T.ch) * dd, 3.3, p.z - Math.cos(T.ch) * dd); cam.position.lerp(desired, Math.min(1, rdt * 4)); cam.lookAt(p.x + Math.sin(T.ch) * 4, 1.2, p.z + Math.cos(T.ch) * 4); C.yaw = T.ch + Math.PI; }
     else if (C.fp) { const hp = V3(); P.worldOf('DEF-head', hp); hp.y += .05; cam.position.copy(P.root.position).setY(P.root.position.y + (this.state.crouch ? 1.0 : 1.48)); const f = V3(-Math.sin(C.yaw), 0, -Math.cos(C.yaw)); cam.position.addScaledVector(f, .12);
       cam.rotation.set(0, 0, 0, 'YXZ'); cam.rotation.order = 'YXZ'; cam.rotation.y = C.yaw; cam.rotation.x = C.pitch; }
-    else { // v1.9.1 smooth follow: eased target, boom length, shoulder and yaw (no snap when aiming / turning to shoot)
-      const fk = 1 - Math.exp(-rdt * 16), pr = P.root.position; if (!C.ft || C.ft.distanceToSquared(pr) > 9) C.ft = pr.clone(); else C.ft.lerp(pr, fk);
-      const ty = this.state && this.state.crouch ? 1.05 : 1.5; C.fy = C.fy == null ? ty : lerp(C.fy, ty, Math.min(1, rdt * 8)); target = C.ft.clone(); target.y += C.fy + (pr.y || 0);
-      const dk = 1 - Math.exp(-rdt * 9); C.cd = C.cd == null ? 2.7 : lerp(C.cd, aim ? 1.6 : 2.7, dk); C.csh = C.csh == null ? .5 : lerp(C.csh, aim ? .62 : .5, dk); const dist = C.cd, sh = C.csh;
-      if (C.ry == null || Math.abs(Math.atan2(Math.sin(C.yaw - C.ry), Math.cos(C.yaw - C.ry))) > 1.5) C.ry = C.yaw; else C.ry = angLerp(C.ry, C.yaw, 1 - Math.exp(-rdt * 28)); const ry = C.ry;
-      const cp = Math.cos(C.pitch), back = V3(Math.sin(ry) * cp, -Math.sin(C.pitch), Math.cos(ry) * cp); const right = V3(Math.cos(ry), 0, -Math.sin(ry));
+    else { target = P.root.position.clone(); target.y += this.state && this.state.crouch ? 1.05 : 1.5; const dist = aim ? 1.6 : 2.7, sh = aim ? .62 : .5;
+      const cp = Math.cos(C.pitch), back = V3(Math.sin(C.yaw) * cp, -Math.sin(C.pitch), Math.cos(C.yaw) * cp); const right = V3(Math.cos(C.yaw), 0, -Math.sin(C.yaw));
       const pivot = target.clone().addScaledVector(right, sh); let dd = dist; const rc = new THREE.Raycaster(pivot, back, 0, dist + .3); const h = rc.intersectObjects(this.world.walls, false)[0]; if (h) dd = Math.max(.3, h.distance - .25);
       // side collision for shoulder
       const rc2 = new THREE.Raycaster(target, right, 0, sh + .2); const h2 = rc2.intersectObjects(this.world.walls, false)[0]; if (h2) { pivot.copy(target).addScaledVector(right, Math.max(0, h2.distance - .25)); }
-      cam.position.copy(pivot).addScaledVector(back, dd); cam.rotation.order = 'YXZ'; cam.rotation.set(C.pitch, ry, 0); }
+      cam.position.copy(pivot).addScaledVector(back, dd); cam.rotation.order = 'YXZ'; cam.rotation.set(C.pitch, C.yaw, 0); }
     // shake
     if (this.trauma > 0) { const k = this.trauma * this.trauma * .25; cam.position.x += rnd(-k, k); cam.position.y += rnd(-k, k); cam.rotation.z += rnd(-k, k) * .4; this.trauma = Math.max(0, this.trauma - rdt * 1.6); }
     // viewmodel
