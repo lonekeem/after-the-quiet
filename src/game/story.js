@@ -5,7 +5,11 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const dist2 = (g, x, z) => Math.hypot(g.player.root.position.x - x, g.player.root.position.z - z);
 function follow(g, n, off) { n.update = (dt) => { const P = g.player.root.position, p = n.root.position; const tx = P.x + off[0], tz = P.z + off[1]; const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
   if (d > 1.2) { const sp = Math.min(d, 1) * (d > 4 ? 5 : 2.8); p.x += dx / d * sp * dt; p.z += dz / d * sp * dt; n.root.rotation.y = Math.atan2(dx, dz); n.play(d > 4 ? 'Jog_Fwd_Loop' : 'Walk_Loop'); } else n.play('Idle_Loop'); }; }
-function goto(g, i, xp = 100) { const tok = g.stepTok; g.addXP(xp); g.audio.pickup(); setTimeout(() => { if (g.stepTok === tok) g.loadStep(i); }, 50); }
+// v1.9.4: never snap the player to a far checkpoint mid-play — fade to black with the next objective instead
+function goto(g, i, xp = 100) { const tok = g.stepTok; g.addXP(xp); g.audio.pickup(); setTimeout(() => { if (g.stepTok !== tok) return; const cp = STORY[i] && STORY[i].cp, P = g.player.root.position; if (cp && Math.hypot(cp[0] - P.x, cp[1] - P.z) > 4 && g.fadeStep) g.fadeStep(i); else g.loadStep(i); }, 50); }
+// v1.9.4: fight cleared → point at the next checkpoint and advance only when the player walks there (was: instant jump to the next area)
+function clearThen(g, D, i, xp, label) { if (D.go === 'walk') { const cp = STORY[i].cp; if (dist2(g, cp[0], cp[1]) < 2.5 && !g.cut) { D.go = true; goto(g, i, xp); } return; }
+  if (!D.go) { D.go = 'walk'; const cp = STORY[i].cp; g.wpTarget = [cp[0], 1.2, cp[1]]; g.objective(label, 'Area clear. Follow the marker.'); g.toast('Area clear', 1.6); } }
 
 // Chapter 1 — The Day Before … it ends. Opens at night in Keem's boarded-up house in Riverside, Maine.
 export const STORY = [
@@ -61,7 +65,7 @@ export const STORY = [
         g.say([['radio', '(Dad, on the walkie) Keem! They\'re all over the {damn |}pumps! We\'re stuck in the garage!'], ['radio', 'The fuel tanker — SHOOT THE TANKER and get back!'], ['keem', "Shoot the giant {freakin' |}bomb. Cool. Love that plan."]]); g.objective('Shoot the fuel tanker!', 'Aim at the red FLAMMABLE tanker and keep firing — then get clear.'); g.wpTarget = [8, 2, -51]; }
       if (D.tankerDone && !D.after) { D.after = 3; g.say([['keem', "WOOOO— {holy shit|holy crap}, that was WAY bigger than I thought!"], ['radio', 'Keem?! Was that you?!'], ['keem', "Define \"you.\""]]); g.objective('Clear the garage', 'Finish the stragglers.'); }
       if (D.after > 0) { D.after -= dt; if (D.after <= 0) { D.after = -1; } }
-      if (D.after === -1 && g.alive().filter(z => dist2(g, z.root.position.x, z.root.position.z) < 30).length <= 2) { D.after = -2; goto(g, 4, 200); } } },
+      if (D.after === -1 && g.alive().filter(z => dist2(g, z.root.position.x, z.root.position.z) < 30).length <= 2) { D.after = -2; } if (D.after === -2) clearThen(g, D, 4, 200, 'Get back to Dad at the truck'); } },
 
   { id: 'truck', cp: [14, -54, PI], obj: '', hint: '', mood: 'night', beat: 1,
     enter(g) { const D = g.stepData; const dad = g.npc('marcus', 'marcus', 20, -61, -PI / 2, 'Idle_Talking_Loop'); const nia = g.npc('nia', 'nia', 20.3, -62.6, -PI / 2, 'Idle_Loop', .62);
@@ -172,7 +176,7 @@ export const STORY = [
   { id: 'c4_plaza', ch: 4, cp: [0, -424, PI], obj: 'Get through the toll plaza', hint: 'Humans shoot back. Use cars for cover. Strafe.', mood: 'tense', beat: 2,
     enter(g) { const D = g.stepData; fam(g, D, -424); dadGun(g, D); raiders(g, 6, [[-12, -466], [12, -466], [-20, -458], [20, -460], [0, -474]]); D.hordeAll = true;
       g.say([['deacon', 'Toll is one gun, one gallon, and one of the girls. Exact change only.'], ['keem', "How about one bullet. In your dumb {ugly |}face."], ['marcus', "That's my boy."]]); },
-    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (!D.go && g.alive().length === 0) { D.go = true; goto(g, 19, 250); } } },
+    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (D.go === 'walk' || (!D.go && g.alive().length === 0)) clearThen(g, D, 19, 250, 'Plaza clear — follow the drag marks south'); } },
   { id: 'c4_taken', ch: 4, cp: [0, -462, PI], obj: 'Find Dad and Nia', hint: 'Follow the drag marks to the camp.', mood: 'night', beat: 1,
     enter(g) { const D = g.stepData; g.openGate(true); g.cut = { anim: 'Idle_Loop', cam: V(3, 1.8, -458), look: V(0, 1, -470), flash: true }; g.audio.setMood('sad');
       g.say([['nia', "KEEM! Let go of me! Let GO!"], ['marcus', 'Take me, not her, you sons of bitches—'], ['deacon', "Oh, we're takin' both. The old man's got a bite. The Captain pays double for biters."], ['keem', "DAD!"]], () => { g.cut = null; g.wpTarget = [0, 1.2, -505]; g.horde(8, [[-10, -485], [10, -490], [-24, -480], [24, -484]], { aggro: 20 }); raiders(g, 4, [[-8, -498], [8, -500], [-20, -492], [20, -494]]); }); },
@@ -225,7 +229,7 @@ export const STORY = [
   { id: 'c6_raid', ch: 6, cp: [-20, -678, PI], obj: 'Survive the Tollmen raid', hint: 'Raiders and the dead. Hold the ruins.', mood: 'tense', beat: 3,
     enter(g) { const D = g.stepData; fam(g, D, -678, -20); dadGun(g, D); D.hordeAll = true; raiders(g, 8, [[-6, -700], [6, -704], [-30, -705], [20, -700], [0, -715]]); g.horde(8, [[-40, -690], [30, -680]], { runner: true, aggro: 99 });
       g.say([['king', "The Navy's boat is MINE, children. The biter comes with me."], ['keem', "Over my dead body."], ['king', "That's the plan, sweetheart."]]); },
-    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (!D.go && g.alive().length === 0) { D.go = true; goto(g, 30, 400); } } },
+    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (D.go === 'walk' || (!D.go && g.alive().length === 0)) clearThen(g, D, 30, 400, 'Raid survived — head for the Toll King'); } },
   { id: 'c6_boss', ch: 6, cp: [0, -700, PI], obj: 'Kill the Toll King', hint: 'Armored. Headshots and grenades.', mood: 'tense', beat: 2,
     enter(g) { const D = g.stepData; fam(g, D, -700); dadGun(g, D); const b = g.spawnZ(4, -722, { raider: true, hp: 1600, gun: 'saw', shirt: '#4a3a10' }); b.root.scale.setScalar(1.35); g.boss = b; $q('#bossn').textContent = 'THE TOLL KING — everybody pays';
       raiders(g, 4, [[-10, -718], [14, -718]]); D.hordeAll = true; g.say([['king', 'Pay up, boy!'], ['marcus', "Keem. Take his crown."]]); },
