@@ -305,9 +305,13 @@ export class Game {
     if (hit) { this.audio.hit(); if (Math.random() < .3) this.audio.shout('keem_melee'); if (WEAPONS[this.save.cur].bonk) { this.audio.bonk(); this.floatText('BONK!', '#ffd35a'); } this.hitstop = 0.07; this.shake(.18); this.state.combo++; this.state.comboT = 2; } else this.audio.swing();
     // tanker can be smashed too? no — only shot
   }
-  aimRay() { const r = new THREE.Raycaster(); const ws = this.ws; const sp = this.state.aim ? ws.spread * .45 : ws.spread * (this.cam.fp ? .8 : 1.4);
+  // v1.9.3: camera ray through the crosshair. Spread is an angle (not NDC, which was stretched 2x sideways on landscape phones); single-bullet guns: dead-on when aiming, small cone hip-fire; pellets keep their cone
+  aimRay(pellets = 1) { const r = new THREE.Raycaster(); const ws = this.ws; const sp = pellets > 1 ? (this.state.aim ? ws.spread * .45 : ws.spread * (this.cam.fp ? .8 : 1.4)) * 4 : (this.state.aim ? 0 : ws.spread * .35 * 4);
     const xr = $('#xhair').getBoundingClientRect(), cr = this.renderer.domElement.getBoundingClientRect(); const cy = (xr.width && cr.height) ? 1 - 2 * ((xr.top + xr.height / 2 - cr.top) / cr.height) : 0.08, cx = (xr.width && cr.width) ? 2 * ((xr.left + xr.width / 2 - cr.left) / cr.width) - 1 : 0;
-    r.setFromCamera(new THREE.Vector2(cx + rnd(-sp, sp) * 4, cy + rnd(-sp, sp) * 4), this.camera); return r.ray; }
+    r.setFromCamera(new THREE.Vector2(cx, cy), this.camera); if (sp > 0) { const th = Math.random() * 6.283, m = Math.sqrt(Math.random()) * sp * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2);
+      const up = V3(0, 1, 0).applyQuaternion(this.camera.quaternion), rt = V3(1, 0, 0).applyQuaternion(this.camera.quaternion); r.ray.direction.addScaledVector(rt, Math.cos(th) * m).addScaledVector(up, Math.sin(th) * m).normalize(); }
+    // skip geometry between the camera and Keem (over-the-shoulder cam near walls)
+    const near = Math.max(0, this.player.root.position.clone().setY(r.ray.origin.y).sub(r.ray.origin).dot(r.ray.direction) - .4); r.ray.origin.addScaledVector(r.ray.direction, near); return r.ray; }
   fire() { const s = this.state, id = this.save.cur, w = WEAPONS[id], ws = this.ws; if (s.reload > 0 || s.fireCd > 0) return;
     if ((this.save.mags[id] || 0) <= 0) { this.audio.click(); if ((this.save.ammo[w.ammo] || 0) <= 0) this.audio.shout && this.audio.shout('keem_empty'); s.fireCd = .25; if ((this.save.ammo[w.ammo] || 0) > 0) this.reload(); else this.toast('Out of ammo — loot or buy more'); return; }
     this.save.mags[id]--; s.fireCd = w.rate; this.audio.shot(id); this.shake(id === 'shotgun' || id === 'sniper' ? .28 : .1); this.cam.pitch += (id === 'sniper' ? .05 : .015) * (s.aim ? .5 : 1); this.cam.yaw += rnd(-.006, .006); s.shotT = .5;
@@ -319,13 +323,13 @@ export class Game {
     if (w.flame) { const ray = this.aimRay(); for (let i = 0; i < 2; i++) this.flameAt(mz, 1, ray.direction.clone().multiplyScalar(rnd(9, 13))); this.mLight.color && this.mLight.color.set('#ff8030');
       this.alive().forEach(z => { const zp = z.root.position.clone().setY(1); const t = zp.clone().sub(ray.origin).dot(ray.direction); if (t > 0 && t < ws.range && ray.distanceToPoint(zp) < .4 + t * .12) { z.burn = 3.5; this.damageZ(z, ws.dmg * 1.6, ray.direction.clone().setY(0).normalize(), { flame: true }); } }); return; }
     const pellets = w.pellets || 1; let end = null;
-    for (let k = 0; k < pellets; k++) { const ray = this.aimRay(); let best = null, bd = ws.range;
+    for (let k = 0; k < pellets; k++) { const ray = this.aimRay(pellets); let best = null, bd = ws.range;
       // world walls
       const rc = new THREE.Raycaster(ray.origin, ray.direction, 0, ws.range); const wh = rc.intersectObjects(this.world.walls, false)[0]; if (wh) bd = wh.distance;
       const hp = V3(), tmp = V3(); this.alive().forEach(z => { z.worldOf('DEF-head', hp); hp.y += .08 * z.scale; const hr = (z.boss ? .28 : .17);
         const t = tmp.copy(hp).sub(ray.origin).dot(ray.direction); if (t > 0 && t < bd) { const c = ray.at(t, V3()); if (c.distanceTo(hp) < hr && !z.noHead) { bd = t; best = { z, head: true }; return; } }
-        const a = z.root.position.clone(); a.y = .15; const b = z.root.position.clone(); b.y = 1.35 * z.scale; const pr = V3(), ps = V3(); const d2 = ray.distanceSqToSegment(a, b, pr, ps); const dd = pr.distanceTo(ray.origin);
-        if (d2 < (z.boss ? .5 : .1) && dd < bd) { bd = dd; best = { z, head: false }; } });
+        const a = z.root.position.clone(); a.y = .15; const b = z.root.position.clone(); b.y = Math.max(1.35 * z.scale, hp.y - hr - .02); const pr = V3(), ps = V3(); const d2 = ray.distanceSqToSegment(a, b, pr, ps); const dd = pr.distanceTo(ray.origin);
+        if (d2 < (z.boss ? .5 : .13 * z.scale * z.scale) && dd < bd) { bd = dd; best = { z, head: false }; } });
       // tanker
       if (this.stepData.tankerHP > 0) { const tp = this.world.tanker.position; const c = new THREE.Box3(V3(tp.x - 1.3, 0, tp.z - 3.6), V3(tp.x + 1.3, 3.2, tp.z + 5.8)); const ip = ray.intersectBox(c, V3()); if (ip && ip.distanceTo(ray.origin) < bd) { bd = ip.distanceTo(ray.origin); best = { tanker: true }; } }
       end = ray.at(bd, V3());
