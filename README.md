@@ -50,6 +50,10 @@ The old cinematic movie version is preserved at tag `cinematic-final`.
 - Heavier gore: bigger sprays, multi-limb dismemberment, gorier finishers.
 - Feeding scenes: kneeling eaters with head dips and tearing, struggling victims, bite-synced spurts, growing pools, chew/tear SFX, eaters look up at Keem.
 
+### v1.9.3
+- Gun aim: shots go through the crosshair. Spread is now a true angle (it was stretched ~2x sideways on landscape phones); aimed single-bullet shots are dead-on, hip-fire cone is much tighter; shotgun pellets unchanged.
+- Zombie torso hitbox reaches the neck (no dead gap under the head), and walls between the camera and Keem no longer eat shots.
+
 ### v1.9.2
 - Movement put back to v1.9.0 (no acceleration lag, no layered upper body, no leg twist, original camera follow).
 - Keem turns to face where he moves whenever you are not aiming, even with a gun out; faces the crosshair (strafe/backpedal) only while aiming or for 0.5s after a shot.
