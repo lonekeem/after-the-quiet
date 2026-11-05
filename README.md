@@ -49,3 +49,9 @@ The old cinematic movie version is preserved at tag `cinematic-final`.
 - Strong language with a Settings toggle (on / bleep / clean); voice lines regenerated (Kokoro stock voices).
 - Heavier gore: bigger sprays, multi-limb dismemberment, gorier finishers.
 - Feeding scenes: kneeling eaters with head dips and tearing, struggling victims, bite-synced spurts, growing pools, chew/tear SFX, eaters look up at Keem.
+
+### v1.9.1
+- Smoother movement: acceleration/deceleration, capped turn rate, strafe/backpedal legs, upper-body gun layer, gait speed matched to footfalls; smoothed camera.
+- Zombies/Keem no longer pass through bridge barriers; corpses separate; hit-react before death ragdoll.
+- Perf: shader/FX prewarm (no first-shot or grenade compile freeze), 1.5s grace after dialogue, actor disposal on retry.
+- HUD: pages in health line, spaced RUN/CRCH, bigger death hint, reload bar.

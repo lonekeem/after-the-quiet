@@ -182,3 +182,14 @@ body.driving #tbtns { bottom: 150px; }
 #rotate .rot-ico{font-size:56px;animation:rot 1.6s ease-in-out infinite}
 @keyframes rot{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
 @media (orientation:portrait) and (pointer:coarse){body[data-dev=touch] #rotate{display:flex}}
+
+/* v1.9.1 UI fixes */
+#pages{display:none}
+#lbtns{gap:26px;top:112px}
+@media (max-height:420px){#lbtns{gap:22px;top:104px}}
+#dead{gap:18px}
+#dead #deadMsg{font-size:clamp(17px,2.6vw,22px);line-height:1.55;max-width:min(680px,84vw);text-align:center;margin:6px 0 10px;letter-spacing:.02em;color:#f2dede}
+#rld{position:absolute;left:50%;top:calc(50% + 34px);transform:translateX(-50%);width:120px;height:20px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:4}
+#rld.on{opacity:1}
+#rld i{display:block;height:5px;width:0;background:linear-gradient(90deg,#9fd8ae,#e8f5ec);border-radius:3px;box-shadow:0 0 0 1px #000a}
+#rld span{display:block;text-align:center;font:800 10px system-ui;letter-spacing:.18em;color:#e8f5ec;text-shadow:0 1px 2px #000;margin-top:3px}

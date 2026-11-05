@@ -150,7 +150,7 @@ export function buildWorld(scene, Q, texLoader, base, CM = {}) {
   const bank = new THREE.Mesh(new THREE.PlaneGeometry(420, 26), new THREE.MeshStandardMaterial({ color: '#000' })); bank.rotation.x = -Math.PI / 2; bank.position.set(0, -1.6, -120); scene.add(bank);
   ground.geometry.dispose(); ground.geometry = new THREE.PlaneGeometry(420, 420); // ground is hidden under the river by the water plane being lit; mask with river cut
   const cut = new THREE.Mesh(new THREE.BoxGeometry(420, 1.2, 21.5), new THREE.MeshStandardMaterial({ color: '#0c1210' })); cut.position.set(0, -0.62, -120); scene.add(cut); water.position.y = 0.02; cut.visible = false;
-  box(-300, -5.4, -131, -109); box(5.4, 300, -131, -109);
+  box(-300, -4.82, -131, -109); box(4.82, 300, -131, -109); // v1.9.1 flush with the rail posts (no clipping into the bridge fence)
   const deck = new THREE.Mesh(new THREE.BoxGeometry(10, 0.5, 26), pbr('asphalt_02', 3, { color: '#555', roughness: .6 })); deck.position.set(0, 0.0, -120); deck.receiveShadow = true; deck.castShadow = true; scene.add(deck);
   for (let z = -132; z <= -108; z += 2) [-5, 5].forEach(x => { const p = new THREE.Mesh(new THREE.BoxGeometry(.15, 1.1, .15), rust); p.position.set(x, .8, z); scene.add(p); });
   [-5, 5].forEach(x => { const r = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, 26), rust); r.position.set(x, 1.35, -120); scene.add(r); });

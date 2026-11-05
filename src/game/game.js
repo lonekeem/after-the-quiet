@@ -89,11 +89,25 @@ export class Game {
     P.attach('DEF-hand.R', this.hand); this.hand.rotation.set(Math.PI / 2, 0, 0); this.hand.position.set(0, 0.08, 0.02);
     this.pack.visible = !!(P.wantsPack || (this.save && this.save.items.includes('backpack'))); return P; }
   start(step) { if (this._lookKey !== JSON.stringify(playerLook())) this.makePlayer(); step = step || 0; if (!(STORY[step] && STORY[step].survival)) this.save.step = step; this.loadStep(step); this.paused = false; if (!this.running) { this.running = true; this.last = performance.now(); requestAnimationFrame((t) => this.frame(t)); } }
-  clearActors() { this.zombies.forEach(z => this.scene.remove(z.root)); this.zombies = []; for (const k in this.npcs) this.scene.remove(this.npcs[k].root); this.npcs = {};
-    this.pickups.forEach(p => this.scene.remove(p.mesh)); this.pickups = []; this.props.forEach(p => this.scene.remove(p)); this.props = []; this.decalN = 0; this.decals.forEach(d => d.visible = false);
+  // v1.9.1 leak fix: actors removed on retry/step change free their GPU geometry/materials/textures (world + pooled fx are kept)
+  keepSet() { const K = this._keep = new WeakSet(); const add = (m) => { if (!m) return; K.add(m); for (const k in m) { const v = m[k]; if (v && v.isTexture) K.add(v); } const u = m.userData && m.userData.u; if (u) for (const k in u) { const v = u[k] && u[k].value; if (v && v.isTexture) K.add(v); } };
+    this.scene.traverse(o => { if (o.geometry) K.add(o.geometry); (Array.isArray(o.material) ? o.material : [o.material]).forEach(add); }); this.lib.gltf.scene.traverse(o => { if (o.geometry) K.add(o.geometry); }); }
+  disposeTree(root) { if (!root || !this._keep) return; const K = this._keep; root.traverse(o => { if (o.geometry && !K.has(o.geometry)) o.geometry.dispose(); const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+      ms.forEach(m => { if (K.has(m)) return; for (const k in m) { const v = m[k]; if (v && v.isTexture && !K.has(v)) v.dispose(); } const u = m.userData && m.userData.u; if (u) for (const k in u) { const v = u[k] && u[k].value; if (v && v.isTexture && !K.has(v)) v.dispose(); } m.dispose(); }); }); }
+  prewarm() { // create every lazily-built fx up front: a light added mid-fight recompiles every shader (the 0.5–0.8 s grenade/first-shot freezes)
+    if (!this._boomL) { this._boomL = new THREE.PointLight('#ff9040', 0, 60, 2); this.scene.add(this._boomL); this._ballGeo = new THREE.SphereGeometry(1, 12, 8); }
+    while (this.booms.length < 4) { const b = { ball: new THREE.Mesh(this._ballGeo, new THREE.MeshBasicMaterial({ color: '#ffb050', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })) }; b.ball.visible = false; this.scene.add(b.ball); this.booms.push(b); }
+    if (!this.flames) { this.flameAt(V3(0, -50, 0), 1); this.flames.forEach(f => { f.life = 0; f.s.visible = false; }); }
+    if (!this._grenG) { this._grenG = new THREE.CylinderGeometry(.05, .05, .2, 8); this._grenM = new THREE.MeshStandardMaterial({ color: '#444' }); const gm = new THREE.Mesh(this._grenG, this._grenM); gm.visible = false; gm.name = 'grenWarm'; this.scene.add(gm); }
+    { const gm = new THREE.Mesh(this._gibGeo || (this._gibGeo = new THREE.BoxGeometry(.09, .075, .09)), new THREE.MeshStandardMaterial({ color: '#5a1010', roughness: .4 })); gm.visible = false; this.scene.add(gm); }
+    if (this.player && this.player.mat) { const LG = this._limbG || (this._limbG = [new THREE.CapsuleGeometry(.05, .35, 3, 6), new THREE.CapsuleGeometry(.07, .45, 3, 6)]); const lm = new THREE.Mesh(LG[0], this.player.mat); lm.visible = false; this.scene.add(lm); } // severed limbs = body shader without skinning
+    const R = this.renderer, hid = []; this.scene.traverse(o => { if (!o.visible) { hid.push(o); o.visible = true; } }); const L = this.mLight, li = L ? L.intensity : 0;
+    try { R.compile(this.scene, this.camera); R.render(this.scene, this.camera); } catch (e) { } hid.forEach(o => o.visible = false); if (L) L.intensity = li; }
+  clearActors() { this.zombies.forEach(z => { this.scene.remove(z.root); z.mixer.stopAllAction(); z.mixer.uncacheRoot(z.model); this.disposeTree(z.root); }); this.zombies = []; for (const k in this.npcs) { const n = this.npcs[k]; this.scene.remove(n.root); n.mixer.stopAllAction(); n.mixer.uncacheRoot(n.model); this.disposeTree(n.root); } this.npcs = {};
+    this.pickups.forEach(p => this.scene.remove(p.mesh)); this.pickups = []; this.props.forEach(p => { this.scene.remove(p); this.disposeTree(p); }); this.props = []; this.decalN = 0; this.decals.forEach(d => d.visible = false);
     if (this.truck) this.truck.driving = false; document.body.classList.remove('driving'); $('#drive')?.classList.add('hidden'); this.drv = {}; this.boss = null; $('#boss').classList.add('hidden'); this.dlgQ = []; this.dlgCur = null; $('#dlg').classList.remove('on'); }
   loadStep(i) {
-    this.clearActors(); const st = STORY[i]; if (this.step !== i) this._bossRetry = false; this.step = i; this.stuckT = 0; this.stepTok = (this.stepTok || 0) + 1; this.stepData = {}; const P = this.player; this.dead = false; this.dying = null; this.cut = null;
+    if (!this._keep) this.keepSet(); this.clearActors(); const st = STORY[i]; if (this.step !== i) this._bossRetry = false; this.step = i; this.stuckT = 0; this.stepTok = (this.stepTok || 0) + 1; this.stepData = {}; const P = this.player; this.dead = false; this.dying = null; this.cut = null;
     this.maxHp = 100 + (perk(this.save, 2) ? 20 : 0) + (perk(this.save, 9) ? 20 : 0) + (this.settings.qteEasy ? 50 : 0); this.hp = this.maxHp;
     this.state = { roll: 0, atk: 0, atkHit: 0, combo: 0, comboT: 0, vy: 0, y: 0, crouch: false, run: false, aim: false, reload: 0, fireCd: 0, stun: 0 };
     P.root.visible = true; P.model.visible = true; for (const k in P.bones) P.bones[k].scale.set(1, 1, 1);
@@ -104,8 +118,8 @@ export class Game {
     this.world.frontDoor.rotation.y = i >= 3 ? -1.6 : 0; this.setDoor(i >= 3);
     this.setTruck(i);
     st.enter(this); this.objective(st.obj, st.hint); this.audio.setMood(st.mood || 'night'); this.audio.rain && this.audio.rain(st.rain !== false && st.mood !== 'day'); this.audio.beat(st.beat || 0);
-    partnerEnter(this); this.checkpoint();
-  }
+    partnerEnter(this); this.checkpoint(); this.grace = 1.5; if (!this._warm) { this._warm = 1; this.prewarm(); } else try { this.renderer.compile(this.scene, this.camera); } catch (e) { }
+    this.last = performance.now(); }
   // v1.6.3 failsafes: unstick player/targets, respawn a missing boss, offer an objective skip after 3 min stuck
   inCol(x, z, r = .3) { return this.world.colliders.some(c => x > c.x0 - r && x < c.x1 + r && z > c.z0 - r && z < c.z1 + r); }
   freeNear(x, z) { if (!this.inCol(x, z)) return [x, z]; for (let d = 1; d < 30; d += 1) for (let a = 0; a < 16; a++) { const nx = x + Math.cos(a / 16 * 6.283) * d, nz = z + Math.sin(a / 16 * 6.283) * d; if (!this.inCol(nx, nz)) return [nx, nz]; } return [x, z]; }
@@ -196,7 +210,7 @@ export class Game {
   toast(t, s = 1.8) { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(this._tt); this._tt = setTimeout(() => e.classList.remove('on'), s * 1000); }
   floatText(t, c = '#fff') { const e = document.createElement('div'); e.textContent = t; e.style.cssText = `position:absolute;left:50%;top:58%;transform:translateX(-50%);color:${c};font:800 15px system-ui;text-shadow:0 1px 3px #000;z-index:6;pointer-events:none;transition:all 1.2s ease-out`; $('#stage').appendChild(e); requestAnimationFrame(() => { e.style.top = '50%'; e.style.opacity = '0'; }); setTimeout(() => e.remove(), 1300); }
   say(lines, cb) { this.dlgQ = (this.dlgQ || []).concat(lines.map(l => ({ who: l[0], text: l[1] }))); if (cb) this.dlgQ.push({ cb }); if (!this.dlgCur) this.nextLine(); }
-  nextLine() { const d = $('#dlg'); const it = this.dlgQ.shift(); if (!it) { this.dlgCur = null; d.classList.remove('on'); this.audio.stopVoice && this.audio.stopVoice(); return; } if (it.cb) { it.cb(this); this.nextLine(); return; }
+  nextLine() { const d = $('#dlg'); const it = this.dlgQ.shift(); if (!it) { this.dlgCur = null; this.grace = Math.max(this.grace || 0, 1.5); this.last = performance.now(); d.classList.remove('on'); this.audio.stopVoice && this.audio.stopVoice(); return; } if (it.cb) { it.cb(this); this.nextLine(); return; }
     if (it.raw == null) { it.raw = it.text; const L = langLine(it.raw, this.settings.lang || 'on'); it.text = L.sub; it.vtext = L.voice; it.bleeps = L.bleeps; }
     this.dlgCur = it; const names = { vance: 'Dr. Vance', keem: 'Keem', marcus: 'Dad', nia: 'Nia', walt: 'Mr. Walt', ruth: 'Ruth', dube: 'Mr. Dube', radio: 'Radio', note: 'Dad\'s note', gus: 'Big Gus', sgt: 'Sgt. Okafor (radio)', brick: 'Coach Brickman', ronnie: 'Big Rig Ronnie', deacon: 'Deacon', captain: 'The Captain (radio)', reyes: 'Dr. Reyes', tuck: 'Tuck', santa: 'Mall Santa', king: 'The Toll King' };
     $('#who').textContent = names[it.who] || it.who; const cur = it; const muteKeem = it.who === 'keem' && this.step === 0 && ['wake', 'walk', 'peek', undefined].includes(this.stepData && this.stepData.phase); !muteKeem && this.audio.voice && this.audio.voice(it.who, it.vtext, it.bleeps).then(dd => { if (dd && this.dlgCur === cur) cur.dur = Math.max(cur.dur || 0, dd + .5); });
@@ -249,7 +263,7 @@ export class Game {
     const pd = this.player.root.position.distanceTo(pos); if (pd < R * 0.6 && !this.truck.driving) this.hurt(40 * (1 - pd / R), pos); }
 
   // ---------- combat ----------
-  hurt(n, from) { if (this.dying || this.state.roll > 0 || this.god) return; this.hp -= n; this.audio.hurt(); this.flashScreen('hit'); this.shake(0.35); this.lastHurt = this.t;
+  hurt(n, from) { if (this.dying || this.state.roll > 0 || this.god || this.grace > 0 || this.dlgCur && this.cut) return; this.hp -= n; this.audio.hurt(); this.flashScreen('hit'); this.shake(0.35); this.lastHurt = this.t;
     if (this.settings.gore && Math.random() < .5) this.screenSplat(); const p = this.player.root.position.clone(); p.y = 1.2; this.blood(p, V3(0, .3, 0), 8, 2);
     if (this.hp <= 0) { this.hp = 0; this.die(from); } else if (n > 15) { this.player.play('Hit_Chest', { once: true, cb: () => { this.player.curName = ''; } }); this.state.stun = 0.35; } }
   die(from) { const P = this.player; this.dying = { t: 0, t0: performance.now() }; this.dlgQ = []; this.dlgCur = null; $('#dlg').classList.remove('on'); this.audio.beat(0); this.audio.scream(0.15); P.play('Death01', { once: true });
@@ -269,7 +283,7 @@ export class Game {
   killZ(z, dir, o = {}) { if (!dir || !dir.clone) dir = V3(0, 0, 1); if (Math.random() < (z.boss ? 1 : .15)) this.audio.shout && this.audio.shout('keem_kill'); z.dead = true; z.deadT = 0; z.st = 'dead'; this.save.kills++; const gore = this.settings.gore;
     const xp = z.boss ? 400 : (o.head ? 18 : 12); this.addXP(xp); if (z.boss) this.addCash(500);
     else if (Math.random() < .35) this.addCash(rnd(5, 18)); if (!z.boss && Math.random() < .18) { const w = WEAPONS[this.save.cur]; const a = w.ammo || 'light'; this.save.ammo[a] = (this.save.ammo[a] || 0) + (a === 'shell' ? 3 : 8); this.floatText('+ammo', '#d8e8a0'); }
-    z.play('Death01', { once: true, force: true, speed: o.boom ? 1.6 : 1 }); z.vel.addScaledVector(dir, o.boom ? 9 : 2.5); if (o.boom) z.vel.y = 6;
+    if (o.boom || z.boss) z.play('Death01', { once: true, force: true, speed: o.boom ? 1.6 : 1, fade: .12 }); else { z.play(o.head ? 'Hit_Head' : 'Hit_Chest', { once: true, force: true, speed: 1.7, fade: .08, cb: () => { if (z.dead) z.play('Death01', { once: true, force: true, speed: 1.05, fade: .28 }); } }); } z.vel.addScaledVector(dir, o.boom ? 9 : 2.5); if (o.boom) z.vel.y = 6;
     const pos = z.root.position.clone(); pos.y = 1.55 * z.scale; this.decal(z.root.position.x + dir.x, z.root.position.z + dir.z, 1.4);
     const fin = o.finisher || (this.state.combo >= 3 && Math.random() < .6) || z.boss;
     if (gore) { this.decal(z.root.position.x + dir.x * .5, z.root.position.z + dir.z * .5, 2.2); this.blood(pos.clone().setY(1.1 * z.scale), dir.clone().setY(.6), 22, 4.5, 1.2); }
@@ -279,7 +293,7 @@ export class Game {
     if (gore && (o.sever || o.boom || fin || (o.pellets && Math.random() < .5)) && Math.random() < .9) { const pool = ['DEF-forearm.L', 'DEF-forearm.R', 'DEF-upper_arm.L', 'DEF-upper_arm.R'];
       if (o.boom || fin) pool.push('DEF-shin.L', 'DEF-shin.R', 'DEF-thigh.L', 'DEF-thigh.R'); const nCut = o.boom ? 3 : fin ? 2 : 1 + (Math.random() < .35 ? 1 : 0);
       for (let c = 0; c < nCut && pool.length; c++) { const bn = pool.splice(Math.floor(Math.random() * pool.length), 1)[0]; if (z.noLimbs.includes(bn)) continue; z.noLimbs.push(bn); const leg = bn.includes('thigh') || bn.includes('shin');
-        const limb = new THREE.Mesh(new THREE.CapsuleGeometry(leg ? .07 : .05, leg ? .45 : .35, 3, 6), z.mat); const ap = V3(); z.worldOf(bn, ap); this.gib(ap, 4, '#5a1010', limb); this.blood(ap, dir.clone().add(V3(rnd(-.5, .5), .5, rnd(-.5, .5))), 28, 4.5, 1.2); this.decal(ap.x, ap.z, 1); } }
+        const LG = this._limbG || (this._limbG = [new THREE.CapsuleGeometry(.05, .35, 3, 6), new THREE.CapsuleGeometry(.07, .45, 3, 6)]); const limb = new THREE.Mesh(LG[leg ? 1 : 0], z.mat); const ap = V3(); z.worldOf(bn, ap); this.gib(ap, 4, '#5a1010', limb); this.blood(ap, dir.clone().add(V3(rnd(-.5, .5), .5, rnd(-.5, .5))), 28, 4.5, 1.2); this.decal(ap.x, ap.z, 1); } }
     if (o.finisher || (this.state.combo >= 3 && Math.random() < .6) || z.boss) { this.slowmo(z.boss ? 1.6 : 0.6); this.shake(.5); this.toast(z.boss ? ($('#bossn').textContent.split(' —')[0] + ' IS DOWN') : (o.head ? 'HEADSHOT' : 'FINISHER'), 1); if (perk(this.save, 10)) this.hp = Math.min(this.maxHp, this.hp + 10); }
     this.audio.at(pos).thud(); if (gore) this.audio.at(pos).squelch(.9); }
   meleeHit() { const P = this.player, ws = this.ws, fwd = V3(Math.sin(P.root.rotation.y), 0, Math.cos(P.root.rotation.y)); let hit = 0;
@@ -297,7 +311,7 @@ export class Game {
     this.save.mags[id]--; s.fireCd = w.rate; this.audio.shot(id); this.shake(id === 'shotgun' || id === 'sniper' ? .28 : .1); this.cam.pitch += (id === 'sniper' ? .05 : .015) * (s.aim ? .5 : 1); this.cam.yaw += rnd(-.006, .006);
     const mz = V3(); const muzzle = (this.cam.fp ? this.vmMesh : this.weaponMeshes[id]).getObjectByName('muzzle'); if (muzzle) muzzle.getWorldPosition(mz); else this.player.worldOf('DEF-hand.R', mz);
     this.muzzle.position.copy(mz); this.muzzle.visible = true; this.muzzle.material.rotation = rnd(0, 6); this.mLight.position.copy(mz); this.mLight.color.set('#ffc070'); this.mLight.intensity = 30; this.mT = 0.05;
-    if (!this.cam.fp && this.player.curName.startsWith('Pistol') || this.player.curName === 'Idle_Loop') this.player.play('Pistol_Shoot', { once: true, force: true, speed: 2, cb: () => { this.player.curName = ''; } });
+    s.shotT = .16; if (!this.player.ucur && (!this.cam.fp && this.player.curName.startsWith('Pistol') || this.player.curName === 'Idle_Loop')) this.player.play('Pistol_Shoot', { once: true, force: true, speed: 2, cb: () => { this.player.curName = ''; } });
     if (w.gl) { const ray = this.aimRay(); const rc = new THREE.Raycaster(ray.origin, ray.direction, 0, ws.range); const wh = rc.intersectObjects(this.world.walls, false)[0]; let bd = wh ? wh.distance : ws.range;
       this.alive().forEach(z => { const t = z.root.position.clone().setY(1).sub(ray.origin).dot(ray.direction); if (t > 0 && t < bd && ray.distanceToPoint(z.root.position.clone().setY(1)) < .6) bd = t; }); this.explode(ray.at(Math.max(2.5, bd), V3()), 5.5, 220 * (ws.dmg / w.dmg)); return; }
     if (w.flame) { const ray = this.aimRay(); for (let i = 0; i < 2; i++) this.flameAt(mz, 1, ray.direction.clone().multiplyScalar(rnd(9, 13))); this.mLight.color && this.mLight.color.set('#ff8030');
@@ -319,7 +333,7 @@ export class Game {
     const tp = this.tracer.geometry.attributes.position; tp.setXYZ(0, mz.x, mz.y, mz.z); tp.setXYZ(1, end.x, end.y, end.z); tp.needsUpdate = true; this.tracer.visible = true; this.trT = 0.04; }
   hitMark(head) { const x = $('#xhair'); x.style.color = head ? '#f44' : '#fc8'; clearTimeout(this._hm); this._hm = setTimeout(() => x.style.color = '#fff', 120); }
   reload() { const id = this.save.cur, w = WEAPONS[id]; if (w.type !== 'gun' || this.state.reload > 0) return; const need = this.ws.mag - (this.save.mags[id] || 0); if (need <= 0 || !(this.save.ammo[w.ammo] > 0)) return;
-    this.state.reload = this.ws.reload; this.audio.reload ? this.audio.reload() : this.audio.click(); if (!this.cam.fp) this.player.play('Pistol_Reload', { once: true, force: true, speed: 1.4 / this.ws.reload, cb: () => { this.player.curName = ''; } }); }
+    this.state.reload = this.ws.reload; this.audio.reload ? this.audio.reload() : this.audio.click(); if (!this.cam.fp && !this.player.ucur) this.player.play('Pistol_Reload', { once: true, force: true, speed: 1.4 / this.ws.reload, cb: () => { this.player.curName = ''; } }); }
   finishReload() { const id = this.save.cur, w = WEAPONS[id]; const need = this.ws.mag - (this.save.mags[id] || 0); const n = Math.min(need, this.save.ammo[w.ammo] || 0); this.save.mags[id] += n; this.save.ammo[w.ammo] -= n; this.audio.click(); }
   attack() { const w = WEAPONS[this.save.cur]; if (this.truck.driving || this.cut || this.dying) return; if (w.type === 'gun') return this.fire(); const s = this.state; if (s.atk > 0 || s.roll > 0) return;
     const P = this.player; // soft lock
@@ -330,7 +344,7 @@ export class Game {
     const mv = this.input.move; if (mv.lengthSq() > .04) this.player.root.rotation.y = Math.atan2(mv.x, mv.y) + this.cam.yaw; }
   jump() { const s = this.state; if (s.y > 0.01 || this.truck.driving || this.cut) return; s.vy = 4.8; this.audio.jumpS && this.audio.jumpS(); this.player.play('Jump_Start', { once: true, force: true, speed: 1.5, cb: () => this.player.play('Jump_Loop') }); }
   grenade() { if (this.save.grenades <= 0) { this.toast('No grenades'); return; } if (this.truck.driving || this.cut) return; this.save.grenades--; const P = this.player;
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, .2, 8), new THREE.MeshStandardMaterial({ color: '#444' })); const p = P.root.position.clone(); p.y = 1.6; m.position.copy(p); this.scene.add(m);
+    const m = new THREE.Mesh(this._grenG || new THREE.CylinderGeometry(.05, .05, .2, 8), this._grenM || new THREE.MeshStandardMaterial({ color: '#444' })); const p = P.root.position.clone(); p.y = 1.6; m.position.copy(p); this.scene.add(m);
     const f = V3(); this.camera.getWorldDirection(f); this.grenadesLive.push({ m, v: f.multiplyScalar(13).add(V3(0, 4.5, 0)), t: 1.7 }); this.audio.swing(); }
   heal() { if (this.save.meds <= 0 || this.hp >= this.maxHp) return; this.save.meds--; this.hp = Math.min(this.maxHp, this.hp + 50); this.toast('+50 health'); this.audio.pickup(); }
   use() { if (this.dlgCur && this.cut) { this.skipLine(); return; } const P = this.player.root.position;
@@ -353,7 +367,7 @@ export class Game {
     this.input.poll(rdt);
     if (!this.paused) { if (this.hitstop > 0) { this.hitstop -= rdt; } else { if (this.slowT > 0) { this.slowT -= rdt; if (this.slowT <= 0) this.timeScale = 1; } this.update(rdt * this.timeScale, rdt); } }
     this.render(rdt); }
-  update(dt, rdt) { this.t += dt; const P = this.player, s = this.state, I = this.input, T = this.truck;
+  update(dt, rdt) { this.t += dt; if (this.grace > 0) this.grace -= rdt; const P = this.player, s = this.state, I = this.input, T = this.truck;
     // dialog
     if (this.dlgCur) { this.dlgCur.t += rdt; if (this.dlgCur.t > this.dlgCur.dur && (this.settings.auto !== false || !this.cut)) this.nextLine(); }
     if (this.dying) { this.updateDying(dt); if (this.boss && !this.boss.propped) { this.boss.propped = 1; bossProp(this, this.boss, document.querySelector('#bossn')?.textContent); }
@@ -365,7 +379,7 @@ export class Game {
     if (this.hp < this.maxHp && this.t - (this.lastHurt || 0) > 5) this.hp = Math.min(this.maxHp, this.hp + dt * 4);
     if (T.driving) this.updateTruck(dt); else if (!this.cut) this.updatePlayer(dt);
     else { P.play(this.cut.anim || 'Idle_Loop'); }
-    P.mixer.update(dt);
+    P.mixer.update(dt); { const lg = (this.cut || T.driving) ? 0 : (s.leg || 0); P.model.rotation.y = lg; if (Math.abs(lg) > .01) { const b1 = P.bone('DEF-spine.001'), b3 = P.bone('DEF-spine.003'); b1 && b1.rotateY(-lg * .55); b3 && b3.rotateY(-lg * .45); } }
     if (!this.truck.driving) this.stepTrack(this.player, this.player.root.position, 'p'); this.chatter(dt);
     this.updateZ(dt); for (const k in this.npcs) { const n = this.npcs[k]; n.update && n.update(dt); n.mixer.update(dt); this.victimStruggle(n, dt); this.stepTrack(n, n.root.position, 'n'); if (n.bleed && Math.random() < dt * 3) { const p = n.root.position.clone(); p.y = .3; this.blood(p, V3(0, .6, 0), 3, 1.2); } }
     // pickups
@@ -378,23 +392,36 @@ export class Game {
     if (I.pressed('crouch')) s.crouch = !s.crouch; if (I.pressed('view')) { this.cam.fp = !this.cam.fp; this.settings.fp = this.cam.fp; }
     s.aim = I.aim && gun; { const tap = I.pressed('atk'); if (tap || (I.atk && (!gun || w.auto)) || (gun && I.atk && tap)) this.attack(); }
     const mv = I.move; const mag = Math.min(1, mv.length()); const run = (I.run || mag > .95 && I.touchRun) && !s.crouch && !s.aim;
-    let spd = s.crouch ? 1.6 : run ? 6.2 * (perk(this.save, 7) ? 1.15 : 1) : 3.1; if (s.aim) spd = 2.2; if (s.atk > 0) spd *= .3; if (s.stun > 0) { spd = 0; s.stun -= dt; }
-    const yaw = this.cam.yaw; let dx = 0, dz = 0;
-    if (mag > .08) { const a = Math.atan2(mv.x, mv.y) + yaw; dx = Math.sin(a) * spd * mag; dz = Math.cos(a) * spd * mag;
-      if (!(gun || this.cam.fp) && s.atk <= 0 && s.roll <= 0) P.root.rotation.y = angLerp(P.root.rotation.y, a, Math.min(1, dt * 12)); }
-    if (gun || this.cam.fp) P.root.rotation.y = angLerp(P.root.rotation.y, yaw + Math.PI, Math.min(1, dt * 18));
+    let spd = s.crouch ? 1.35 : run ? 5.4 * (perk(this.save, 7) ? 1.12 : 1) : 3.0; if (s.aim) spd = 2.0; if (s.atk > 0) spd *= .3; if (s.stun > 0) { spd = 0; s.stun -= dt; }
+    const yaw = this.cam.yaw; let dx = 0, dz = 0; const strafeMode = (gun || this.cam.fp) && s.roll <= 0;
+    if (mag > .08) { const a = Math.atan2(mv.x, mv.y) + yaw; let k = 1; if (strafeMode) { const rel = Math.cos(a - (P.root.rotation.y)); if (rel < -.3) k = .72; else if (rel < .5) k = .86; } // slower backpedal / strafe
+      dx = Math.sin(a) * spd * mag * k; dz = Math.cos(a) * spd * mag * k; }
+    // v1.9.1 grounded movement: accelerate / decelerate toward the target velocity instead of snapping
+    if (s.vx == null) { s.vx = 0; s.vz = 0; s.leg = 0; } { const want = dx * dx + dz * dz, have = s.vx * s.vx + s.vz * s.vz; const rate = want > have ? (run ? 7 : 10) : (have > 16 ? 6 : 11); const f = 1 - Math.exp(-rate * dt); s.vx += (dx - s.vx) * f; s.vz += (dz - s.vz) * f; }
+    if (Math.abs(s.vx) + Math.abs(s.vz) < .03 && mag <= .08) { s.vx = 0; s.vz = 0; } dx = s.vx; dz = s.vz; const v = Math.hypot(dx, dz);
+    // facing: capped turn rate so turning to shoot swings rather than snaps
+    const turn = (to, rate, lerpK) => { let d = to - P.root.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); const step = clamp(d * Math.min(1, dt * lerpK), -rate * dt, rate * dt); P.root.rotation.y += step; };
+    if (!strafeMode && v > .25 && s.atk <= 0 && s.roll <= 0) turn(Math.atan2(dx, dz), 9, 10);
+    if (strafeMode) turn(yaw + Math.PI, this.cam.fp ? 40 : 11, 14);
     if (run && mag > .5 && !s.crouch) { s.brT = (s.brT || 0) - dt; s.runT = (s.runT || 0) + dt; if (s.brT <= 0 && s.runT > 2.5) { s.brT = rnd(1.1, 1.5); this.audio.breathe && this.audio.breathe(Math.min(.35, .1 + s.runT * .02)); } } else s.runT = Math.max(0, (s.runT || 0) - dt * 2);
-    if (s.roll > 0) { s.roll -= dt; const f = 6.5; dx = Math.sin(P.root.rotation.y) * f; dz = Math.cos(P.root.rotation.y) * f; }
+    if (s.roll > 0) { s.roll -= dt; const f = 6.5; dx = Math.sin(P.root.rotation.y) * f; dz = Math.cos(P.root.rotation.y) * f; s.vx = dx * .5; s.vz = dz * .5; }
     if (s.atk > 0) { s.atk -= dt; if (s.atkHit > 0) { s.atkHit -= dt; if (s.atkHit <= 0) this.meleeHit(); } }
     const p = P.root.position; this.moveCollide(p, dx * dt, dz * dt, 0.35);
     // vertical
     if (s.y > 0 || s.vy > 0) { s.vy -= 14 * dt; s.y = Math.max(0, s.y + s.vy * dt); if (s.y === 0) { s.vy = 0; this.audio.land && this.audio.land(); P.play('Jump_Land', { once: true, force: true, speed: 1.6, cb: () => P.curName = '' }); } } p.y = s.y;
-    // locomotion anims
-    if (!P.oneShot) { if (s.y > 0) P.play('Jump_Loop'); else if (mag > .08) { if (s.crouch) P.play('Crouch_Fwd_Loop'); else if (run) P.play('Sprint_Loop'); else if (spd * mag > 2.6) P.play('Jog_Fwd_Loop', { speed: .9 }); else P.play('Walk_Loop', { speed: 1.1 }); }
-      else if (s.crouch) P.play('Crouch_Idle_Loop'); else if (gun) P.play(s.aim ? 'Pistol_Aim_Neutral' : 'Pistol_Idle_Loop'); else P.play('Idle_Loop'); }
+    // locomotion: playback rate follows real ground speed (no foot skating); legs twist toward travel dir in strafe mode, reverse cycle when backpedaling
+    let legYaw = 0, back = false; if (strafeMode && v > .2) { let th = Math.atan2(dx, dz) - P.root.rotation.y; th = Math.atan2(Math.sin(th), Math.cos(th)); if (Math.abs(th) > 1.95) { back = true; th = Math.atan2(Math.sin(th - Math.PI), Math.cos(th - Math.PI)); legYaw = clamp(th, -.9, .9); } else legYaw = clamp(th, -1.2, 1.2); }
+    s.leg = lerp(s.leg, legYaw, Math.min(1, dt * 9)); s.back = back;
+    const upper = gun && !this.cam.fp && v > .25 && s.y <= 0 && !s.crouch && s.roll <= 0; const L = upper ? '@L' : '';
+    if (upper) P.playUpper(s.reload > 0 ? 'Pistol_Reload' : (s.shotT > 0 ? 'Pistol_Shoot' : (s.aim ? 'Pistol_Aim_Neutral' : 'Pistol_Idle_Loop')), { speed: s.reload > 0 ? 1.4 / (this.ws.reload || 1.4) : s.shotT > 0 ? 2 : 1 }); else P.stopUpper();
+    if (s.shotT > 0) s.shotT -= dt;
+    if (!P.oneShot || upper && P.oneShot && /^Pistol_(Shoot|Reload)/.test(P.curName)) { if (upper && P.oneShot) { P.oneShot = null; P.curName = ''; }
+      const sg = back ? -1 : 1; if (s.y > 0) P.play('Jump_Loop'); else if (v > .25) { if (s.crouch) P.play('Crouch_Fwd_Loop', { speed: clamp(v / .7, .6, 2.2) }); else if (v > 4.3) P.play('Sprint_Loop' + L, { speed: clamp(v / 2.95, .8, 1.9), fade: .3 }); else if (v > 1.5) P.play('Jog_Fwd_Loop' + L, { speed: sg * clamp(v / 2.3, .7, 1.45), fade: .25 }); else P.play('Walk_Loop' + L, { speed: sg * clamp(v / .9, .55, 1.7), fade: .25 }); }
+      else if (s.crouch) P.play('Crouch_Idle_Loop'); else if (gun) P.play(s.aim ? 'Pistol_Aim_Neutral' : 'Pistol_Idle_Loop', { fade: .25 }); else P.play('Idle_Loop', { fade: .3 }); }
     P.model.visible = !this.cam.fp; }
   moveCollide(p, dx, dz, r) { const C = this.world.colliders; let nx = p.x + dx, nz = p.z + dz;
-    for (let i = 0; i < C.length; i++) { const c = C[i]; if (c.skip) continue; if (nx > c.x0 - r && nx < c.x1 + r && nz > c.z0 - r && nz < c.z1 + r) {
+    const L = Math.hypot(dx, dz); if (L > r) { const n = Math.ceil(L / r); let hw = false; for (let k = 0; k < n; k++) hw = this.moveCollide(p, dx / n, dz / n, r) || hw; return hw; } // sub-step: no tunnelling through thin props
+    for (let pass = 0; pass < 2; pass++) for (let i = 0; i < C.length; i++) { const c = C[i]; if (c.skip) continue; if (nx > c.x0 - r && nx < c.x1 + r && nz > c.z0 - r && nz < c.z1 + r) {
       const ox = Math.min(nx - (c.x0 - r), (c.x1 + r) - nx), oz = Math.min(nz - (c.z0 - r), (c.z1 + r) - nz);
       if (ox < oz) nx = nx - (c.x0 + c.x1) / 2 < 0 ? c.x0 - r : c.x1 + r; else nz = nz - (c.z0 + c.z1) / 2 < 0 ? c.z0 - r : c.z1 + r; } }
     const hitWall = Math.abs(nx - p.x - dx) + Math.abs(nz - p.z - dz) > 1e-4; p.x = nx; p.z = nz; return hitWall; }
@@ -415,7 +442,8 @@ export class Game {
     if (this.flames) for (const f of this.flames) if (f.life > 0) { f.life -= dt; f.s.position.addScaledVector(f.v, dt); f.s.scale.multiplyScalar(1 + dt * 2.5); if (f.life <= 0) f.s.visible = false; }
     for (const z of Z) if (z.burn > 0 && !z.dead) { z.burn -= dt; if (Math.random() < dt * 10) { const p = z.root.position.clone(); p.y = rnd(.4, 1.6) * z.scale; this.flameAt(p, 1); } if ((z.burnTick = (z.burnTick || 0) - dt) <= 0) { z.burnTick = .3; this.damageZ(z, z.boss ? 6 : 14, V3(0, 0, 1), { flame: true }); } if (z.mat.userData.u.uShirt && !z.boss) z.mat.userData.u.uShirt.value.lerp(new THREE.Color('#151010'), dt); }
     for (let i = 0; i < Z.length; i++) { const z = Z[i]; const zp = z.root.position;
-      if (z.dead) { z.deadT += dt; if (z.vel.lengthSq() > .01) { zp.addScaledVector(z.vel, dt); z.vel.y -= 14 * dt; if (zp.y < 0) { zp.y = 0; z.vel.y = 0; } z.vel.x *= .9; z.vel.z *= .9; }
+      if (z.dead) { z.deadT += dt; if (z.deadT < 2.5) { for (let j = 0; j < Z.length; j++) { const o = Z[j]; if (o === z || !o.dead) continue; const op = o.root.position, ex = zp.x - op.x, ez = zp.z - op.z, e2 = ex * ex + ez * ez; if (e2 < .64) { const e = Math.sqrt(e2) || .01, push = (.8 - e) * Math.min(1, dt * 4); this.moveCollide(zp, (e2 > 1e-4 ? ex / e : Math.cos(z.id)) * push, (e2 > 1e-4 ? ez / e : Math.sin(z.id)) * push, .3); } } }
+        if (z.vel.lengthSq() > .01) { const y0 = zp.y; this.moveCollide(zp, z.vel.x * dt, z.vel.z * dt, .3); zp.y = y0 + z.vel.y * dt; z.vel.y -= 14 * dt; if (zp.y < 0) { zp.y = 0; z.vel.y = 0; } z.vel.x *= .9; z.vel.z *= .9; }
         z.mixer.update(dt); this.zBones(z); if (z.deadT > 25 && Z.length > 26) { this.scene.remove(z.root); Z.splice(i--, 1); } continue; }
       const toP = V3(pp.x - zp.x, 0, pp.z - zp.z); const d = toP.length();
       if (z.st === 'feast') { z.mixer.update(dt); if (Math.random() < dt * 8 && this.settings.gore) { const b = P.root.position.clone(); b.y = .3; this.blood(b, V3(rnd(-1, 1), .5, rnd(-1, 1)), 4, 2); } continue; }
@@ -424,7 +452,7 @@ export class Game {
       if (z.st === 'eat' || z.st === 'idle') { const det = this.state.crouch ? 4 : (z.st === 'eat' ? 7 : 12); if (d < det && !this.cut || z.hp < z.maxHp) { z.st = 'chase'; this.audio.at(zp).groan(.12); } z.mixer.update(dt); if (z.st === 'eat' && Math.random() < dt * .3) this.audio.at(zp).groan(.05); if (z.st === 'eat' && d < 16 && (z.eatT = (z.eatT ?? rnd(0, 2)) - dt) <= 0) { z.eatT = rnd(2.2, 3.4); this.audio.at(zp).eat(Math.max(.05, .55 * (1 - d / 16))); } continue; }
       if (z.raider && !z.boss) { this.raiderAI(z, d, toP, dt, zp); z.mixer.update(dt); this.zBones(z); continue; }
       if (z.boss) { this.updateBoss(z, d, toP, dt); z.mixer.update(dt); this.zBones(z); continue; }
-      if (z.stun > 0) { z.stun -= dt; zp.addScaledVector(z.vel, dt); z.vel.multiplyScalar(.85); z.mixer.update(dt); this.zBones(z); continue; }
+      if (z.stun > 0) { z.stun -= dt; this.moveCollide(zp, z.vel.x * dt, z.vel.z * dt, .3); z.vel.multiplyScalar(.85); z.mixer.update(dt); this.zBones(z); continue; }
       if (d > z.aggro && !this.stepData.hordeAll) { z.mixer.update(dt); this.zBones(z); continue; }
       if (z.cd > 0) z.cd -= dt;
       if (d < 1.25 && !this.truck.driving) { if (z.cd <= 0) { z.cd = rnd(1.2, 1.8); z.play('Punch_Jab', { once: true, force: true, speed: .9, cb: () => { z.curName = ''; } }); z.hitAt = .35; } }
@@ -512,12 +540,16 @@ export class Game {
     else if (T && T.driving) { const p = T.g.position; T.ch = T.ch == null ? T.head : angLerp(T.ch, T.head, Math.min(1, rdt * 3)); const dd = 7.5 + Math.abs(T.v) * .12; desired = V3(p.x - Math.sin(T.ch) * dd, 3.3, p.z - Math.cos(T.ch) * dd); cam.position.lerp(desired, Math.min(1, rdt * 4)); cam.lookAt(p.x + Math.sin(T.ch) * 4, 1.2, p.z + Math.cos(T.ch) * 4); C.yaw = T.ch + Math.PI; }
     else if (C.fp) { const hp = V3(); P.worldOf('DEF-head', hp); hp.y += .05; cam.position.copy(P.root.position).setY(P.root.position.y + (this.state.crouch ? 1.0 : 1.48)); const f = V3(-Math.sin(C.yaw), 0, -Math.cos(C.yaw)); cam.position.addScaledVector(f, .12);
       cam.rotation.set(0, 0, 0, 'YXZ'); cam.rotation.order = 'YXZ'; cam.rotation.y = C.yaw; cam.rotation.x = C.pitch; }
-    else { target = P.root.position.clone(); target.y += this.state && this.state.crouch ? 1.05 : 1.5; const dist = aim ? 1.6 : 2.7, sh = aim ? .62 : .5;
-      const cp = Math.cos(C.pitch), back = V3(Math.sin(C.yaw) * cp, -Math.sin(C.pitch), Math.cos(C.yaw) * cp); const right = V3(Math.cos(C.yaw), 0, -Math.sin(C.yaw));
+    else { // v1.9.1 smooth follow: eased target, boom length, shoulder and yaw (no snap when aiming / turning to shoot)
+      const fk = 1 - Math.exp(-rdt * 16), pr = P.root.position; if (!C.ft || C.ft.distanceToSquared(pr) > 9) C.ft = pr.clone(); else C.ft.lerp(pr, fk);
+      const ty = this.state && this.state.crouch ? 1.05 : 1.5; C.fy = C.fy == null ? ty : lerp(C.fy, ty, Math.min(1, rdt * 8)); target = C.ft.clone(); target.y += C.fy + (pr.y || 0);
+      const dk = 1 - Math.exp(-rdt * 9); C.cd = C.cd == null ? 2.7 : lerp(C.cd, aim ? 1.6 : 2.7, dk); C.csh = C.csh == null ? .5 : lerp(C.csh, aim ? .62 : .5, dk); const dist = C.cd, sh = C.csh;
+      if (C.ry == null || Math.abs(Math.atan2(Math.sin(C.yaw - C.ry), Math.cos(C.yaw - C.ry))) > 1.5) C.ry = C.yaw; else C.ry = angLerp(C.ry, C.yaw, 1 - Math.exp(-rdt * 28)); const ry = C.ry;
+      const cp = Math.cos(C.pitch), back = V3(Math.sin(ry) * cp, -Math.sin(C.pitch), Math.cos(ry) * cp); const right = V3(Math.cos(ry), 0, -Math.sin(ry));
       const pivot = target.clone().addScaledVector(right, sh); let dd = dist; const rc = new THREE.Raycaster(pivot, back, 0, dist + .3); const h = rc.intersectObjects(this.world.walls, false)[0]; if (h) dd = Math.max(.3, h.distance - .25);
       // side collision for shoulder
       const rc2 = new THREE.Raycaster(target, right, 0, sh + .2); const h2 = rc2.intersectObjects(this.world.walls, false)[0]; if (h2) { pivot.copy(target).addScaledVector(right, Math.max(0, h2.distance - .25)); }
-      cam.position.copy(pivot).addScaledVector(back, dd); cam.rotation.order = 'YXZ'; cam.rotation.set(C.pitch, C.yaw, 0); }
+      cam.position.copy(pivot).addScaledVector(back, dd); cam.rotation.order = 'YXZ'; cam.rotation.set(C.pitch, ry, 0); }
     // shake
     if (this.trauma > 0) { const k = this.trauma * this.trauma * .25; cam.position.x += rnd(-k, k); cam.position.y += rnd(-k, k); cam.rotation.z += rnd(-k, k) * .4; this.trauma = Math.max(0, this.trauma - rdt * 1.6); }
     // viewmodel
@@ -534,9 +566,10 @@ export class Game {
     if (this.composer) this.composer.render(); else this.renderer.render(this.scene, cam);
     if (this.running && !this.paused) this.hud(); }
   hud() { const s = this.save, w = WEAPONS[s.cur];
-    $('#hpb i').style.width = (this.hp / this.maxHp * 100) + '%'; $('#hpTxt').textContent = `Health : ${Math.ceil(this.hp)}  ·  Lv ${s.level}  ·  $${s.cash}  ·  Med ${s.meds}`;
+    $('#hpb i').style.width = (this.hp / this.maxHp * 100) + '%'; $('#hpTxt').textContent = `Health : ${Math.ceil(this.hp)}  ·  Lv ${s.level}  ·  $${s.cash}  ·  Med ${s.meds}${s.pages.length ? `  ·  Pages ${s.pages.length}/20` : ''}`;
+    { const st = this.state, rl = $('#rld'); if (rl) { const on = st && st.reload > 0 && !this.dying; rl.classList.toggle('on', !!on); if (on) rl.firstChild.style.width = Math.round((1 - st.reload / (this.ws.reload || 1)) * 100) + '%'; } }
     $('#ammoTxt').textContent = w.type === 'gun' ? `${w.name}  ·  Ammo : ${s.mags[s.cur] || 0} / ${s.ammo[w.ammo] || 0}${this.state.reload > 0 ? '  (reloading)' : ''}` : w.name;
-    $('#grenN').textContent = s.grenades; $('#tAtk').textContent = w.type === 'gun' ? 'FIRE' : 'HIT'; $('#pages').textContent = s.pages.length ? `Comic pages ${s.pages.length}/20` : '';
+    $('#grenN').textContent = s.grenades; $('#tAtk').textContent = w.type === 'gun' ? 'FIRE' : 'HIT'; $('#pages').textContent = '';
     $('#lowhp').style.opacity = this.dying ? 1 : clamp(1 - this.hp / this.maxHp * 2.2, 0, .9); const cb = $('#combo'); if (this.state.combo >= 2) { cb.textContent = `x${this.state.combo} COMBO`; cb.classList.add('on'); } else cb.classList.remove('on');
     const n = this.nearUse(); $('#prompt').textContent = n && !this.cut ? `✋ ${n.label}` : (this.truck.driving ? 'GAS / BRAKE + ◀ ▶ · W/S + A/D · RT/LT' : '');
     if (this.boss) $('#boss').classList.remove('hidden');

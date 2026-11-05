@@ -52,6 +52,9 @@ export class CharLib {
     // strip root translation from in-place clips (keep feet planted), skip _RM
     for (const k in this.clips) { const c = this.clips[k]; c.tracks = c.tracks.filter(t => !(t.name.startsWith('root.') && t.name.endsWith('.position'))); }
   }
+  // v1.9.1 layered anims: 'Clip@L' = legs/hips only, 'Clip@U' = spine/arms/head only
+  split(name) { const m = /^(.*)@([LU])$/.exec(name); if (!m) return null; const b = this.clips[m[1]]; if (!b) return null; const low = /(hips|pelvis|thigh|shin|foot|toe|heel|root)/i;
+    const c = b.clone(); c.name = name; c.tracks = c.tracks.filter(t => low.test(t.name.split('.')[0]) === (m[2] === 'L')); return this.clips[name] = c; }
   make(look) { const obj = SkeletonUtils.clone(this.gltf.scene); const mat = bodyMat(look.hair ? Object.assign(bodyLook(look), { grime: Math.max(look.grime || 0, bodyLook(look).grime), blood: look.blood, zed: look.zed, nohead: 1 }) : look); const bones = {};
     obj.traverse(o => { if (o.isSkinnedMesh) { o.material = mat; o.castShadow = true; o.receiveShadow = false; o.frustumCulled = false; } if (o.isBone) { bones[o.name] = o; bones[o.name.replace(/[.]/g, '')] = o; } });
     return { obj, mat, bones };
@@ -66,13 +69,16 @@ export class Char {
     this.mixer = new THREE.AnimationMixer(obj); this.actions = {}; this.cur = null; this.curName = ''; this.oneShot = null;
     this.mixer.addEventListener('finished', (e) => { if (this.oneShot && e.action === this.oneShot.a) { const cb = this.oneShot.cb; this.oneShot = null; cb && cb(); } });
   }
-  act(name) { let a = this.actions[name]; if (!a) { const c = this.lib.clips[name]; if (!c) return null; a = this.actions[name] = this.mixer.clipAction(c); } return a; }
+  act(name) { let a = this.actions[name]; if (!a) { const c = this.lib.clips[name] || this.lib.split(name); if (!c) return null; a = this.actions[name] = this.mixer.clipAction(c); } return a; }
   play(name, { fade = 0.18, speed = 1, once = false, cb, force = false } = {}) {
     if (!force && this.curName === name && !once) { if (this.cur) this.cur.timeScale = speed; return; }
     const a = this.act(name); if (!a) return; a.reset(); a.timeScale = speed; a.enabled = true;
     if (once) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; this.oneShot = { a, cb }; } else a.setLoop(THREE.LoopRepeat);
     if (this.cur && this.cur !== a) a.crossFadeFrom(this.cur, fade, false); a.play(); this.cur = a; this.curName = name;
   }
+  playUpper(name, { fade = 0.15, speed = 1 } = {}) { const n = name + '@U'; if (this.uName === n) { if (this.ucur) this.ucur.timeScale = speed; return; }
+    const a = this.act(n); if (!a) return; a.reset(); a.setLoop(THREE.LoopRepeat); a.timeScale = speed; a.enabled = true; if (this.ucur && this.ucur !== a) a.crossFadeFrom(this.ucur, fade, false); else a.fadeIn(fade); a.play(); this.ucur = a; this.uName = n; }
+  stopUpper(fade = 0.18) { if (this.ucur) { this.ucur.fadeOut(fade); this.ucur = null; this.uName = ''; } }
   bone(n) { return this.bones[n] || this.bones[n.replace(/[.]/g, '')]; }
   attach(boneName, mesh) { const b = this.bone(boneName); if (b) b.add(mesh); return mesh; }
   worldOf(boneName, out) { const b = this.bone(boneName); return b ? b.getWorldPosition(out) : this.root.getWorldPosition(out); }
