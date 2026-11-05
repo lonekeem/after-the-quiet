@@ -50,6 +50,13 @@ The old cinematic movie version is preserved at tag `cinematic-final`.
 - Heavier gore: bigger sprays, multi-limb dismemberment, gorier finishers.
 - Feeding scenes: kneeling eaters with head dips and tearing, struggling victims, bite-synced spurts, growing pools, chew/tear SFX, eaters look up at Keem.
 
+### v1.9.4
+- Raiders act like real shooters: pick a firing spot (prefers cover), walk there, then hold and fire after a short aim-up. Muzzle flash and tracers come from their gun.
+- Raiders and zombies fight each other. Zombies go for the nearest human (Keem, raiders, allies), but allies can't die. You only get cash/XP for kills you were part of.
+- Nia helps where you can see it: a toast on every hand-off, more spotting callouts, and every ~25s a thrown bottle/rock that stuns a zombie near Keem.
+- No more jumping to another spot after a fight. Cleared areas show "Area clear" with a marker and advance when you get there. Bigger story jumps fade to black with the next objective.
+- Flamethrower and launcher now hurt tall zombies and bosses (resistance unchanged). Point-blank hits on big zombies register.
+
 ### v1.9.3
 - Gun aim: shots go through the crosshair. Spread is now a true angle (it was stretched ~2x sideways on landscape phones); aimed single-bullet shots are dead-on, hip-fire cone is much tighter; shotgun pellets unchanged.
 - Zombie torso hitbox reaches the neck (no dead gap under the head), and walls between the camera and Keem no longer eat shots.
