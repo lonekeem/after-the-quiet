@@ -590,7 +590,7 @@ export class Game {
     $('#grenN').textContent = s.grenades; $('#tAtk').textContent = w.type === 'gun' ? 'FIRE' : 'HIT'; $('#pages').textContent = '';
     $('#lowhp').style.opacity = this.dying ? 1 : clamp(1 - this.hp / this.maxHp * 2.2, 0, .9); const cb = $('#combo'); if (this.state.combo >= 2) { cb.textContent = `x${this.state.combo} COMBO`; cb.classList.add('on'); } else cb.classList.remove('on');
     const n = this.nearUse(); $('#prompt').textContent = n && !this.cut ? `✋ ${n.label}` : (this.truck.driving ? 'GAS / BRAKE + ◀ ▶ · W/S + A/D · RT/LT' : '');
-    if (this.boss) $('#boss').classList.remove('hidden');
+    if (this.boss) { $('#boss').classList.remove('hidden'); $('#bossb i').style.width = Math.max(0, this.boss.hp / (this.boss.maxHp || 1) * 100) + '%'; }
     // waypoint
     const wpE = $('#wp'); const tgt = this.wpTarget; if (tgt && !this.cut) { const v = V3(tgt[0], tgt[1] || 1.2, tgt[2]); const dist = v.distanceTo(this.player.root.position); const p = v.clone().project(this.camera); let x = (p.x * .5 + .5) * innerWidth, y = (-p.y * .5 + .5) * innerHeight; const behind = p.z > 1;
       if (behind) { x = innerWidth - x; y = innerHeight - 40; } x = clamp(x, 40, innerWidth - 40); y = clamp(y, 60, innerHeight - 60); wpE.style.display = ''; wpE.style.left = x + 'px'; wpE.style.top = y + 'px'; wpE.querySelector('.d').textContent = Math.round(dist) + ' m';
