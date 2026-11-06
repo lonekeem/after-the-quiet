@@ -7,8 +7,13 @@ function follow(g, n, off) { n.update = (dt) => { const P = g.player.root.positi
   if (d > 1.2) { const sp = Math.min(d, 1) * (d > 4 ? 5 : 2.8); p.x += dx / d * sp * dt; p.z += dz / d * sp * dt; n.root.rotation.y = Math.atan2(dx, dz); n.play(d > 4 ? 'Jog_Fwd_Loop' : 'Walk_Loop'); } else n.play('Idle_Loop'); }; }
 // v1.9.4: never snap the player to a far checkpoint mid-play — fade to black with the next objective instead
 function goto(g, i, xp = 100) { const tok = g.stepTok; g.addXP(xp); g.audio.pickup(); setTimeout(() => { if (g.stepTok !== tok) return; const cp = STORY[i] && STORY[i].cp, P = g.player.root.position; if (cp && Math.hypot(cp[0] - P.x, cp[1] - P.z) > 4 && g.fadeStep) g.fadeStep(i); else g.loadStep(i); }, 50); }
+// v1.9.7: after a boss (or a big fight) ends, let the death play out (slow-mo + collapse), then give Keem a few seconds of free control
+// ("BOSS DOWN"), and only then run dialogue / fades / step changes. Real-time, skips paused time, cancelled if the step changes.
+function afterBoss(g, fn, secs = 4.5, label = true) { const tok = g.stepTok; let t = 0, shown = false; const iv = setInterval(() => { if (g.stepTok !== tok) { clearInterval(iv); return; } if (g.paused || g.dead || g.dying) return; t += .1;
+  if (label && !shown && t >= 1.4) { shown = true; g.toast('BOSS DOWN', 2.5); g.objective('Boss down', 'Take a breath.'); } if (t >= secs + (g.boss && g.boss.dead && g.boss.deadT < 2.5 ? 99 : 0) - (t > 12 ? 99 : 0)) { clearInterval(iv); fn(); } }, 100); }
 // v1.9.4: fight cleared → point at the next checkpoint and advance only when the player walks there (was: instant jump to the next area)
-function clearThen(g, D, i, xp, label) { if (D.go === 'walk') { const cp = STORY[i].cp; if (dist2(g, cp[0], cp[1]) < 2.5 && !g.cut) { D.go = true; goto(g, i, xp); } return; }
+function clearThen(g, D, i, xp, label) { if (D.clr0 == null) D.clr0 = g.t; if (!D.go && g.t - D.clr0 < 2) return; // v1.9.7: let the last death play out before 'Area clear'
+  if (D.go === 'walk') { const cp = STORY[i].cp; if (dist2(g, cp[0], cp[1]) < 2.5 && !g.cut) { D.go = true; goto(g, i, xp); } return; }
   if (!D.go) { D.go = 'walk'; const cp = STORY[i].cp; g.wpTarget = [cp[0], 1.2, cp[1]]; g.objective(label, 'Area clear. Follow the marker.'); g.toast('Area clear', 1.6); } }
 
 // Chapter 1 — The Day Before … it ends. Opens at night in Keem's boarded-up house in Riverside, Maine.
@@ -81,7 +86,7 @@ export const STORY = [
       const b = g.spawnZ(-0.2, -103.5, { boss: true, hp: 900, scale: 1.5, runner: false }); b.speed = 1.7; b.cd = 2; g.audio.roar && setTimeout(() => { g.audio.roar(); g.audio.shout('keem_boss', true); }, 1200); b.aggro = 99; b.mat.userData.u.uShirt.value.set('#e8e2d2'); b.mat.userData.u.uBlood.value = g.settings.gore ? 1.3 : .2; g.boss = b; $q('#bossn').textContent = 'BIG GUS — the barber';
       g.horde(4, [[-4, -104], [4, -104]]); D.hordeAll = true; g.wpTarget = null;
       g.say([['keem', "Hold up… is that Gus? From the barbershop?"], ['marcus', 'Gus was always big. That is NOT {fuckin\' |}normal big.'], ['keem', "He gave me the worst {damn |}fade of my life. This is personal."]]); },
-    update(g) { if (g.boss && g.boss.dead && !g.stepData.won) { g.stepData.won = true; setTimeout(() => { g.say([['keem', "Lineup's crooked, Gus{, you ugly bastard|}. Shoulda let me cut it."], ['nia', "Ewww, that was so gross. …Okay, that was kinda fire. Do it again!"], ['marcus', 'Bridge. Now. {Move your ass|Move it}!']]); goto(g, 6, 400); }, 1800); } } },
+    update(g) { if (g.boss && g.boss.dead && !g.stepData.won) { g.stepData.won = true; afterBoss(g, () => g.say([['keem', "Lineup's crooked, Gus{, you ugly bastard|}. Shoulda let me cut it."], ['nia', "Ewww, that was so gross. …Okay, that was kinda fire. Do it again!"], ['marcus', 'Bridge. Now. {Move your ass|Move it}!']], () => goto(g, 6, 400))); } } },
 
   { id: 'bridge', cp: [0.3, -97, PI], obj: 'Cross Riverside Bridge', hint: 'Keep Nia close. Don\'t look back.', mood: 'sad', beat: 0,
     enter(g) { const dad = g.npc('marcus', 'marcus', 2, -95.5, PI, 'Walk_Loop'); const nia = g.npc('nia', 'nia', -1.4, -95.5, PI, 'Walk_Loop', .62); follow(g, dad, [1.6, 1.2]); follow(g, nia, [-1.2, .9]); g.wpTarget = [0, 1.2, -122]; g.stepData.dad = dad;
@@ -137,7 +142,7 @@ export const STORY = [
       const b = g.spawnZ(0, -284, { boss: true, hp: 1500, scale: 1.75, runner: false }); b.speed = 2.0; b.cd = 2; b.aggro = 99; b.mat.userData.u.uShirt.value.set('#b8202a'); b.mat.userData.u.uBlood.value = g.settings.gore ? 1.4 : .2; g.boss = b; $q('#bossn').textContent = 'COACH BRICKMAN — 31 years, 0 playoff wins';
       g.horde(5, [[-10, -282], [10, -282]], { aggro: 99 }); D.hordeAll = true; g.wpTarget = null; g.audio.roar && setTimeout(() => g.audio.roar(), 900);
       g.say([['brick', 'BEAVERS! ON THE LINE! RAAAGH!'], ['keem', "Is that Coach Brickman? He failed me in gym. Gym, Dad."], ['marcus', "Then go get your {damn |}grade back, son."], ['nia', "He's eating his whistle. The WHOLE whistle. Ew."]]); },
-    update(g) { if (g.boss && g.boss.dead && !g.stepData.won) { g.stepData.won = true; setTimeout(() => { g.say([['keem', "Should've passed me, Coach{, you sweaty bastard|}."], ['marcus', "That's my boy. Ugly as hell, but that's my boy."], ['nia', "Where's the helicopter? Somebody said helicopter!"]]); goto(g, 12, 600); }, 1800); } } },
+    update(g) { if (g.boss && g.boss.dead && !g.stepData.won) { g.stepData.won = true; afterBoss(g, () => g.say([['keem', "Should've passed me, Coach{, you sweaty bastard|}."], ['marcus', "That's my boy. Ugly as hell, but that's my boy."], ['nia', "Where's the helicopter? Somebody said helicopter!"]], () => goto(g, 12, 600))); } } },
 
   { id: 'c2_end', ch: 2, cp: [0, -272, PI], obj: 'Find the evac helicopter', hint: 'Check the scoreboard.', mood: 'sad', beat: 0,
     enter(g) { const D = g.stepData; g.ch2Reset(g, 12); const dad = g.npc('marcus', 'marcus', 1.6, -270, PI, 'Walk_Loop'); const nia = g.npc('nia', 'nia', -1.4, -270, PI, 'Walk_Loop', .62); follow(g, dad, [1.6, 1.2]); follow(g, nia, [-1.2, .9]); D.dad = dad; g.wpTarget = [0, 1.2, -293];
@@ -166,7 +171,7 @@ export const STORY = [
     enter(g) { const D = g.stepData; fam(g, D, -380, 6); dadGun(g, D); const b = boss(g, 0, -402, 1700, '#2a4a7a', 'BIG RIG RONNIE — 2.1 million miles, 0 showers'); b.speed = 2.3;
       g.horde(5, [[-10, -400], [10, -404]], { aggro: 99 }); D.hordeAll = true; g.audio.horn && g.audio.horn();
       g.say([['ronnie', 'TEN-FOUR, GOOD BUDDY! RAAAGH!'], ['nia', "He has a whole steering wheel in his tummy! How is he still walking?"], ['marcus', "That's Ronnie. He sold me bad jerky in 2009. Kill him, son."]]); },
-    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['keem', "Over and out, Ronnie."], ['marcus', '*cough* Good. That was good.'], ['nia', "Dad? Your nose is bleeding. Dad!"]]); goto(g, 17, 600); }, 1600); } } },
+    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (g.boss && g.boss.dead && !D.won) { D.won = true; afterBoss(g, () => g.say([['keem', "Over and out, Ronnie."], ['marcus', '*cough* Good. That was good.'], ['nia', "Dad? Your nose is bleeding. Dad!"]], () => goto(g, 17, 600))); } } },
   { id: 'c3_end', ch: 3, cp: [0, -404, PI], obj: 'Get to the turnpike on-ramp', hint: 'South, past the barrier.', mood: 'sad', beat: 0,
     enter(g) { const D = g.stepData; fam(g, D, -404); g.wpTarget = [0, 1.2, -413];
       g.say([['marcus', "Turnpike's faster. Twenty miles to Portland."], ['radio', '...this is the Tollmen. Turnpike is ours. Everybody pays. Everybody.']]); },
@@ -189,7 +194,7 @@ export const STORY = [
   { id: 'c4_boss', ch: 4, cp: [0, -506, PI], obj: 'Kill Deacon', hint: 'He hides behind his boys. Grenades.', mood: 'tense', beat: 2,
     enter(g) { const D = g.stepData; fam(g, D, -506); dadGun(g, D); const b = g.spawnZ(0, -490, { raider: true, hp: 1100, gun: 'shotgun', shirt: '#101010' }); b.root.scale.setScalar(1.25); g.boss = b; $q('#bossn').textContent = 'DEACON — Tollman lieutenant';
       raiders(g, 4, [[-10, -488], [10, -488]]); D.hordeAll = true; g.say([['deacon', "You owe the toll, boy. I'll take it outta your hide."], ['keem', "Come collect, Deacon. Exact change."]]); },
-    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['deacon', '…the King… he\'ll find you…'], ['keem', "Tell him the toll's paid. In full. Bet."], ['marcus', "'Bet.' Every time. You sound like a group chat with legs."]]); goto(g, 22, 600); }, 1500); } } },
+    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (g.boss && g.boss.dead && !D.won) { D.won = true; afterBoss(g, () => g.say([['deacon', '…the King… he\'ll find you…'], ['keem', "Tell him the toll's paid. In full. Bet."], ['marcus', "'Bet.' Every time. You sound like a group chat with legs."]], () => goto(g, 22, 600))); } } },
   { id: 'c4_end', ch: 4, cp: [0, -512, PI], obj: 'Head for the Maine Mall', hint: 'South. Past the barrier.', mood: 'sad', beat: 0,
     enter(g) { const D = g.stepData; fam(g, D, -512); g.wpTarget = [0, 1.2, -523];
       g.say([['nia', "Who's the Captain? Why does he want the biters?"], ['marcus', "Don't know, baby. Don't wanna."], ['marcus', 'My hand… I can\'t feel my hand, Keem.']]); },
@@ -215,7 +220,7 @@ export const STORY = [
   { id: 'c5_boss', ch: 5, cp: [0, -596, PI], obj: 'Kill Mall Santa', hint: 'He throws elves. Do not let him hug you.', mood: 'tense', beat: 2,
     enter(g) { const D = g.stepData; fam(g, D, -596); dadGun(g, D); const b = boss(g, 0, -610, 2000, '#c01818', 'MALL SANTA — naughty list: everyone'); b.speed = 2.1; g.horde(6, [[-12, -606], [12, -606]], { runner: true, aggro: 99 }); D.hordeAll = true;
       g.say([['santa', 'HO… HO… HOOOOARGH!'], ['nia', "I sat on his lap when I was six! I want my picture back!"], ['keem', "And I'm finna put six in his fat {ass|belly}."]]); },
-    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['keem', "Merry {freakin' |}Christmas, man."], ['tuck', "That's the best thing I've ever seen."]]); goto(g, 27, 600); }, 1600); } } },
+    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (g.boss && g.boss.dead && !D.won) { D.won = true; afterBoss(g, () => g.say([['keem', "Merry {freakin' |}Christmas, man."], ['tuck', "That's the best thing I've ever seen."]], () => goto(g, 27, 600))); } } },
   { id: 'c5_end', ch: 5, cp: [0, -600, PI], obj: 'Talk to Dr. Reyes', hint: 'She knows something.', mood: 'sad', beat: 0,
     enter(g) { const D = g.stepData; fam(g, D, -600); const R = g.npc('reyes', null, 3, -606, PI, 'Idle_Loop'); g.wpTarget = [3, 1.2, -605];
       D.uses = [{ x: 3, z: -605, label: 'Talk to Dr. Reyes', fn: () => { D.uses = []; g.cut = { anim: 'Idle_Loop', cam: V(0, 1.7, -601), look: V(3, 1.4, -606) };
@@ -233,7 +238,7 @@ export const STORY = [
   { id: 'c6_boss', ch: 6, cp: [0, -700, PI], obj: 'Kill the Toll King', hint: 'Armored. Headshots and grenades.', mood: 'tense', beat: 2,
     enter(g) { const D = g.stepData; fam(g, D, -700); dadGun(g, D); const b = g.spawnZ(4, -722, { raider: true, hp: 1600, gun: 'saw', shirt: '#4a3a10' }); b.root.scale.setScalar(1.35); g.boss = b; $q('#bossn').textContent = 'THE TOLL KING — everybody pays';
       raiders(g, 4, [[-10, -718], [14, -718]]); D.hordeAll = true; g.say([['king', 'Pay up, boy!'], ['marcus', "Keem. Take his crown."]]); },
-    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['king', 'The Captain… he doesn\'t cure them… he…'], ['nia', "He what? Say the rest!"]]); goto(g, 31, 700); }, 1500); } } },
+    update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (g.boss && g.boss.dead && !D.won) { D.won = true; afterBoss(g, () => g.say([['king', 'The Captain… he doesn\'t cure them… he…'], ['nia', "He what? Say the rest!"]], () => goto(g, 31, 700))); } } },
   { id: 'c6_light', ch: 6, cp: [4, -712, PI], obj: 'Signal the ship from the lighthouse', hint: 'The keeper\'s house by the tower.', mood: 'sad', beat: 0,
     enter(g) { const D = g.stepData; fam(g, D, -712, 4); g.wpTarget = [8, 1.2, -733];
       D.uses = [{ x: 8, z: -732, label: 'Flash the lighthouse signal', fn: () => { D.uses = []; const s = g.world.zones && g.world.zones._ship; if (s) s.intensity = 60; goto(g, 32, 500); } }]; } },
@@ -260,7 +265,7 @@ export const STORY = [
   { id: 'c7_boss', ch: 7, cp: [4, -1232, PI], obj: 'Kill the Bait Man', hint: 'He swings an anchor. Roll the slam, then unload.', mood: 'tense', beat: 2,
     enter(g) { const D = g.stepData; fam(g, D, -1228, 2, true); const b = boss(g, 8, -1212, 2200, '#2a5a6a', 'THE BAIT MAN — Cape Marina, est. 1974'); b.speed = 2.2; g.horde(6, [[-8, -1214], [12, -1218]], { runner: true, aggro: 99 }); D.hordeAll = true;
       g.say([['nia', "Ew, he smells like fish sticks and feet!"], ['keem', "Bait shop's closed, man. For good."]]); },
-    update(g) { const D = g.stepData; if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['keem', "Catch and release, {bitch|buddy}. Mostly the release part."], ['tuck', "There's a harpoon gun on his shop counter. Just saying."]]); goto(g, 35, 600); }, 1500); } } },
+    update(g) { const D = g.stepData; if (g.boss && g.boss.dead && !D.won) { D.won = true; afterBoss(g, () => g.say([['keem', "Catch and release, {bitch|buddy}. Mostly the release part."], ['tuck', "There's a harpoon gun on his shop counter. Just saying."]], () => goto(g, 35, 600))); } } },
   { id: 'c7_end', ch: 7, cp: [4, -1236, PI], obj: 'Answer the marina radio', hint: 'The CB is crackling by the dock.', mood: 'sad', beat: 0,
     enter(g) { const D = g.stepData; fam(g, D, -1234, 2, true); g.wpTarget = [8, 1.2, -1250];
       D.uses = [{ x: 8, z: -1250, label: 'Answer the radio', fn: () => { D.uses = []; g.cut = { anim: 'Idle_Loop', cam: V(4, 1.7, -1240), look: V(8, 1.2, -1252) };
@@ -280,7 +285,7 @@ export const STORY = [
   { id: 'c8_boss', ch: 8, cp: [0, -1400, PI], obj: 'Kill the Deckhand', hint: 'He hits like a wave. Keep moving on the deck.', mood: 'tense', beat: 2,
     enter(g) { const D = g.stepData; fam(g, D, -1400, 0, true); const b = boss(g, 0, -1372, 2500, '#1a2a4a', 'THE DECKHAND — 30 years on the Peaks run'); b.speed = 2.3; g.horde(6, [[-8, -1380], [8, -1380]], { runner: true, aggro: 99 }); D.hordeAll = true;
       g.say([['nia', "He still has his little captain hat! That's lowkey cute. Kill him anyway."], ['keem', "Last stop, my guy. Everybody off."]]); },
-    update(g) { const D = g.stepData; if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['keem', "Ticket punched. Overboard, {dumbass|dummy}."], ['tuck', 'There is a minigun bolted to the wheelhouse. Who puts a minigun on a ferry?'], ['keem', "The Captain's, I guess. It's mine now."]]); goto(g, 39, 600); }, 1500); } } },
+    update(g) { const D = g.stepData; if (g.boss && g.boss.dead && !D.won) { D.won = true; afterBoss(g, () => g.say([['keem', "Ticket punched. Overboard, {dumbass|dummy}."], ['tuck', 'There is a minigun bolted to the wheelhouse. Who puts a minigun on a ferry?'], ['keem', "The Captain's, I guess. It's mine now."]], () => goto(g, 39, 600))); } } },
   { id: 'c8_end', ch: 8, cp: [0, -1428, PI], obj: '', hint: '', mood: 'sad', beat: 0,
     enter(g) { const D = g.stepData; g.npc('nia', 'nia', -1.5, -1430, PI, 'Idle_Loop', .62); g.npc('reyes', null, 1.8, -1430, PI, 'Idle_Loop'); g.cut = { anim: 'Idle_Loop', cam: V(0, 2.2, -1424), look: V(0, 3, -1600) }; g.audio.setMood('sad');
       g.say([['reyes', "Peaks Island. The old battery is lit up like a hospital."], ['captain', 'I see your ferry, little Pell. Your father is awake. He keeps saying your name.'], ['nia', "Dad's awake? Keem, he's AWAKE!"], ['keem', "Hold on, Dad. We almost there."]], () => g.onComplete && g.onComplete(8)); } },
@@ -303,7 +308,7 @@ export const STORY = [
   { id: 'c9_boss', ch: 9, cp: [0, -1672, PI], obj: 'Kill the Captain', hint: 'He is armored and he brought friends. Grenades, then headshots.', mood: 'tense', beat: 3,
     enter(g) { const D = g.stepData; g.npc('marcus', 'marcus', 0, -1687, 0, 'Idle_Loop'); g.npc('nia', 'nia', -3, -1682, PI, 'Idle_Loop', .62); const b = g.spawnZ(8, -1666, { raider: true, hp: 2600, gun: 'smg', shirt: '#1a1a3a' }); b.root.scale.setScalar(1.35); g.boss = b; $q('#bossn').textContent = 'THE CAPTAIN — not actually Navy';
       raiders(g, 4, [[-12, -1668], [14, -1670]]); D.hordeAll = true; g.say([['captain', 'You want him back? Pay the toll, boy.'], ['keem', "The toll got paid at the lighthouse. Now it's your turn, {bitch|clown}."]]); },
-    update(g) { const D = g.stepData; if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['captain', 'There are… others like him… Boston knows…'], ['keem', "Captain's down. Where's my dad?"]]); goto(g, 44, 700); }, 1500); } } },
+    update(g) { const D = g.stepData; if (g.boss && g.boss.dead && !D.won) { D.won = true; afterBoss(g, () => g.say([['captain', 'There are… others like him… Boston knows…'], ['keem', "Captain's down. Where's my dad?"]], () => goto(g, 44, 700))); } } },
   { id: 'c9_end', ch: 9, cp: [0, -1678, PI], obj: '', hint: '', mood: 'sad', beat: 0,
     enter(g) { g.npc('marcus', 'marcus', 0, -1687, 0, 'Idle_Loop'); g.npc('nia', 'nia', -1.5, -1681, PI, 'Idle_Loop', .62); g.npc('reyes', null, 2, -1681, PI, 'Idle_Loop'); g.npc('tuck', null, 3.5, -1679, PI, 'Idle_Loop');
       g.cut = { anim: 'Idle_Loop', cam: V(2, 1.7, -1676), look: V(0, 1.4, -1687) }; g.audio.setMood('sad');
@@ -341,7 +346,7 @@ export const STORY = [
       g.horde(4, [[-12, -2280], [12, -2282]], { aggro: 99 }); D.hordeAll = true;
       g.say([['nia', "Is that a knight? Like a REAL knight?"], ['keem', "That's a dude from the Renaissance Faire who never took the armor off."], ['marcus', "Bullets are bouncing. Go for the face, or cut him."]]); },
     update(g) { const D = g.stepData; if (g.boss && !D.half && g.boss.hp < 1700) { D.half = true; g.say([['keem', "He's slowing down. Keep cutting."]]); }
-      if (g.boss && g.boss.dead && !D.won) { D.won = true; setTimeout(() => { g.say([['nia', "You beat a knight. You're like… a knight now."], ['keem', "Nah. I'm just tired."]]); goto(g, 49, 700); }, 1500); } } },
+      if (g.boss && g.boss.dead && !D.won) { D.won = true; afterBoss(g, () => g.say([['nia', "You beat a knight. You're like… a knight now."], ['keem', "Nah. I'm just tired."]], () => goto(g, 49, 700))); } } },
   { id: 'c10_end', ch: 10, cp: [0, -2296, PI], obj: '', hint: '', mood: 'sad', beat: 0,
     enter(g) { g.npc('marcus', 'marcus', 1.2, -2302, PI * .9, 'Idle_Loop'); g.npc('nia', 'nia', -1.2, -2301, PI * 1.1, 'Idle_Loop', .62); g.cut = { anim: 'Idle_Loop', cam: V(0, 1.6, -2306), look: V(0, 1.4, -2298) }; g.audio.setMood('sad');
       g.say([['marcus', "Your mom used to bring you here. You threw bread at the ducks and cried when they ate it."], ['keem', "I don't remember that."], ['marcus', "You were three. I remember for you."],
@@ -366,12 +371,12 @@ export const STORY = [
       g.say([['vance', 'You made it. Impressive. The ER is overrun, so clear it and come up to the roof.'], ['keem', "You could come down and help."], ['vance', "I could. I won't."]]); },
     update(g, dt) { const D = g.stepData; dadTick(g, D, dt); if (D.done) return; const k = Math.min(20, g.save.kills - D.k0); if (k !== D.lk) { D.lk = k; g.objective('Clear the ER (' + k + '/20)', 'Fight with Dad.'); }
       if (g.alive().length < 4 && D.w < 5) { D.w++; g.horde(6, [[-14, -2620], [14, -2622], [0, -2632]], { runner: D.w > 2, aggro: 99 }); if (D.w === 3) g.say([['marcus', "Twenty years of dad jokes and THIS is how you see me fight."], ['keem', "Honestly? You're kind of cold with it."]]); }
-      if (k >= 20 || (D.w >= 5 && !g.alive().length)) { D.done = true; g.say([['marcus', "Roof. Let's end this."]], () => goto(g, 53, 300)); } } },
+      if (k >= 20 || (D.w >= 5 && !g.alive().length)) { D.done = true; afterBoss(g, () => g.say([['marcus', "Roof. Let's end this."]], () => goto(g, 53, 300)), 2.5, false); } } },
   { id: 'c11_boss', ch: 11, cp: [0, -2640, PI], obj: 'Kill Subject One', hint: 'He is huge. Explosives and headshots. Roll when he leaps.', mood: 'tense', beat: 3,
     enter(g) { const D = g.stepData; fam(g, D, -2640, 0, true); const b = boss(g, 0, -2672, 5400, '#3a5a3a', 'SUBJECT ONE — the first volunteer'); b.root.scale.setScalar(2.4); b.speed = 2.4;
       D.hordeAll = true; g.say([['vance', "Subject One. My first volunteer. He was a firefighter."], ['keem', "You did this to a firefighter?"], ['vance', "I did it for everybody. Show me what your father's son can do."]]); },
     update(g) { const D = g.stepData, b = g.boss; if (b && !b.dead) { if (!D.p2 && b.hp < 2700) { D.p2 = true; g.shake(1); g.audio.roar && g.audio.roar(); b.speed = 3.4; g.horde(8, [[-14, -2660], [14, -2662]], { runner: true, aggro: 99 }); g.say([['nia', "He's MAD now!"], ['keem', "Yeah, I see him. Stay down."]]); } }
-      if (b && b.dead && !D.won) { D.won = true; setTimeout(() => goto(g, 54, 800), 1500); } } },
+      if (b && b.dead && !D.won) { D.won = true; afterBoss(g, () => goto(g, 54, 800)); } } },
   { id: 'c11_end', ch: 11, cp: [0, -2650, PI], obj: '', hint: '', mood: 'sad', beat: 0,
     enter(g) { g.npc('marcus', 'marcus', 1.4, -2654, PI, 'Idle_Loop'); g.npc('nia', 'nia', -1.4, -2653, PI, 'Idle_Loop', .62); g.npc('vance', null, 0, -2664, 0, 'Idle_Loop');
       g.cut = { anim: 'Idle_Loop', cam: V(2, 1.7, -2650), look: V(0, 1.5, -2664) }; g.audio.setMood('sad');
