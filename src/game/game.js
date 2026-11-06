@@ -160,9 +160,11 @@ export class Game {
 
   // ---------- pickups ----------
   addPickup(l) { const g = new THREE.Group(); let m;
-    const glow = new THREE.MeshBasicMaterial({ color: l.kind === 'page' ? '#e8e0a0' : '#7fd49a', transparent: true, opacity: .35, depthWrite: false });
+    const glow = new THREE.MeshBasicMaterial({ color: l.kind === 'page' ? '#e8e0a0' : l.kind === 'hp' ? '#ff5050' : l.drop ? '#ffd040' : '#7fd49a', transparent: true, opacity: .35, depthWrite: false });
     if (l.kind === 'cash') m = new THREE.Mesh(new THREE.BoxGeometry(.25, .06, .14), new THREE.MeshStandardMaterial({ color: '#5a8a4a', emissive: '#203a10' }));
+    else if (l.kind === 'ammo' && l.drop) m = (this._amM || (this._amM = new THREE.Mesh(new THREE.BoxGeometry(.3, .18, .2), new THREE.MeshStandardMaterial({ color: '#c9a227', emissive: '#3a2a00', metalness: .4 })))).clone();
     else if (l.kind === 'ammo') m = new THREE.Mesh(new THREE.BoxGeometry(.3, .18, .2), new THREE.MeshStandardMaterial({ color: '#4a5a2a', metalness: .4 }));
+    else if (l.kind === 'hp') m = this._hpM || (this._hpM = new THREE.Mesh(new THREE.BoxGeometry(.28, .2, .2), new THREE.MeshStandardMaterial({ color: '#e33', emissive: '#600' }))), m = m.clone();
     else if (l.kind === 'med') m = new THREE.Mesh(new THREE.BoxGeometry(.3, .2, .2), new THREE.MeshStandardMaterial({ color: '#ddd', emissive: '#400' }));
     else if (l.kind === 'grenade') m = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, .2, 8), new THREE.MeshStandardMaterial({ color: '#555', metalness: .6 }));
     else if (l.kind === 'page') m = new THREE.Mesh(new THREE.PlaneGeometry(.25, .33), new THREE.MeshStandardMaterial({ color: '#efe6c8', emissive: '#554a20', side: THREE.DoubleSide }));
@@ -171,9 +173,14 @@ export class Game {
     else m = new THREE.Mesh(new THREE.BoxGeometry(.3, .15, .25), new THREE.MeshStandardMaterial({ color: '#555' }));
     g.add(m); const ring = new THREE.Mesh(new THREE.RingGeometry(.25, .34, 24), glow); ring.rotation.x = -Math.PI / 2; ring.position.y = -l.pos[1] + 0.04; g.add(ring);
     g.position.set(l.pos[0], l.pos[1], l.pos[2]); this.scene.add(g); this.pickups.push({ l, mesh: g, m }); }
+  // v1.9.6: kill drops — ~16% ammo for the equipped gun, ~10% health; walk over to collect, gone after 20s, max 8 on the ground
+  dropLoot(z) { const r = Math.random(); if (r > .26) return; const n = this.pickups.filter(p => p.l.drop); if (n.length >= 8) this.killPickup(n[0]); const q = z.root.position; const pos = [q.x + rnd(-.4, .4), .3, q.z + rnd(-.4, .4)];
+    if (r < .16) { const w = WEAPONS[this.save.cur]; const a = w.type === 'gun' && w.ammo ? w.ammo : 'light'; this.addPickup({ kind: 'ammo', item: a, n: a === 'shell' ? 6 : a === 'rifle' ? 20 : 12, pos, drop: 20 }); }
+    else this.addPickup({ kind: 'hp', n: 25, pos, drop: 20 }); }
+  killPickup(p) { this.scene.remove(p.mesh); const i = this.pickups.indexOf(p); if (i >= 0) this.pickups.splice(i, 1); }
   takePickup(p) { const l = p.l, s = this.save; this.scene.remove(p.mesh); this.pickups.splice(this.pickups.indexOf(p), 1); if (l.id && !l.story) s.loot.push(l.id); this.audio.pickup();
-    if (l.kind === 'cash') this.addCash(l.n); else if (l.kind === 'ammo') { s.ammo[l.item] = (s.ammo[l.item] || 0) + l.n; this.floatText(`+${l.n} ${l.item} ammo`, '#d8e8a0'); }
-    else if (l.kind === 'med') { s.meds++; this.floatText('+1 Med kit', '#fff'); } else if (l.kind === 'grenade') { s.grenades += l.n || 1; this.floatText('+Pipe grenade', '#fff'); }
+    if (l.kind === 'cash') this.addCash(l.n); else if (l.kind === 'ammo') { s.ammo[l.item] = (s.ammo[l.item] || 0) + l.n; this.floatText(`+${l.n} ${l.item} ammo`, '#d8e8a0'); if (l.drop) this.toast(`+${l.n} ${l.item} ammo`, 1); }
+    else if (l.kind === 'hp') { this.hp = Math.min(this.maxHp, this.hp + l.n); this.toast(`+${l.n} health`, 1); } else if (l.kind === 'med') { s.meds++; this.floatText('+1 Med kit', '#fff'); } else if (l.kind === 'grenade') { s.grenades += l.n || 1; this.floatText('+Pipe grenade', '#fff'); }
     else if (l.kind === 'page') { s.pages.push(l.id); this.toast(`Comic page found (${s.pages.length}/20): "${l.text}"`, 3); this.addXP(25); }
     else if (l.kind === 'weapon') { this.give(l.item); if (l.ammo) s.ammo[WEAPONS[l.item].ammo] = (s.ammo[WEAPONS[l.item].ammo] || 0) + l.ammo; }
     else if (l.kind === 'backpack') { s.items.push('backpack'); this.pack.visible = true; this.toast('Backpack on. More room for loot.'); }
@@ -308,7 +315,7 @@ export class Game {
   spurt(z, bone, dur) { (this.spurts = this.spurts || []).push({ z, bone, t: dur }); if (this.spurts.length > 4) this.spurts.shift(); }
   killZ(z, dir, o = {}) { if (!dir || !dir.clone) dir = V3(0, 0, 1); if (Math.random() < (z.boss ? 1 : .15)) this.audio.shout && this.audio.shout('keem_kill'); z.dead = true; z.deadT = 0; z.st = 'dead'; const mine = !o.ai || z.playerHit; if (mine) this.save.kills++; const gore = this.settings.gore;
     const xp = z.boss ? 400 : (o.head ? 18 : 12); if (mine) this.addXP(xp); if (z.boss) this.addCash(500);
-    else if (mine && Math.random() < .35) this.addCash(rnd(5, 18)); if (mine && !z.boss && Math.random() < .18) { const w = WEAPONS[this.save.cur]; const a = w.ammo || 'light'; this.save.ammo[a] = (this.save.ammo[a] || 0) + (a === 'shell' ? 3 : 8); this.floatText('+ammo', '#d8e8a0'); }
+    else if (mine && Math.random() < .35) this.addCash(rnd(5, 18)); if (mine && !z.boss) this.dropLoot(z);
     if (o.boom || z.boss) z.play('Death01', { once: true, force: true, speed: o.boom ? 1.6 : 1, fade: .12 }); else { z.play(o.head ? 'Hit_Head' : 'Hit_Chest', { once: true, force: true, speed: 1.7, fade: .08, cb: () => { if (z.dead) z.play('Death01', { once: true, force: true, speed: 1.05, fade: .28 }); } }); } z.vel.addScaledVector(dir, o.boom ? 9 : 2.5); if (o.boom) z.vel.y = 6;
     const pos = z.root.position.clone(); pos.y = 1.55 * z.scale; this.decal(z.root.position.x + dir.x, z.root.position.z + dir.z, 1.4);
     const fin = o.finisher || (this.state.combo >= 3 && Math.random() < .6) || z.boss;
@@ -350,7 +357,7 @@ export class Game {
     for (let k = 0; k < pellets; k++) { const ray = this.aimRay(pellets); const nr = ray.near || 0; let best = null, bd = ws.range + nr;
       // world walls: cast from Keem's depth (ignore cam-side walls); zombies are tested from the camera so close/tall ones beside Keem still get hit (v1.9.4)
       const rc = new THREE.Raycaster(ray.at(nr, V3()), ray.direction, 0, ws.range); const wh = rc.intersectObjects(this.world.walls, false)[0]; if (wh) bd = wh.distance + nr;
-      const hp = V3(), tmp = V3(); this.alive().forEach(z => { z.worldOf('DEF-head', hp); hp.y += .08 * z.scale; const hr = (z.boss ? .28 : .17);
+      const hp = V3(), tmp = V3(); this.alive().forEach(z => { z.worldOf('DEF-head', hp); hp.y += .08 * z.scale; const hr = (z.boss ? Math.max(.28, .17 * z.scale * z.root.scale.x) : .17); // v1.9.6: boss head hitbox scales with the boss (Subject One's head was ~6.5m up with a 0.28m box)
         const t = tmp.copy(hp).sub(ray.origin).dot(ray.direction); if (t > 0 && t < bd) { const c = ray.at(t, V3()); if (c.distanceTo(hp) < hr && !z.noHead) { bd = t; best = { z, head: true }; return; } }
         const a = z.root.position.clone(); a.y = .15; const b = z.root.position.clone(); b.y = Math.max(1.35 * z.scale, hp.y - hr - .02); const pr = V3(), ps = V3(); const d2 = ray.distanceSqToSegment(a, b, pr, ps); const dd = pr.distanceTo(ray.origin);
         if (d2 < (z.boss ? .5 : .13 * z.scale * z.scale) && dd < bd) { bd = dd; best = { z, head: false }; } });
@@ -413,6 +420,7 @@ export class Game {
     if (!this.truck.driving) this.stepTrack(this.player, this.player.root.position, 'p'); this.chatter(dt);
     this.updateZ(dt); for (const k in this.npcs) { const n = this.npcs[k]; n.update && n.update(dt); n.mixer.update(dt); this.victimStruggle(n, dt); this.stepTrack(n, n.root.position, 'n'); if (n.bleed && Math.random() < dt * 3) { const p = n.root.position.clone(); p.y = .3; this.blood(p, V3(0, .6, 0), 3, 1.2); } }
     // pickups
+    for (let i = this.pickups.length - 1; i >= 0; i--) { const p = this.pickups[i]; if (p.l.drop && (p.l.drop -= dt) <= 0) this.killPickup(p); }
     this.pickups.forEach(p => { p.m.rotation.y += dt * 1.6; p.m.position.y = Math.sin(this.t * 3) * .05; if (!p.l.story && !p.l.manual) { const d = Math.hypot(p.mesh.position.x - P.root.position.x, p.mesh.position.z - P.root.position.z); if (d < 1.0 && !T.driving) this.takePickup(p); } });
     this.updateFX(dt);
     if (this.stepData.tankerBoom && !this.stepData.tankerDone) { this.stepData.tankerDone = true; const tp = this.world.tanker.position.clone(); tp.y = 1.5; this.explode(tp, 12, 500); this.world.tanker.children.forEach(c => c.material && c.material.color && c.material.color.set('#151210')); this.world.tankCol.x0 = 999; this.world.tanker.rotation.z = 0.25; }
@@ -530,13 +538,18 @@ export class Game {
     if (z.noHead && b['DEF-head']) b['DEF-head'].scale.setScalar(0.001); if (z.noArm && b[z.noArm]) b[z.noArm].scale.setScalar(0.001); if (z.noLimbs) for (const n of z.noLimbs) { const bn = z.bone(n); if (bn) bn.scale.setScalar(0.001); } }
   updateBoss(z, d, toP, dt) { const zp = z.root.position; z.t = (z.t || 0) + dt; $('#bossb i').style.width = Math.max(0, z.hp / z.maxHp * 100) + '%';
     if (z.stun > 0) { z.stun -= dt; return; }
-    if (z.mode === 'slam') { z.mt -= dt; z.ring.scale.setScalar(1 + (0.9 - z.mt) * 3); if (z.mt <= 0) { z.mode = null; this.scene.remove(z.ring); this.shake(.7); this.audio.thud(); this.audio.boom(); if (d < 3.4) this.hurt(28, zp); z.cd = 2; } return; }
+    // v1.9.6: big bosses give the player aim windows: back off after a slam/charge or every ~12% HP lost, wind up before charging, and don't hug Keem
+    if (z.lastHp == null) z.lastHp = z.hp; if (!z.mode && z.lastHp - z.hp > z.maxHp * .12) { z.lastHp = z.hp; z.mode = 'back'; z.mt = 1.6; }
+    if (z.mode === 'back') { z.mt -= dt; const n = toP.clone().normalize(); z.root.rotation.y = angLerp(z.root.rotation.y, Math.atan2(n.x, n.z), dt * 6); if (d < 9) this.moveCollide(zp, -n.x * z.speed * .8 * dt, -n.z * z.speed * .8 * dt, .6); z.play('Walk_Loop', { speed: -.5 }); if (z.mt <= 0) { z.mode = 'pause'; z.mt = 1.1; } return; }
+    if (z.mode === 'pause') { z.mt -= dt; const n = toP.clone().normalize(); z.root.rotation.y = angLerp(z.root.rotation.y, Math.atan2(n.x, n.z), dt * 4); z.play('Idle_Loop'); if (z.mt <= 0) { z.mode = null; z.cd = Math.max(z.cd, .8); } return; }
+    if (z.mode === 'wind') { z.mt -= dt; const n = toP.clone().normalize(); z.root.rotation.y = angLerp(z.root.rotation.y, Math.atan2(n.x, n.z), dt * 6); z.play('Idle_Loop'); if (z.mt <= 0) { z.mode = 'charge'; z.mt = 1.3; z.hitP = false; z.play('Sprint_Loop', { force: true }); this.toast('CHARGE — ROLL!', 0.8); } return; }
+    if (z.mode === 'slam') { z.mt -= dt; z.ring.scale.setScalar(1 + (0.9 - z.mt) * 3); if (z.mt <= 0) { z.mode = null; this.scene.remove(z.ring); this.shake(.7); this.audio.thud(); this.audio.boom(); if (d < 3.4) this.hurt(28, zp); z.cd = 2; z.mode = 'back'; z.mt = 1.4; } return; }
     if (z.mode === 'charge') { z.mt -= dt; const f = V3(Math.sin(z.root.rotation.y), 0, Math.cos(z.root.rotation.y)); if (this.moveCollide(zp, f.x * 9 * dt, f.z * 9 * dt, .6)) { z.mt = 0; z.stun = 1.2; this.shake(.5); this.audio.crash(); this.toast('He hit the wall — punish him!'); }
-      if (d < 1.6 && !z.hitP) { z.hitP = true; this.hurt(25, zp); } if (z.mt <= 0) { z.mode = null; z.cd = 1.5; } return; }
+      if (d < 1.6 && !z.hitP) { z.hitP = true; this.hurt(25, zp); } if (z.mt <= 0) { z.mode = 'back'; z.mt = 1.2; z.cd = 1.5; } return; }
     toP.normalize(); z.root.rotation.y = angLerp(z.root.rotation.y, Math.atan2(toP.x, toP.z), dt * 4); z.cd -= dt;
     if (z.cd <= 0 && d < 3) { z.mode = 'slam'; z.mt = 0.9; z.play('Sword_Attack', { once: true, force: true, speed: .7, cb: () => z.curName = '' }); const ring = z.ring = new THREE.Mesh(new THREE.RingGeometry(.9, 1.1, 32), new THREE.MeshBasicMaterial({ color: '#f22', transparent: true, opacity: .6, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.position.copy(zp).y = .06; this.scene.add(ring); return; }
-    if (z.cd <= 0 && d > 7) { z.mode = 'charge'; z.mt = 1.3; z.hitP = false; z.play('Sprint_Loop', { force: true }); this.audio.groan(.3); this.toast('CHARGE — ROLL!', 0.8); return; }
-    this.moveCollide(zp, toP.x * z.speed * dt, toP.z * z.speed * dt, .6); z.play('Walk_Loop', { speed: .55 }); if (Math.random() < dt * .4) this.audio.groan(.2); }
+    if (z.cd <= 0 && d > 7) { z.mode = 'wind'; z.mt = .8; this.audio.groan(.3); this.audio.roar && this.audio.roar(); this.toast('He\'s winding up…', 0.7); return; }
+    if (d > 2.4) { this.moveCollide(zp, toP.x * z.speed * dt, toP.z * z.speed * dt, .6); z.play('Walk_Loop', { speed: .55 }); } else z.play('Idle_Loop'); if (Math.random() < dt * .4) this.audio.groan(.2); }
   updateDying(dt) { const D = this.dying; D.t += dt; this.player.mixer.update(dt); if (D.z) { D.z.mixer.update(dt); }
     if (this.settings.gore && Math.random() < dt * 10) { const p = this.player.root.position.clone(); p.y = .4; this.blood(p, V3(rnd(-1, 1), 1, rnd(-1, 1)), 6, 3); if (Math.random() < .2) this.decal(p.x + rnd(-1, 1), p.z + rnd(-1, 1), 1); }
     if (D.t > .3 && !D.s1) { D.s1 = 1; this.screenSplat(); this.audio.splat(); } if (D.t > 1.2 && !D.s2) { D.s2 = 1; this.screenSplat(); this.audio.scream(.1); }

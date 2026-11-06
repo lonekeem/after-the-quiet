@@ -50,6 +50,10 @@ The old cinematic movie version is preserved at tag `cinematic-final`.
 - Heavier gore: bigger sprays, multi-limb dismemberment, gorier finishers.
 - Feeding scenes: kneeling eaters with head dips and tearing, struggling victims, bite-synced spurts, growing pools, chew/tear SFX, eaters look up at Keem.
 
+### v1.9.6
+- Big melee bosses no longer hug Keem: they back off and pause after a slam, a charge, or every ~12% HP lost, wind up before charging, and stop short instead of walking into you. Gives clean head-shot windows. Health and resistance unchanged.
+- Zombie kills can drop pickups: ammo for your equipped gun (~16%) or +25 health (~10%). Walk over to collect (toast shown). They vanish after 20s, max 8 on the ground.
+
 ### v1.9.5
 - End-of-chapter screen: the Continue button now names and loads the real next chapter (it always said "Continue to Chapter 2").
 - "Daddy" is now "Dad" in all dialogue and subtitles (those lines re-voiced).
